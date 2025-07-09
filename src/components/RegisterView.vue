@@ -12,8 +12,8 @@
         class="demo-ruleForm"
       >
         <!-- 用户名 -->
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" autocomplete="off"></el-input>
+        <el-form-item label="用户名" prop="account">
+          <el-input v-model="form.account" autocomplete="off"></el-input>
         </el-form-item>
 
         <!-- 密码 -->
@@ -61,12 +61,12 @@ export default {
     return {
       loading: false,
       form: {
-        username: '',
+        account: '',
         password: '',
         confirmPass: ''
       },
       rules: {
-        username: [
+        account: [
           { required: true, message: '请输入用户名', trigger: 'blur' },
           { min: 3, max: 15, message: '长度在3到15个字符之间', trigger: 'blur' }
         ],
@@ -87,8 +87,8 @@ export default {
         if (valid) {
           this.loading = true;
           try {
-            const response = await axios.post('http://localhost:8081/api/register', {
-              username: this.form.username,
+            const response = await axios.post('http://127.0.0.1:3000/register', {
+              account: this.form.account,
               password: this.form.password
             });
 
