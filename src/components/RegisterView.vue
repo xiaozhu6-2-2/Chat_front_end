@@ -1,3 +1,4 @@
+<!-- src/components/RegisterView.vue -->
 <template>
   <div class="register-container">
     <div class="register">
