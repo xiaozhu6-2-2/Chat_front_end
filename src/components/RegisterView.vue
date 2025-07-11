@@ -16,6 +16,10 @@
           <el-input v-model="form.account" autocomplete="off"></el-input>
         </el-form-item>
 
+        <el-form-item label="昵称" prop="username">
+          <el-input v-model="form.username" autocomplete="off"></el-input>
+        </el-form-item>
+
         <!-- 密码 -->
         <el-form-item label="密码" prop="password">
           <el-input type="password" v-model="form.password" autocomplete="off"></el-input>
@@ -63,7 +67,8 @@ export default {
       form: {
         account: '',
         password: '',
-        confirmPass: ''
+        confirmPass: '',
+        username: ''
       },
       rules: {
         account: [
@@ -77,6 +82,10 @@ export default {
         confirmPass: [
           { required: true, message: '请再次输入密码', trigger: 'blur' },
           { validator: validatePass, trigger: 'blur' }
+        ],
+        username: [
+          { required: true, message: '请输入昵称', trigger: 'blur' },
+          { min: 2, max: 30, message: '长度在2到30个字符之间', trigger: 'blur' }
         ]
       }
     };
@@ -89,7 +98,8 @@ export default {
           try {
             const response = await axios.post('http://127.0.0.1:3000/register', {
               account: this.form.account,
-              password: this.form.password
+              password: this.form.password,
+              username: this.form.username
             });
 
             if (response.data.success) {

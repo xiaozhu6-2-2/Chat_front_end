@@ -73,7 +73,9 @@ export default {
               password: this.form.password
             });
 
-            if (response.data.success) {
+            if (response.status === 200) {
+              const token = response.data;
+              localStorage.setItem('token',token.token);
               this.$message.success('登录成功');
               await this.$router.push('/home');
             } else {
