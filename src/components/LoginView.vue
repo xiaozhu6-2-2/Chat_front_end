@@ -77,7 +77,7 @@ export default {
               const token = response.data;
               localStorage.setItem('token',token.token);
               this.$message.success('登录成功');
-              await this.$router.push('/home');
+              await this.$router.push('/chat');
             } else {
               this.$message.error(response.data.message || '登录失败');
             }
