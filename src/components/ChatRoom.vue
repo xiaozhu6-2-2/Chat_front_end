@@ -6,10 +6,13 @@
       <el-aside width="250px" class="room-list">
         <div class="room-list-header">
           <h3>聊天室列表</h3>
+          <!-- 添加跳转到好友页面的按钮 -->
+          <el-button type="info" size="small" @click="goToFriends">
+            好友管理
+          </el-button>
           <el-button type="primary" size="small" @click="showCreateRoomDialog = true">
             创建聊天室
           </el-button>
-          <!-- 添加加入聊天室按钮 -->
           <el-button type="success" size="small" @click="showJoinRoomDialog = true">
             加入聊天室
           </el-button>
@@ -23,6 +26,8 @@
             @click="selectRoom(room.chatroom_id)"
           >
             <div class="room-info">
+              <!-- 添加聊天室编号显示 -->
+              <span class="room-id">ID: {{ room.chatroom_id }}</span>
               <span class="room-name">{{ room.name }}</span>
               <span class="room-creator">创建者: {{ room.creator_username }}</span>
             </div>
@@ -45,6 +50,7 @@
         <div v-if="activeRoomId" class="chat-room-container">
           <div class="chat-header">
             <h3>{{ activeRoom?.name }}</h3>
+            <!-- 实时显示在线用户数量 -->
             <span>在线用户: {{ onlineUsers.length }}</span>
           </div>
           
@@ -104,7 +110,7 @@
     </el-container>
 
     <!-- 创建聊天室对话框 -->
-     <el-dialog 
+    <el-dialog 
       v-model="showCreateRoomDialog" 
       title="创建聊天室" 
       width="400px"
@@ -120,7 +126,7 @@
       </template>
     </el-dialog>
 
-  <!-- 加入聊天室对话框 -->
+    <!-- 加入聊天室对话框 -->
     <el-dialog 
       v-model="showJoinRoomDialog" 
       title="加入聊天室" 
@@ -205,6 +211,11 @@ export default {
     }
   },
   methods: {
+    // 跳转到好友页面
+    goToFriends() {
+      this.$router.push('/friends');
+    },
+    
     // 获取用户已加入的聊天室列表
     async fetchJoinedChatrooms() {
       try {
@@ -330,7 +341,14 @@ export default {
         if (message.message_type === 'online_list') {
           // 更新在线用户列表
           try {
-            this.onlineUsers = JSON.parse(message.content);
+            // 将字符串解析为用户列表
+            const usernameList = JSON.parse(message.content);
+            
+            // 更新在线用户列表
+            this.onlineUsers = usernameList.map(username => ({
+              username,
+              account: this.getAccountByUsername(username) // 需要实现这个方法
+            }));
           } catch (e) {
             console.error('Error parsing online list:', e);
           }
@@ -431,20 +449,23 @@ export default {
           }
         });
         
-        const newRoom = response.data;
-        this.chatRooms.push({
-          chatroom_id: newRoom.chatroom_id,
-          name: newRoom.name,
+        // 修复创建后立即显示问题
+        const newRoom = {
+          chatroom_id: response.data.chatroom_id,
+          name: this.newRoomForm.name,
           created_by: this.currentUser.account,
-          creator_username: this.currentUser.username,
+          creator_username: this.currentUser.username, // 直接使用当前用户名
           created_at: new Date()
-        });
+        };
+        
+        this.chatRooms.push(newRoom);
         
         this.showCreateRoomDialog = false;
         this.newRoomForm.name = '';
         
         // 自动加入新创建的聊天室
-        this.activeRoomId = newRoom.chatroom_id;
+        this.activeRoomId = response.data.chatroom_id;
+        this.activeRoom = newRoom;
         
         ElMessage.success('聊天室创建成功');
       } catch (error) {
@@ -464,11 +485,19 @@ export default {
         
         this.onlineUsers = response.data.map(username => ({
           username,
-          account: '' // 注意：后端只返回用户名列表
+          account: this.getAccountByUsername(username) // 需要实现这个方法
         }));
       } catch (error) {
         console.error('Error fetching online users:', error);
       }
+    },
+    
+    // 根据用户名获取账号（简化实现）
+    getAccountByUsername(username) {
+      if (!username) {
+        return null;
+      }
+      return this.currentUser.account;
     },
     
     // 发送消息
@@ -498,8 +527,6 @@ export default {
       this.socket.close();
     }
   },
-
-  
 };
 </script>
 
@@ -525,6 +552,8 @@ export default {
   justify-content: space-between;
   align-items: center;
   background-color: #f9f9f9;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .room-item {
@@ -547,6 +576,14 @@ export default {
 
 .room-info {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.room-id {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 4px;
 }
 
 .room-name {

@@ -1,3 +1,4 @@
+<!-- src/components/FriendView.vue -->
 <template>
   <div class="common-layout">
     <!-- 主体容器 -->
