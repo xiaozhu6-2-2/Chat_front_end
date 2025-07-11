@@ -1,14 +1,15 @@
-<!-- src/components/ChatRoom.vue -->
 <template>
   <div class="chat-container">
     <el-container>
       <!-- 左侧边栏 - 聊天室列表 -->
-       <el-aside :width="showChatRooms ? '250px' : '60px'" class="room-list">
+      <el-aside :width="showChatRooms ? '250px' : '60px'" class="room-list">
         <div class="room-list-header">
-          <el-button 
+          <el-button
+            circle
             @click="showChatRooms = !showChatRooms"
             :icon="showChatRooms ? 'ArrowLeft' : 'ArrowRight'"
             size="small"
+            class="toggle-btn"
           />
           <h3 v-show="showChatRooms">聊天室列表</h3>
           <div v-show="showChatRooms" class="room-actions-buttons">
@@ -24,41 +25,52 @@
           </div>
         </div>
         
-        <el-scrollbar v-show="showChatRooms">
-          <div 
-            v-for="room in chatRooms" 
-            :key="room.chatroom_id"
-            class="room-item"
-            :class="{ 'active-room': activeRoomId === room.chatroom_id }"
-            @click="selectRoom(room.chatroom_id)"
-          >
-            <div class="room-info">
-              <span class="room-id">ID: {{ room.chatroom_id }}</span>
-              <span class="room-name">{{ room.name }}</span>
-              <span class="room-creator">创建者: {{ room.creator_username }}</span>
+        <el-scrollbar v-show="showChatRooms" class="room-scroll">
+          <transition-group name="room-list" tag="div">
+            <div 
+              v-for="room in chatRooms" 
+              :key="room.chatroom_id"
+              class="room-item"
+              :class="{ 'active-room': activeRoomId === room.chatroom_id }"
+              @click="selectRoom(room.chatroom_id)"
+            >
+              <div class="room-info">
+                <span class="room-id">ID: {{ room.chatroom_id }}</span>
+                <span class="room-name">{{ room.name }}</span>
+                <span class="room-creator">创建者: {{ room.creator_username }}</span>
+              </div>
+              <div class="room-actions">
+                <el-button 
+                  v-if="activeRoomId === room.chatroom_id" 
+                  type="danger" 
+                  size="small" 
+                  @click.stop="leaveRoom(room.chatroom_id)"
+                  icon="Close"
+                >
+                  离开
+                </el-button>
+              </div>
             </div>
-            <div class="room-actions">
-              <el-button 
-                v-if="activeRoomId === room.chatroom_id" 
-                type="danger" 
-                size="small" 
-                @click.stop="leaveRoom(room.chatroom_id)"
-              >
-                离开
-              </el-button>
-            </div>
-          </div>
+          </transition-group>
         </el-scrollbar>
       </el-aside>
 
       <!-- 主内容区 - 聊天区域 -->
       <el-main class="chat-area">
-        <div v-if="activeRoomId" class="chat-room-container">
-          <div class="chat-header">
-            <h3>{{ activeRoom?.name }}</h3>
+        <div class="chat-header">
+          <div v-if="activeRoom">
+            <h3>{{ activeRoom.name }}</h3>
             <span>在线用户: {{ onlineUsers.length }}</span>
           </div>
-          
+          <div class="user-info">
+            <el-avatar :size="36" class="user-avatar">{{ currentUser.username.charAt(0) }}</el-avatar>
+            <div class="user-details">
+              <span class="username">{{ currentUser.username }}</span>
+              <span class="account">{{ currentUser.account }}</span>
+            </div>
+          </div>
+        </div>
+        <div v-if="activeRoomId" class="chat-room-container">
           <div class="message-container" ref="messageContainer">
             <div 
               v-for="message in messages" 
@@ -97,27 +109,34 @@
       </el-main>
 
       <!-- 右侧边栏 - 在线用户列表 -->
-       <el-aside :width="showOnlineUsers ? '250px' : '60px'" class="online-users">
+      <el-aside :width="showOnlineUsers ? '250px' : '60px'" class="online-users">
         <div class="online-users-header">
           <el-button 
+            circle
             @click="showOnlineUsers = !showOnlineUsers"
             :icon="showOnlineUsers ? 'ArrowRight' : 'ArrowLeft'"
             size="small"
+            class="toggle-btn"
           />
           <h3 v-show="showOnlineUsers">在线用户 ({{ onlineUsers.length }})</h3>
         </div>
-        <el-scrollbar v-show="showOnlineUsers">
-          <div 
-            v-for="user in onlineUsers" 
-            :key="user.account"
-            class="user-item"
-          >
-            <div class="user-info">
-              <span class="username">{{ user.username }}</span>
-              <span class="user-account">({{ user.account }})</span>
+        <el-scrollbar v-show="showOnlineUsers" class="users-scroll">
+          <transition-group name="user-list" tag="div">
+            <div 
+              v-for="user in onlineUsers" 
+              :key="user.account"
+              class="user-item"
+            >
+              <div class="user-info">
+                <el-avatar :size="32" class="user-avatar">{{ user.username.charAt(0) }}</el-avatar>
+                <div class="user-details">
+                  <span class="username">{{ user.username }}</span>
+                  <span class="account">{{ user.account }}</span>
+                </div>
+              </div>
+              <el-tag v-if="user.account === currentUser.account" size="small" type="success">我</el-tag>
             </div>
-            <el-tag v-if="user.account === currentUser.account" size="small" type="success">我</el-tag>
-          </div>
+          </transition-group>
         </el-scrollbar>
       </el-aside>
     </el-container>
@@ -245,6 +264,7 @@ export default {
         // 默认选中第一个聊天室
         if (this.chatRooms.length > 0 && !this.activeRoomId) {
           this.activeRoomId = this.chatRooms[0].chatroom_id;
+          this.activeRoom = this.chatRooms[0];
         }
       } catch (error) {
         ElMessage.error('获取聊天室列表失败');
@@ -310,6 +330,7 @@ export default {
           
           // 设置当前活跃的聊天室为新加入的聊天室
           this.activeRoomId = chatroomId;
+          this.activeRoom = this.chatRooms.find(room => room.chatroom_id === chatroomId);
           
           // 关闭对话框
           this.showJoinRoomDialog = false;
@@ -354,18 +375,21 @@ export default {
         const message = JSON.parse(event.data);
         
         if (message.message_type === 'online_list') {
+          // 更新在线用户列表
           try {
-            // 更新在线用户列表
+            // 解析在线用户列表
             const usernameList = JSON.parse(message.content);
-            this.onlineUsers = usernameList.map(username => ({
-              username,
-              // 实际项目中应从API获取账号，这里简化处理
-              account: username === this.currentUser.username 
-                ? this.currentUser.account 
-                : username // 作为占位符
-            }));
+            // 创建包含账号和用户名的对象数组
+            this.onlineUsers = usernameList.map(username => {
+              // 在当前用户列表中查找匹配的用户
+              const matchedUser = this.onlineUsers.find(u => u.username === username) || {};
+              return {
+                username,
+                account: matchedUser.account || this.getAccountByUsername(username)
+              };
+            });
           } catch (e) {
-            console.error('Error parsing online list:', e);
+            console.error('解析在线用户列表失败:', e);
           }
         } else {
           // 修复消息显示格式
@@ -418,6 +442,18 @@ export default {
       this.socket.onerror = (error) => {
         console.error('WebSocket error:', error);
       };
+    },
+    
+    // 根据用户名获取账号（简化实现）
+    getAccountByUsername(username) {
+      if (!username) {
+        return null;
+      }
+      // 在实际应用中，这里应该调用API获取账号
+      // 这里使用简单映射
+      if (username === '小朱') return '17896541128';
+      if (username === '朱朱') return '17329720396';
+      return username; // 作为占位符
     },
     
     // 离开当前聊天室（仅断开WebSocket，不退出聊天室）
@@ -511,35 +547,11 @@ export default {
           }
         });
         
-        // 将用户名转换为用户对象数组
-        this.onlineUsers = response.data.map(username => {
-          return {
-            username: username,
-            // 实际项目中应从API获取账号，这里简化处理
-            account: username === this.currentUser.username 
-              ? this.currentUser.account 
-              : username // 作为占位符
-          };
-        });
-        
-        // 确保当前用户始终在在线列表中
-        if (!this.onlineUsers.some(u => u.account === this.currentUser.account)) {
-          this.onlineUsers.push({
-            username: this.currentUser.username,
-            account: this.currentUser.account
-          });
-        }
+        // 将返回的在线用户列表更新到onlineUsers
+        this.onlineUsers = response.data;
       } catch (error) {
         console.error('Error fetching online users:', error);
       }
-    },
-    
-    // 根据用户名获取账号（简化实现）
-    getAccountByUsername(username) {
-      if (!username) {
-        return null;
-      }
-      return this.currentUser.account;
     },
     
     // 发送消息
@@ -573,68 +585,49 @@ export default {
 </script>
 
 <style scoped>
-.room-list-header, .online-users-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 15px;
-}
-
-.room-list-header h3, .online-users-header h3 {
-  margin: 0;
-  flex: 1;
-}
-
-.user-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 15px;
-  border-bottom: 1px solid #eee;
-}
-
-.user-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.username {
-  font-weight: bold;
-}
-
-.user-account {
-  font-size: 12px;
-  color: #888;
-}
-
 .chat-container {
   height: 100vh;
   display: flex;
   background-color: #f5f7fa;
 }
 
-.room-actions-buttons {
-  display: flex;
-  gap: 5px;
-}
-
 .room-list, .online-users {
   background-color: #fff;
   border-right: 1px solid #e6e6e6;
-  height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
+  transition: all 0.3s ease;
 }
 
 .room-list-header, .online-users-header {
-  padding: 15px;
+  padding: 12px 15px;
   border-bottom: 1px solid #e6e6e6;
   display: flex;
-  justify-content: space-between;
   align-items: center;
   background-color: #f9f9f9;
-  flex-wrap: wrap;
-  gap: 10px;
+}
+
+.room-list-header h3, .online-users-header h3 {
+  margin: 0;
+  margin-left: 10px;
+  font-size: 16px;
+}
+
+.toggle-btn {
+  margin-right: 5px;
+}
+
+.room-scroll, .users-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 5px 0;
+}
+
+.room-actions-buttons {
+  margin-top: 10px;
+  display: flex;
+  gap: 5px;
 }
 
 .room-item {
@@ -644,6 +637,7 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  transition: all 0.3s ease;
 }
 
 .room-item:hover {
@@ -690,18 +684,43 @@ export default {
   background-color: #fff;
 }
 
-.chat-room-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
 .chat-header {
   padding: 15px;
   border-bottom: 1px solid #e6e6e6;
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar {
+  background-color: #409eff;
+  color: white;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.username {
+  font-weight: 500;
+}
+
+.account {
+  font-size: 12px;
+  color: #888;
+}
+
+.chat-room-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .message-container {
@@ -722,6 +741,8 @@ export default {
 .message-header {
   margin-bottom: 5px;
   font-size: 12px;
+  display: flex;
+  align-items: center;
 }
 
 .sender-name {
@@ -759,32 +780,32 @@ export default {
 
 .user-item {
   padding: 10px 15px;
-  border-bottom: 1px solid #eee;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  transition: all 0.3s ease;
 }
 
-.user-item:last-child {
-  border-bottom: none;
-}
-
-.username {
-  flex: 1;
-}
-
-.el-scrollbar {
-  flex: 1;
-}
-
-.room-list-header {
+.user-info {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 10px;
-  padding: 15px;
+  flex: 1;
 }
 
-.room-list-header .el-button {
-  margin-top: 5px;
+/* 过渡动画 */
+.room-list-enter-active,
+.room-list-leave-active,
+.user-list-enter-active,
+.user-list-leave-active {
+  transition: all 0.3s ease;
+}
+
+.room-list-enter-from,
+.room-list-leave-to,
+.user-list-enter-from,
+.user-list-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
 }
 </style>
