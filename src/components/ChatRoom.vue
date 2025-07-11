@@ -3,21 +3,28 @@
   <div class="chat-container">
     <el-container>
       <!-- 左侧边栏 - 聊天室列表 -->
-      <el-aside width="250px" class="room-list">
+       <el-aside :width="showChatRooms ? '250px' : '60px'" class="room-list">
         <div class="room-list-header">
-          <h3>聊天室列表</h3>
-          <!-- 添加跳转到好友页面的按钮 -->
-          <el-button type="info" size="small" @click="goToFriends">
-            好友管理
-          </el-button>
-          <el-button type="primary" size="small" @click="showCreateRoomDialog = true">
-            创建聊天室
-          </el-button>
-          <el-button type="success" size="small" @click="showJoinRoomDialog = true">
-            加入聊天室
-          </el-button>
+          <el-button 
+            @click="showChatRooms = !showChatRooms"
+            :icon="showChatRooms ? 'ArrowLeft' : 'ArrowRight'"
+            size="small"
+          />
+          <h3 v-show="showChatRooms">聊天室列表</h3>
+          <div v-show="showChatRooms" class="room-actions-buttons">
+            <el-button type="info" size="small" @click="goToFriends">
+              好友管理
+            </el-button>
+            <el-button type="primary" size="small" @click="showCreateRoomDialog = true">
+              创建
+            </el-button>
+            <el-button type="success" size="small" @click="showJoinRoomDialog = true">
+              加入
+            </el-button>
+          </div>
         </div>
-        <el-scrollbar>
+        
+        <el-scrollbar v-show="showChatRooms">
           <div 
             v-for="room in chatRooms" 
             :key="room.chatroom_id"
@@ -26,7 +33,6 @@
             @click="selectRoom(room.chatroom_id)"
           >
             <div class="room-info">
-              <!-- 添加聊天室编号显示 -->
               <span class="room-id">ID: {{ room.chatroom_id }}</span>
               <span class="room-name">{{ room.name }}</span>
               <span class="room-creator">创建者: {{ room.creator_username }}</span>
@@ -50,7 +56,6 @@
         <div v-if="activeRoomId" class="chat-room-container">
           <div class="chat-header">
             <h3>{{ activeRoom?.name }}</h3>
-            <!-- 实时显示在线用户数量 -->
             <span>在线用户: {{ onlineUsers.length }}</span>
           </div>
           
@@ -92,17 +97,25 @@
       </el-main>
 
       <!-- 右侧边栏 - 在线用户列表 -->
-      <el-aside width="200px" class="online-users">
+       <el-aside :width="showOnlineUsers ? '250px' : '60px'" class="online-users">
         <div class="online-users-header">
-          <h3>在线用户 ({{ onlineUsers.length }})</h3>
+          <el-button 
+            @click="showOnlineUsers = !showOnlineUsers"
+            :icon="showOnlineUsers ? 'ArrowRight' : 'ArrowLeft'"
+            size="small"
+          />
+          <h3 v-show="showOnlineUsers">在线用户 ({{ onlineUsers.length }})</h3>
         </div>
-        <el-scrollbar>
+        <el-scrollbar v-show="showOnlineUsers">
           <div 
             v-for="user in onlineUsers" 
             :key="user.account"
             class="user-item"
           >
-            <span class="username">{{ user.username }}</span>
+            <div class="user-info">
+              <span class="username">{{ user.username }}</span>
+              <span class="user-account">({{ user.account }})</span>
+            </div>
             <el-tag v-if="user.account === currentUser.account" size="small" type="success">我</el-tag>
           </div>
         </el-scrollbar>
@@ -153,6 +166,8 @@ export default {
   name: 'ChatRoom',
   data() {
     return {
+      showChatRooms: true,
+      showOnlineUsers: true,
       // 用户信息
       currentUser: {
         account: '',
@@ -339,26 +354,39 @@ export default {
         const message = JSON.parse(event.data);
         
         if (message.message_type === 'online_list') {
-          // 更新在线用户列表
           try {
-            // 将字符串解析为用户列表
-            const usernameList = JSON.parse(message.content);
-            
             // 更新在线用户列表
+            const usernameList = JSON.parse(message.content);
             this.onlineUsers = usernameList.map(username => ({
               username,
-              account: this.getAccountByUsername(username) // 需要实现这个方法
+              // 实际项目中应从API获取账号，这里简化处理
+              account: username === this.currentUser.username 
+                ? this.currentUser.account 
+                : username // 作为占位符
             }));
           } catch (e) {
             console.error('Error parsing online list:', e);
           }
         } else {
+          // 修复消息显示格式
+          let content = message.content;
+          
+          // 尝试解析嵌套的JSON内容
+          try {
+            const parsed = JSON.parse(message.content);
+            if (parsed.content) {
+              content = parsed.content;
+            }
+          } catch (e) {
+            // 不是JSON格式，保持原内容
+          }
+          
           // 添加新消息
           this.messages.push({
             id: message.id,
             account: message.account,
             username: message.username,
-            content: message.content,
+            content: content, // 使用处理后的内容
             send_at: new Date(message.send_at)
           });
           
@@ -483,10 +511,24 @@ export default {
           }
         });
         
-        this.onlineUsers = response.data.map(username => ({
-          username,
-          account: this.getAccountByUsername(username) // 需要实现这个方法
-        }));
+        // 将用户名转换为用户对象数组
+        this.onlineUsers = response.data.map(username => {
+          return {
+            username: username,
+            // 实际项目中应从API获取账号，这里简化处理
+            account: username === this.currentUser.username 
+              ? this.currentUser.account 
+              : username // 作为占位符
+          };
+        });
+        
+        // 确保当前用户始终在在线列表中
+        if (!this.onlineUsers.some(u => u.account === this.currentUser.account)) {
+          this.onlineUsers.push({
+            username: this.currentUser.username,
+            account: this.currentUser.account
+          });
+        }
       } catch (error) {
         console.error('Error fetching online users:', error);
       }
@@ -531,10 +573,49 @@ export default {
 </script>
 
 <style scoped>
+.room-list-header, .online-users-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 15px;
+}
+
+.room-list-header h3, .online-users-header h3 {
+  margin: 0;
+  flex: 1;
+}
+
+.user-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.username {
+  font-weight: bold;
+}
+
+.user-account {
+  font-size: 12px;
+  color: #888;
+}
+
 .chat-container {
   height: 100vh;
   display: flex;
   background-color: #f5f7fa;
+}
+
+.room-actions-buttons {
+  display: flex;
+  gap: 5px;
 }
 
 .room-list, .online-users {
