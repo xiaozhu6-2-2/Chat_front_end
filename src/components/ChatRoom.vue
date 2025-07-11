@@ -603,10 +603,13 @@ export default {
 .room-list-header, .online-users-header {
   padding: 12px 15px;
   border-bottom: 1px solid #e6e6e6;
-  display: flex;
-  align-items: center;
+  display:flex;
+  flex-direction: row; /* 改为行布局 */
+  align-items: center; /* 垂直居中 */
   background-color: #f9f9f9;
 }
+
+
 
 .room-list-header h3, .online-users-header h3 {
   margin: 0;
@@ -615,7 +618,7 @@ export default {
 }
 
 .toggle-btn {
-  margin-right: 5px;
+  margin-right: 10px; /* 与内容保持距离 */
 }
 
 .room-scroll, .users-scroll {
@@ -624,10 +627,10 @@ export default {
   padding: 5px 0;
 }
 
+h3[v-show="showChatRooms"],
 .room-actions-buttons {
-  margin-top: 10px;
-  display: flex;
-  gap: 5px;
+  flex: 1; /* 占据剩余空间 */
+  text-align: center; /* 文字居中 */
 }
 
 .room-item {
@@ -732,10 +735,13 @@ export default {
 .message-item {
   margin-bottom: 20px;
   max-width: 80%;
+  display: flex;
+  flex-direction: column;
 }
 
 .my-message {
-  margin-left: auto;
+  margin-left: auto; /* 关键：自动填充左侧空间，使消息靠右 */
+  align-items: flex-end; /* 让消息内容右对齐 */
 }
 
 .message-header {
@@ -754,6 +760,7 @@ export default {
   color: #999;
 }
 
+/* 消息内容样式 */
 .message-content {
   padding: 10px 15px;
   border-radius: 4px;
