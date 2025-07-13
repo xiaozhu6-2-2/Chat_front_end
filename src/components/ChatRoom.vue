@@ -49,7 +49,6 @@
             type="primary" 
             size="small" 
             @click="showCreateRoomDialog = true"
-            icon="Plus"
             class="room-button"
           >
             创建聊天室
@@ -58,7 +57,6 @@
             type="success" 
             size="small" 
             @click="showJoinRoomDialog = true"
-            icon="Share"
             class="room-button-join"
           >
             加入聊天室
@@ -69,15 +67,13 @@
       <!-- 主内容区 - 聊天区域 -->
       <el-main class="chat-area">
         <div class="chat-header">
-          <div v-if="activeRoom">
+          <!-- <div v-if="activeRoom">
             <h3>{{ activeRoom.name }}</h3>
-            <span>在线用户: {{ onlineUsers.length }}</span>
-          </div>
+          </div> -->
           <div class="user-info">
             <el-avatar :size="36" class="user-avatar">{{ currentUser.username.charAt(0) }}</el-avatar>
             <div class="user-details">
               <span class="username">{{ currentUser.username }}</span>
-              <span class="account">{{ currentUser.account }}</span>
             </div>
           </div>
         </div>
@@ -158,7 +154,6 @@
               type="info" 
               size="small" 
               @click="goToFriends"
-              icon="User"
               class="friend-button"
             >
               好友管理
@@ -717,6 +712,7 @@ export default {
 }
 
 .user-info {
+  margin:10px;
   display: flex;
   align-items: center;
   gap: 10px;
