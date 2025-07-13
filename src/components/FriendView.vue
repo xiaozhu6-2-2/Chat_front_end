@@ -9,7 +9,7 @@
           <h2>好友列表</h2>
         </div>
 
-        <!-- 表格部分 - 添加固定高度避免布局抖动 -->
+
         <el-table 
           :data="friends" 
           style="width: 100%; min-height: 400px;"
@@ -18,6 +18,7 @@
         >
           <el-table-column prop="username" label="用户名" />
           <el-table-column label="操作" width="120">
+
             <template #default="{ row }">
               <el-button 
                 size="small" 
@@ -83,6 +84,7 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
+
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const router = useRouter()
@@ -91,12 +93,16 @@ const friends = ref([])
 const form = ref({
   account: ''
 })
+
 const loading = ref(false)
+
 
 // 获取当前登录用户的好友列表
 const fetchFriends = async () => {
   try {
+
     loading.value = true
+
     const token = localStorage.getItem('token')
     if (!token) {
       ElMessage.error('请先登录')
@@ -113,8 +119,10 @@ const fetchFriends = async () => {
   } catch (error) {
     console.error('获取好友列表失败:', error)
     ElMessage.error('获取好友列表失败')
+
   } finally {
     loading.value = false
+
   }
 }
 
@@ -167,6 +175,7 @@ const removeFriend = async (friendAccount) => {
       return
     }
     
+
     // 使用平滑过渡效果避免抖动
     const table = document.querySelector('.el-table__body-wrapper')
     if (table) {
@@ -176,11 +185,13 @@ const removeFriend = async (friendAccount) => {
     
     // 确认操作
     await ElMessageBox.confirm(
+
       `确定要删除好友 ${friendAccount} 吗？`,
       '删除好友',
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
+
         type: 'warning',
         customClass: 'confirm-dialog', // 添加自定义类名用于样式控制
         beforeClose: (action, instance, done) => {
@@ -231,6 +242,7 @@ const tableRowClassName = ({ rowIndex }) => {
     return 'even-row'
   } else {
     return 'odd-row'
+
   }
 }
 
@@ -255,7 +267,9 @@ onMounted(async () => {
   display: flex;
   min-height: 100vh;
   background-color: #f5f7fa;
+
   overflow: hidden; /* 防止滚动条变化导致抖动 */
+
 }
 
 .main-content {
@@ -266,7 +280,9 @@ onMounted(async () => {
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+
   transition: all 0.3s ease; /* 添加过渡效果 */
+
 }
 
 .friend-list {
@@ -315,6 +331,7 @@ onMounted(async () => {
     border-left: none;
     border-top: 1px solid #ebeef5;
   }
+
 }
 
 /* 表格行过渡效果 */
@@ -337,5 +354,6 @@ onMounted(async () => {
 /* 防止滚动条变化 */
 body {
   overflow-y: scroll;
+
 }
 </style>
