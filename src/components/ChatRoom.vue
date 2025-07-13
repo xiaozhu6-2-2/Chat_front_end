@@ -12,17 +12,6 @@
             class="toggle-btn"
           />
           <h3 v-show="showChatRooms">聊天室列表</h3>
-          <div v-show="showChatRooms" class="room-actions-buttons">
-            <el-button type="info" size="small" @click="goToFriends">
-              好友管理
-            </el-button>
-            <el-button type="primary" size="small" @click="showCreateRoomDialog = true">
-              创建
-            </el-button>
-            <el-button type="success" size="small" @click="showJoinRoomDialog = true">
-              加入
-            </el-button>
-          </div>
         </div>
         
         <el-scrollbar v-show="showChatRooms" class="room-scroll">
@@ -53,6 +42,28 @@
             </div>
           </transition-group>
         </el-scrollbar>
+        
+        <!-- 创建和加入按钮放在聊天室列表下方 -->
+        <div v-show="showChatRooms" class="room-buttons-container">
+          <el-button 
+            type="primary" 
+            size="small" 
+            @click="showCreateRoomDialog = true"
+            icon="Plus"
+            class="room-button"
+          >
+            创建聊天室
+          </el-button>
+          <el-button 
+            type="success" 
+            size="small" 
+            @click="showJoinRoomDialog = true"
+            icon="Share"
+            class="room-button-join"
+          >
+            加入聊天室
+          </el-button>
+        </div>
       </el-aside>
 
       <!-- 主内容区 - 聊天区域 -->
@@ -120,24 +131,40 @@
           />
           <h3 v-show="showOnlineUsers">在线用户 ({{ onlineUsers.length }})</h3>
         </div>
-        <el-scrollbar v-show="showOnlineUsers" class="users-scroll">
-          <transition-group name="user-list" tag="div">
-            <div 
-              v-for="user in onlineUsers" 
-              :key="user.account"
-              class="user-item"
-            >
-              <div class="user-info">
-                <el-avatar :size="32" class="user-avatar">{{ user.username.charAt(0) }}</el-avatar>
-                <div class="user-details">
-                  <span class="username">{{ user.username }}</span>
-                  <span class="account">{{ user.account }}</span>
+        
+        <div class="users-container">
+          <el-scrollbar v-show="showOnlineUsers" class="users-scroll">
+            <transition-group name="user-list" tag="div">
+              <div 
+                v-for="user in onlineUsers" 
+                :key="user.account"
+                class="user-item"
+              >
+                <div class="user-info">
+                  <el-avatar :size="32" class="user-avatar">{{ user.username.charAt(0) }}</el-avatar>
+                  <div class="user-details">
+                    <span class="username">{{ user.username }}</span>
+                    <span class="account">{{ user.account }}</span>
+                  </div>
                 </div>
+                <el-tag v-if="user.account === currentUser.account" size="small" type="success">我</el-tag>
               </div>
-              <el-tag v-if="user.account === currentUser.account" size="small" type="success">我</el-tag>
-            </div>
-          </transition-group>
-        </el-scrollbar>
+            </transition-group>
+          </el-scrollbar>
+          
+          <!-- 好友管理按钮放在在线列表下方 -->
+          <div v-show="showOnlineUsers" class="friend-management-container">
+            <el-button 
+              type="info" 
+              size="small" 
+              @click="goToFriends"
+              icon="User"
+              class="friend-button"
+            >
+              好友管理
+            </el-button>
+          </div>
+        </div>
       </el-aside>
     </el-container>
 
@@ -591,6 +618,7 @@ export default {
   background-color: #f5f7fa;
 }
 
+
 .room-list, .online-users {
   background-color: #fff;
   border-right: 1px solid #e6e6e6;
@@ -604,33 +632,26 @@ export default {
   padding: 12px 15px;
   border-bottom: 1px solid #e6e6e6;
   display:flex;
-  flex-direction: row; /* 改为行布局 */
-  align-items: center; /* 垂直居中 */
+  flex-direction: row;
+  align-items: center;
   background-color: #f9f9f9;
 }
-
-
 
 .room-list-header h3, .online-users-header h3 {
   margin: 0;
   margin-left: 10px;
   font-size: 16px;
+  flex: 1;
 }
 
 .toggle-btn {
-  margin-right: 10px; /* 与内容保持距离 */
+  margin-right: 10px;
 }
 
 .room-scroll, .users-scroll {
   flex: 1;
   overflow-y: auto;
   padding: 5px 0;
-}
-
-h3[v-show="showChatRooms"],
-.room-actions-buttons {
-  flex: 1; /* 占据剩余空间 */
-  text-align: center; /* 文字居中 */
 }
 
 .room-item {
@@ -740,8 +761,8 @@ h3[v-show="showChatRooms"],
 }
 
 .my-message {
-  margin-left: auto; /* 关键：自动填充左侧空间，使消息靠右 */
-  align-items: flex-end; /* 让消息内容右对齐 */
+  margin-left: auto;
+  align-items: flex-end;
 }
 
 .message-header {
@@ -760,7 +781,6 @@ h3[v-show="showChatRooms"],
   color: #999;
 }
 
-/* 消息内容样式 */
 .message-content {
   padding: 10px 15px;
   border-radius: 4px;
@@ -798,6 +818,48 @@ h3[v-show="showChatRooms"],
   align-items: center;
   gap: 10px;
   flex: 1;
+}
+
+/* 左侧边栏底部按钮区域样式 */
+.room-buttons-container {
+  padding: 15px;
+  border-top: 1px solid #e6e6e6;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+}
+
+.room-button {
+  width: 100%;
+}
+.room-button-join {
+  width: 100%;
+}
+/* 右侧边栏样式 */
+.online-users {
+  display: flex;
+  flex-direction: column;
+}
+
+.users-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.users-scroll {
+  flex: 1; 
+  overflow-y: auto;
+}
+
+.friend-management-container {
+  padding: 15px;
+  border-top: 1px solid #e6e6e6;
+  text-align: center;
+}
+
+.friend-button {
+  width: calc(100% - 30px); 
 }
 
 /* 过渡动画 */
