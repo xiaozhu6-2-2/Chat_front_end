@@ -1,3 +1,4 @@
+
 <template>
   <div class="friend-requests-container">
     <!-- 顶部导航栏 -->

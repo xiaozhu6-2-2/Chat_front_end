@@ -1,3 +1,4 @@
+<!-- src/components/LoginView.vue -->
 <template>
   <div class="login-container">
     <div class="login">
@@ -74,8 +75,10 @@ export default {
             });
 
             if (response.status === 200) {
-              const token = response.data;
-              localStorage.setItem('token',token.token);
+              const data = response.data;
+              localStorage.setItem('token', data.token);
+              localStorage.setItem('account', this.form.account); 
+              localStorage.setItem('username', data.username);
               this.$message.success('登录成功');
               await this.$router.push('/chat');
             } else {

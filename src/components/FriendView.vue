@@ -1,3 +1,4 @@
+<!-- src/components/FriendView.vue -->
 <template>
   <div class="common-layout">
     <!-- 主体容器 -->
@@ -8,10 +9,16 @@
           <h2>好友列表</h2>
         </div>
 
-        <!-- 表格部分 -->
-        <el-table :data="friends" style="width: 100%">
+
+        <el-table 
+          :data="friends" 
+          style="width: 100%; min-height: 400px;"
+          :row-class-name="tableRowClassName"
+          v-loading="loading"
+        >
           <el-table-column prop="username" label="用户名" />
-          <el-table-column label="操作">
+          <el-table-column label="操作" width="120">
+
             <template #default="{ row }">
               <el-button 
                 size="small" 
@@ -77,7 +84,8 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
-import { ElMessage,ElMessageBox } from 'element-plus'
+
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const router = useRouter()
 
@@ -86,9 +94,15 @@ const form = ref({
   account: ''
 })
 
+const loading = ref(false)
+
+
 // 获取当前登录用户的好友列表
 const fetchFriends = async () => {
   try {
+
+    loading.value = true
+
     const token = localStorage.getItem('token')
     if (!token) {
       ElMessage.error('请先登录')
@@ -105,6 +119,10 @@ const fetchFriends = async () => {
   } catch (error) {
     console.error('获取好友列表失败:', error)
     ElMessage.error('获取好友列表失败')
+
+  } finally {
+    loading.value = false
+
   }
 }
 
@@ -157,35 +175,74 @@ const removeFriend = async (friendAccount) => {
       return
     }
     
+
+    // 使用平滑过渡效果避免抖动
+    const table = document.querySelector('.el-table__body-wrapper')
+    if (table) {
+      table.style.transition = 'all 0.3s ease'
+      table.style.transform = 'translateY(0)'
+    }
+    
     // 确认操作
-    const confirm = await ElMessageBox.confirm(
+    await ElMessageBox.confirm(
+
       `确定要删除好友 ${friendAccount} 吗？`,
       '删除好友',
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
-        type: 'warning'
+
+        type: 'warning',
+        customClass: 'confirm-dialog', // 添加自定义类名用于样式控制
+        beforeClose: (action, instance, done) => {
+          // 对话框关闭前添加过渡效果
+          if (action === 'confirm') {
+            if (table) {
+              table.style.transform = 'translateY(10px)'
+              setTimeout(done, 100)
+            } else {
+              done()
+            }
+          } else {
+            done()
+          }
+        }
       }
     )
     
-    if (confirm) {
-      const response = await axios.delete(
-        `http://127.0.0.1:3000/friends/${friendAccount}`, 
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      
-      if (response.data.success) {
-        ElMessage.success('好友删除成功')
-        await fetchFriends() // 刷新列表
-      } else {
-        ElMessage.warning('删除好友失败')
-      }
+    const response = await axios.delete(
+      `http://127.0.0.1:3000/friends/${friendAccount}`, 
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    
+    if (response.data.success) {
+      ElMessage.success('好友删除成功')
+      await fetchFriends() // 刷新列表
+    } else {
+      ElMessage.warning('删除好友失败')
     }
   } catch (error) {
     console.error('删除好友失败:', error)
     if (error !== 'cancel') { // 用户点击取消不提示错误
       ElMessage.error('删除好友失败')
     }
+  } finally {
+    // 重置过渡效果
+    const table = document.querySelector('.el-table__body-wrapper')
+    if (table) {
+      table.style.transition = ''
+      table.style.transform = ''
+    }
+  }
+}
+
+// 表格行样式 - 添加平滑过渡效果
+const tableRowClassName = ({ rowIndex }) => {
+  if (rowIndex % 2 === 0) {
+    return 'even-row'
+  } else {
+    return 'odd-row'
+
   }
 }
 
@@ -210,6 +267,9 @@ onMounted(async () => {
   display: flex;
   min-height: 100vh;
   background-color: #f5f7fa;
+
+  overflow: hidden; /* 防止滚动条变化导致抖动 */
+
 }
 
 .main-content {
@@ -220,6 +280,9 @@ onMounted(async () => {
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+
+  transition: all 0.3s ease; /* 添加过渡效果 */
+
 }
 
 .friend-list {
@@ -268,5 +331,29 @@ onMounted(async () => {
     border-left: none;
     border-top: 1px solid #ebeef5;
   }
+
+}
+
+/* 表格行过渡效果 */
+.el-table .even-row {
+  transition: all 0.3s ease;
+}
+
+.el-table .odd-row {
+  transition: all 0.3s ease;
+}
+</style>
+
+<style>
+/* 全局样式 - 防止对话框抖动 */
+.confirm-dialog {
+  transition: all 0.3s ease !important;
+  transform: translateY(0);
+}
+
+/* 防止滚动条变化 */
+body {
+  overflow-y: scroll;
+
 }
 </style>
