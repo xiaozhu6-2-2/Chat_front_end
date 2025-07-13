@@ -1732,7 +1732,8 @@ export default {
 }
 
 .my-message {
-  margin-left: auto;
+  margin-right: auto;
+  
 }
 
 .message-header {
