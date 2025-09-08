@@ -1,0 +1,22 @@
+// tsconfig.json
+{
+  "compilerOptions": {
+    "target": "esnext",       // 编译目标为最新ES标准
+    "module": "esnext",       // 模块系统使用ES Module
+    "strict": true,           // ✅ 启用所有严格类型检查
+    "jsx": "preserve",        // 保留JSX语法（Vue需要）
+    "importHelpers": true,    // 减少代码冗余
+    "moduleResolution": "node", // 使用Node.js模块解析策略
+    "experimentalDecorators": true, // 支持装饰器语法（Vue组件需要）
+    "esModuleInterop": true,  // 改善CommonJS/ES模块互操作性
+    "skipLibCheck": true,     // 跳过声明文件类型检查（提升速度）
+    "forceConsistentCasingInFileNames": true, // 强制文件名大小写一致
+    "noEmit": false            // ✅ 只做类型检查，不输出文件（由Webpack处理）
+  },
+  "include": [               // ✅ 指定需要编译的文件
+    "src/**/*.ts", 
+    "src/**/*.tsx", 
+    "src/**/*.vue"           // ✅ 关键：包含Vue单文件组件
+  ],
+  "exclude": ["node_modules"] // 排除依赖目录
+}

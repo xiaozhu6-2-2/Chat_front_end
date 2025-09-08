@@ -16,5 +16,8 @@ app.config.errorHandler = (err) => {
   ElMessage.error(err.message)
 }
 
+// 环境变量
+console.log(process.env.VUE_APP_API_BASE_URL)
+
 // 挂载应用实例
 app.mount('#app')

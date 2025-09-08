@@ -1,53 +1,36 @@
 // src/utils/crypto.ts
-import CryptoJS from 'crypto-js';
-import JSEncrypt from 'jsencrypt';
-import axios from 'axios';
+// 原始账号密码都通过获取的公钥加密 → 后端通过私钥解密获取原始账号密码 → 数据库比对 → 返回token
+import JSEncrypt from 'jsencrypt'
+import axios from 'axios'
 
-
-// 获取会话公钥
 export async function fetchSessionKey() {
-    const response = await axios.get('${process.env.VUE_APP_API_BASE_URL}/auth/session-key'); // 调用公钥获取api
-    return response.data.publicKey; // 返回公钥
+    // 获取公钥
+    const response = await axios.get(`${process.env.VUE_APP_API_BASE_URL}/auth/session-key`);
+    return response.data.public_key;
 }
 
-// PBKDF2 哈希加密
-export function encryptPassword(password: string, salt: string) {
-    const iterations = 10000; // 哈希加密的迭代次数
-    const keySize = 512 / 32; // 生成的密钥的大小
-
-    return CryptoJS.PBKDF2('${salt}${password}', salt, {
-        keySize,
-        iterations
-    }).toString();
-}
-
-// RSA（非对称加密） 加密敏感数据
-export async function encryptWithSessionKey(data: string, publicKey: string) {
-    const encrypt = new JSEncrypt(); // 创建加密实例
-    encrypt.setPublicKey(publicKey); // 设置加密公钥
-    return encrypt.encrypt(data); // 对数据进行加密并返回
-}
-
-// 完整登录凭证加密流程
+// 生成完整登录凭证
 export async function generateSecureCredentials(
-    account: string,
-    password: string
+    account : string,
+    password : string
 ) {
-    // 1.获取会话公钥
+    // 获取公钥
     const publicKey = await fetchSessionKey();
 
-    // 2.生成随机盐值(16位)
-    const salt = CryptoJS.lib.WordArray.random(128 / 8).toString();
+    // 创建实例并设置公钥
+    const encrypt = new JSEncrypt();
+    encrypt.setPublicKey(publicKey);
 
-    // 3.加密密码
-    const encryptedPassword = encryptPassword(password, salt);
+    // 加密账号、密码
+    const encryptedAccount = encrypt.encrypt(account);
+    const encryptedPassword = encrypt.encrypt(password);
 
-    // 4.加密账户信息
-    const encryptedAccount = await encryptWithSessionKey(account, publicKey);
+    console.log('Original account:', account);
+    console.log('Encrypted account:', encryptedAccount);
+    console.log('Encrypted account length:', encryptedAccount.toString().length);
 
     return {
-        salt,
-        encryptedAccount,
-        encryptedPassword
-    };
+        account: encryptedAccount,
+        password: encryptedPassword
+    }
 }

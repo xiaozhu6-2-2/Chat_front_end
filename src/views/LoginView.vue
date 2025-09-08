@@ -42,6 +42,8 @@
 <script>
 // 导入axios模块用于发送HTTP请求
 import axios from 'axios';
+// 导入generateSecureCredentials函数用于加密敏感信息
+import { generateSecureCredentials } from '@/utils/crypto';
 
 export default {
   name: 'LoginView',
@@ -74,10 +76,12 @@ export default {
         if (valid) {
           this.loading = true; // 登录按钮正在加载
           try {
-            const response = await axios.post('${process.env.VUE_APP_API_BASE_URL}/login', {
-              account: this.form.account,
-              password: this.form.password
-            }); // 向服务器发送POST请求
+            const credential = await generateSecureCredentials(
+              this.form.account,
+              this.form.password
+            ); // 这是一个结构体{encryptedAccount, encryptedPassword}
+            console.log(credential)
+            const response = await axios.post(`${process.env.VUE_APP_API_BASE_URL}/login`, credential); // 向服务器发送POST请求
 
             if (response.status === 200) { // 状态码：200，请求成功
               const data = response.data;
