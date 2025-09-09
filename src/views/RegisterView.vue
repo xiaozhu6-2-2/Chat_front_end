@@ -12,12 +12,13 @@
         label-width="100px"
         class="demo-ruleForm"
       >
-        <!-- 用户名 -->
-        <el-form-item label="用户名" prop="account">
+        <!-- 账号 -->
+        <el-form-item label="账号" prop="account">
           <el-input v-model="form.account" autocomplete="off"></el-input>
         </el-form-item>
 
-        <el-form-item label="昵称" prop="username">
+        <!-- 用户名 -->
+        <el-form-item label="用户名" prop="username">
           <el-input v-model="form.username" autocomplete="off"></el-input>
         </el-form-item>
 
@@ -50,6 +51,7 @@
 
 <script>
 import axios from 'axios';
+import { generateSecureCredentials } from '@/utils/crypto';
 
 export default {
   name: 'RegisterView',
@@ -78,7 +80,7 @@ export default {
         ],
         password: [
           { required: true, message: '请输入密码', trigger: 'blur' },
-          { min: 6, message: '密码至少为6位', trigger: 'blur' }
+          { min: 8, message: '密码至少为8位', trigger: 'blur' }
         ],
         confirmPass: [
           { required: true, message: '请再次输入密码', trigger: 'blur' },
@@ -86,7 +88,7 @@ export default {
         ],
         username: [
           { required: true, message: '请输入昵称', trigger: 'blur' },
-          { min: 2, max: 30, message: '长度在2到30个字符之间', trigger: 'blur' }
+          { min: 2, max: 10, message: '长度在2到10个字符之间', trigger: 'blur' }
         ]
       }
     };
@@ -97,9 +99,14 @@ export default {
         if (valid) {
           this.loading = true;
           try {
-            const response = await axios.post('http://127.0.0.1:3000/register', {
-              account: this.form.account,
-              password: this.form.password,
+            const credential = await generateSecureCredentials(
+              this.form.account,
+              this.form.password
+            );
+            
+            const response = await axios.post(`${process.env.VUE_APP_API_BASE_URL}/register`, {
+              account: credential.account,
+              password: credential.password,
               username: this.form.username
             });
 

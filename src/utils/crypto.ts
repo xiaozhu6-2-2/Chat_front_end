@@ -25,10 +25,6 @@ export async function generateSecureCredentials(
     const encryptedAccount = encrypt.encrypt(account);
     const encryptedPassword = encrypt.encrypt(password);
 
-    console.log('Original account:', account);
-    console.log('Encrypted account:', encryptedAccount);
-    console.log('Encrypted account length:', encryptedAccount.toString().length);
-
     return {
         account: encryptedAccount,
         password: encryptedPassword
