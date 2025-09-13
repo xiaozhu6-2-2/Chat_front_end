@@ -35,9 +35,9 @@
               @click="selectRoom(room.chatroom_id)"
             >
               <div class="room-info">
-                <span class="room-id">ID: {{ room.chatroom_id }}</span>
                 <span class="room-name">{{ room.name }}</span>
-                <span class="room-creator">创建者: {{ room.creator_username }}</span>
+                <span class="room-id">群号: {{ room.chatroom_id }}</span>
+                <span class="room-creator">群主: {{ room.creator_username }}</span>
               </div>
               <div class="room-actions">
                 <el-button 
@@ -144,12 +144,12 @@
     <!-- 创建聊天室对话框 -->
     <el-dialog 
       v-model="showCreateRoomDialog" 
-      title="创建聊天室" 
+      title="创建群聊" 
       width="400px"
     >
       <el-form :model="newRoomForm">
-        <el-form-item label="房间名称">
-          <el-input v-model="newRoomForm.name" placeholder="请输入聊天室名称" />
+        <el-form-item label="群聊名称">
+          <el-input v-model="newRoomForm.name" placeholder="请输入群聊名称" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -161,12 +161,12 @@
     <!-- 加入聊天室对话框 -->
     <el-dialog 
       v-model="showJoinRoomDialog" 
-      title="加入聊天室" 
+      title="加入群聊" 
       width="400px"
     >
       <el-form :model="joinRoomForm">
-        <el-form-item label="聊天室ID">
-          <el-input v-model="joinRoomForm.chatroomId" placeholder="请输入聊天室ID" />
+        <el-form-item label="群号">
+          <el-input v-model="joinRoomForm.chatroomId" placeholder="请输入群号" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -250,10 +250,10 @@ export default {
       this.$router.push('/friends');
     },
     
-    // 获取用户已加入的聊天室列表
+    // 获取用户已加入的群聊列表
     async fetchJoinedChatrooms() {
       try {
-        const response = await axios.get('http://127.0.0.1:3000/chatrooms/joined', {
+        const response = await axios.get(`${process.env.VUE_APP_API_BASE_URL}/chatrooms/joined`, {
           headers: {
             Authorization: `Bearer ${this.currentUser.token}`
           }
@@ -261,13 +261,13 @@ export default {
         
         this.chatRooms = response.data;
         
-        // 默认选中第一个聊天室
+        // 默认选中第一个群聊
         if (this.chatRooms.length > 0 && !this.activeRoomId) {
           this.activeRoomId = this.chatRooms[0].chatroom_id;
           this.activeRoom = this.chatRooms[0];
         }
       } catch (error) {
-        ElMessage.error('获取聊天室列表失败');
+        ElMessage.error('获取群聊列表失败');
         console.error('Error fetching joined chatrooms:', error);
       }
     },
@@ -282,7 +282,7 @@ export default {
     async joinRoom(roomId) {
       try {
         // 加入聊天室（更新后端状态）
-        await axios.post('http://127.0.0.1:3000/chatrooms/join', {
+        await axios.post(`${process.env.VUE_APP_API_BASE_URL}/chatrooms/join`, {
           chatroom_id: roomId
         }, {
           headers: {
@@ -302,18 +302,19 @@ export default {
       }
     },
     
+    // 加入群聊
     async joinNewRoom() {
       if (!this.joinRoomForm.chatroomId) {
-        ElMessage.warning('请输入聊天室ID');
+        ElMessage.warning('请输入群聊ID');
         return;
       }
       
       try {
         const chatroomId = Number(this.joinRoomForm.chatroomId);
         
-        // 调用后端API加入聊天室
+        // 调用后端API加入群聊
         const response = await axios.post(
-          'http://127.0.0.1:3000/chatrooms/join',
+          `${process.env.VUE_APP_API_BASE_URL}/chatrooms/join`,
           { chatroom_id: chatroomId },
           {
             headers: {
@@ -321,14 +322,16 @@ export default {
             }
           }
         );
+        
+        console.log(response);
 
         if (response.data.success) {
-          ElMessage.success('成功加入聊天室');
+          ElMessage.success('成功加入群聊');
           
-          // 重新获取已加入的聊天室列表
+          // 重新获取已加入的群聊列表
           await this.fetchJoinedChatrooms();
           
-          // 设置当前活跃的聊天室为新加入的聊天室
+          // 设置当前活跃的群聊为新加入的群聊
           this.activeRoomId = chatroomId;
           this.activeRoom = this.chatRooms.find(room => room.chatroom_id === chatroomId);
           
@@ -336,18 +339,18 @@ export default {
           this.showJoinRoomDialog = false;
           this.joinRoomForm.chatroomId = null;
         } else {
-          ElMessage.error(response.data.message || '加入聊天室失败');
+          ElMessage.error(response.data.message || '加入群聊失败');
         }
       } catch (error) {
-        console.error('加入聊天室失败:', error);
+        console.error('加入群聊失败:', error);
         if (error.response) {
           // 根据后端返回的错误状态码显示不同提示
           if (error.response.status === 404) {
-            ElMessage.error('聊天室不存在');
+            ElMessage.error('群聊不存在');
           } else if (error.response.status === 400) {
-            ElMessage.error('您已是该聊天室成员');
+            ElMessage.error('您已是该群聊成员');
           } else {
-            ElMessage.error('加入聊天室失败');
+            ElMessage.error('加入群聊失败');
           }
         } else {
           ElMessage.error('网络请求失败，请稍后再试');
@@ -456,7 +459,7 @@ export default {
       return username; // 作为占位符
     },
     
-    // 离开当前聊天室（仅断开WebSocket，不退出聊天室）
+    // 离开当前群聊（仅断开WebSocket，不退出聊天室）
     leaveCurrentRoom() {
       if (this.socket) {
         this.socket.close();
@@ -466,11 +469,11 @@ export default {
       this.onlineUsers = [];
     },
     
-    // 离开聊天室（完全退出）
+    // 离开群聊（完全退出）
     async leaveRoom(roomId) {
       try {
         // 发送离开请求
-        await axios.post('http://127.0.0.1:3000/chatrooms/leave', {
+        const response = await axios.post(`${process.env.VUE_APP_API_BASE_URL}/chatrooms/leave`, {
           chatroom_id: roomId
         }, {
           headers: {
@@ -478,34 +481,38 @@ export default {
           }
         });
         
+        if(response.data.success == false){
+          throw new Error(response.data.message);
+        }
+
         // 断开WebSocket
         this.leaveCurrentRoom();
         
-        // 从列表中移除该聊天室
+        // 从列表中移除该群聊
         this.chatRooms = this.chatRooms.filter(room => room.chatroom_id !== roomId);
         
-        // 如果离开的是当前活跃的聊天室，选择另一个
+        // 如果离开的是当前活跃的群聊，选择另一个
         if (this.activeRoomId === roomId) {
           this.activeRoomId = this.chatRooms.length > 0 ? this.chatRooms[0].chatroom_id : null;
           this.activeRoom = this.activeRoomId ? this.chatRooms[0] : null;
         }
         
-        ElMessage.success('已离开聊天室');
+        ElMessage.success('已离开群聊');
       } catch (error) {
-        ElMessage.error('离开聊天室失败');
+        ElMessage.error(error.message);
         console.error('Error leaving room:', error);
       }
     },
     
-    // 创建新聊天室
+    // 创建新群聊
     async createRoom() {
       if (!this.newRoomForm.name.trim()) {
-        ElMessage.warning('请输入聊天室名称');
+        ElMessage.warning('请输入想要创建的群聊名称');
         return;
       }
       
       try {
-        const response = await axios.post('http://127.0.0.1:3000/chatrooms/create', {
+        const response = await axios.post(`${process.env.VUE_APP_API_BASE_URL}/chatrooms/create`, {
           name: this.newRoomForm.name
         }, {
           headers: {
@@ -527,13 +534,13 @@ export default {
         this.showCreateRoomDialog = false;
         this.newRoomForm.name = '';
         
-        // 自动加入新创建的聊天室
+        // 自动加入新创建的群聊
         this.activeRoomId = response.data.chatroom_id;
         this.activeRoom = newRoom;
         
-        ElMessage.success('聊天室创建成功');
+        ElMessage.success('群聊创建成功');
       } catch (error) {
-        ElMessage.error('创建聊天室失败');
+        ElMessage.error('创建群聊失败');
         console.error('Error creating room:', error);
       }
     },
