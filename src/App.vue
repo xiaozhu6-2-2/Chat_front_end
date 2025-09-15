@@ -1,8 +1,6 @@
 <!-- src/App.vue -->
 <template>
-  <div id="app">
-    <router-view></router-view>
-  </div>
+  <router-view></router-view>
 </template>
 
 <script>
@@ -14,4 +12,8 @@ export default {
 
 <style>
 /* 全局样式 */
+html, body, #app,#app > * {
+  height: 100%;     /* 让 html, body, #app 撑满视口 */
+  margin: 0;        /* 去掉默认 margin */
+}
 </style>
