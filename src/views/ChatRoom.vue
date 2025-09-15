@@ -2,27 +2,30 @@
   <div class="chat-container">
     <el-container>
       <!-- 左侧边栏 - 聊天室列表 -->
-      <el-aside :width="showChatRooms ? '250px' : '60px'" class="room-list">
+      <el-aside :width="showChatRooms ? '300px' : '60px'" class="room-list">
         <div class="room-list-header">
           <el-button
             circle
             @click="showChatRooms = !showChatRooms"
-            :icon="showChatRooms ? 'ArrowLeft' : 'ArrowRight'"
             size="small"
+            :icon="showChatRooms ? 'DArrowLeft' : 'DArrowRight'"
             class="toggle-btn"
           />
-          <h3 v-show="showChatRooms">聊天室列表</h3>
-          <div v-show="showChatRooms" class="room-actions-buttons">
-            <el-button type="info" size="small" @click="goToFriends">
-              好友管理
-            </el-button>
-            <el-button type="primary" size="small" @click="showCreateRoomDialog = true">
-              创建
-            </el-button>
-            <el-button type="success" size="small" @click="showJoinRoomDialog = true">
-              加入
-            </el-button>
+          <div style="flex-direction: column; display: flex; align-items: center;">
+            <h3 v-show="showChatRooms">聊天室列表</h3>
+            <div v-show="showChatRooms" class="room-actions-buttons">
+              <el-button type="info" size="small" @click="goToFriends">
+                好友管理
+              </el-button>
+              <el-button type="primary" size="small" @click="showCreateRoomDialog = true">
+                创建
+              </el-button>
+              <el-button type="success" size="small" @click="showJoinRoomDialog = true">
+                加入
+              </el-button>
+            </div>
           </div>
+          
         </div>
         
         <el-scrollbar v-show="showChatRooms" class="room-scroll">
@@ -45,7 +48,6 @@
                   type="danger" 
                   size="small" 
                   @click.stop="leaveRoom(room.chatroom_id)"
-                  icon="Close"
                 >
                   离开
                 </el-button>
@@ -57,8 +59,8 @@
 
       <!-- 主内容区 - 聊天区域 -->
       <el-main class="chat-area">
-        <div class="chat-header">
-          <div v-if="activeRoom">
+        <div class="chat-header" style="height: 120px;">
+          <div v-if="activeRoom" style="margin: 15px;">
             <h3>{{ activeRoom.name }}</h3>
             <span>在线用户: {{ onlineUsers.length }}</span>
           </div>
@@ -114,9 +116,10 @@
           <el-button 
             circle
             @click="showOnlineUsers = !showOnlineUsers"
-            :icon="showOnlineUsers ? 'ArrowRight' : 'ArrowLeft'"
             size="small"
+            :icon="showOnlineUsers ? 'DArrowRight' : 'DArrowLeft'"
             class="toggle-btn"
+            style="margin-left: 8px;"
           />
           <h3 v-show="showOnlineUsers">在线用户 ({{ onlineUsers.length }})</h3>
         </div>
@@ -180,6 +183,7 @@
 <script>
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
+import { Edit } from '@element-plus/icons-vue'
 
 export default {
   name: 'ChatRoom',
@@ -596,10 +600,12 @@ export default {
   height: 100vh;
   display: flex;
   background-color: #f5f7fa;
+  margin: 0;
 }
 
 .room-list, .online-users {
   background-color: #fff;
+  border-left: 1px solid #e6e6e6;
   border-right: 1px solid #e6e6e6;
   height: 100%;
   display: flex;
@@ -608,11 +614,12 @@ export default {
 }
 
 .room-list-header, .online-users-header {
-  padding: 12px 15px;
+  /* padding: 12px 15px; */
   border-bottom: 1px solid #e6e6e6;
   display: flex;
   align-items: center;
   background-color: #f9f9f9;
+  height: 120px;
 }
 
 .room-list-header h3, .online-users-header h3 {
@@ -622,7 +629,7 @@ export default {
 }
 
 .toggle-btn {
-  margin-right: 5px;
+  margin-right: 20px;
 }
 
 .room-scroll, .users-scroll {
@@ -684,15 +691,16 @@ export default {
 }
 
 .chat-area {
-  flex: 1;
-  display: flex;
+  /* flex: 1;
+  display: flex; */
+  height:100vh;
   flex-direction: column;
-  padding: 0;
+  padding: 0px;
   background-color: #fff;
 }
 
 .chat-header {
-  padding: 15px;
+  padding: 0px;
   border-bottom: 1px solid #e6e6e6;
   display: flex;
   justify-content: space-between;
@@ -727,7 +735,7 @@ export default {
 .chat-room-container {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 88%;
 }
 
 .message-container {
@@ -743,12 +751,13 @@ export default {
 
 .my-message {
   margin-left: auto;
+  text-align: right;
 }
 
 .message-header {
   margin-bottom: 5px;
   font-size: 12px;
-  display: flex;
+  /* display: flex; */
   align-items: center;
 }
 
@@ -769,6 +778,7 @@ export default {
 }
 
 .my-message .message-content {
+  flex-direction: column;
   background-color: #1890ff;
   color: white;
 }

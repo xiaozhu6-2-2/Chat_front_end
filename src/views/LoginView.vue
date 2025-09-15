@@ -136,7 +136,7 @@
   align-items: center;
   justify-content: center;
 
-  background: url('../assets/star_sky.jpg');
+  /* background: url('../assets/star_sky.jpg'); */
 }
 
 .login {
