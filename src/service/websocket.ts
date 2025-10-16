@@ -90,11 +90,11 @@ class WebSocketService {
 
   constructor(config: Partial<WebSocketConfig> = {}) {
     this.config = {
-      url: 'wss://your-api.com/ws',
-      heartbeatInterval: 30000,
+      url: 'ws://localhost:3000/connection/ws',
+      heartbeatInterval: 1000,
       reconnectDelay: 1000,
       maxReconnectAttempts: 5,
-      timeout: 10000,
+      timeout: 90000,
       aliveTimeout: 90000,
       ...config
     };
@@ -127,6 +127,7 @@ class WebSocketService {
       const connectionPromise = new Promise<void>((resolve, reject) => {
         // 检查连接是否已打开（如果非常快）
         if (currentWs.readyState === WebSocket.OPEN) {
+          this.cleanupTimers();
           return resolve();
         }
 
@@ -138,16 +139,19 @@ class WebSocketService {
 
         // 注册一次性事件监听器来处理连接结果
         currentWs.onopen = () => {
+          this.cleanupTimers();
           this.connectionTimer = undefined;
           resolve();
         };
         
         currentWs.onerror = (error) => {
+          this.cleanupTimers();
           this.connectionTimer = undefined;
           reject(error);
         };
         
         currentWs.onclose = (event) => {
+          this.cleanupTimers();
           this.connectionTimer = undefined;
           reject(new Error(`WebSocket connection failed during setup: ${event.code} - ${event.reason}`));
         };
@@ -230,6 +234,7 @@ class WebSocketService {
     if (this.isConnected) {
       // 连接正常，直接发送
       this.ws?.send(JSON.stringify(message));
+      console.log(`WS发送消息: ${message.type} ${message.data}`);
     } else {
       // 连接断开，加入消息队列
       this.messageQueue.push(message);
@@ -312,7 +317,7 @@ class WebSocketService {
   }
 
   private handleOpen(): void {
-    console.log('WS连接建立');
+    console.log('WS连接建立成功');
     this.connectionState.value = 'connected';
     this.lastActivity.value = new Date();
     this.reconnectAttempts = 0;
@@ -321,8 +326,8 @@ class WebSocketService {
     // 开始心跳机制
     this.startHeartbeat();
     
-    // 发送积压的消息
-    this.flushMessageQueue();
+    // // 发送积压的消息
+    // this.flushMessageQueue();
     
     // 触发连接成功事件
     // this.dispatchEvent('connected');
@@ -377,6 +382,7 @@ class WebSocketService {
     this.heartbeatTimer = setInterval(() => {
       if (this.isConnected) {
         this.send(messagePing);
+        console.log('WS发送心跳');
       }
     }, this.config.heartbeatInterval) as unknown as number;
   }
@@ -405,6 +411,7 @@ class WebSocketService {
       // 处理心跳
       //当前实现存在问题：收到的pong可能是很久之前的，延迟不准，心跳有可能已经超时，需要通过时间戳来确定
       if (message.type === 'heartbeat') {
+        console.log(`WS收到心跳: ${message.data} ${message.timestamp}`);
         if (this.aliveTimer) {
           clearTimeout(this.aliveTimer);
           this.aliveTimer = undefined;
@@ -494,6 +501,11 @@ class WebSocketService {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = undefined;
+    }
+
+    if (this.aliveTimer) {
+      clearTimeout(this.aliveTimer);
+      this.aliveTimer = undefined;
     }
     
     this.stopHeartbeat();
