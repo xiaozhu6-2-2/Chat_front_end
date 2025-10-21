@@ -234,7 +234,7 @@ class WebSocketService {
     if (this.isConnected) {
       // 连接正常，直接发送
       this.ws?.send(JSON.stringify(message));
-      console.log(`WS发送消息: ${message.type} ${message.data}`);
+      console.log(`WS发送消息: ${message.type} ${message.payload}`);
     } else {
       // 连接断开，加入消息队列
       this.messageQueue.push(message);
@@ -324,7 +324,11 @@ class WebSocketService {
     this.cleanupTimers();
     
     // 开始心跳机制
-    this.startHeartbeat();
+    try{
+      this.startHeartbeat();
+    }catch(error){
+      console.error("WS心跳启动失败");
+    }
     
     // // 发送积压的消息
     // this.flushMessageQueue();
@@ -377,7 +381,12 @@ class WebSocketService {
    */
   private startHeartbeat(): void {
     this.stopHeartbeat();
-    const messagePing: MessagePing = new MessagePing();
+    const storedUserId = localStorage.getItem('userId');
+    if (!storedUserId) {
+      console.error('未获取到userId，无法发送心跳');
+      throw new Error('未获取到userId，无法发送心跳');
+    }
+    const messagePing: MessagePing = new MessagePing(storedUserId);
     
     this.heartbeatTimer = setInterval(() => {
       if (this.isConnected) {
@@ -411,12 +420,12 @@ class WebSocketService {
       // 处理心跳
       //当前实现存在问题：收到的pong可能是很久之前的，延迟不准，心跳有可能已经超时，需要通过时间戳来确定
       if (message.type === 'heartbeat') {
-        console.log(`WS收到心跳: ${message.data} ${message.timestamp}`);
+        console.log(`WS收到心跳: ${message.payload.timestamp}`);
         if (this.aliveTimer) {
           clearTimeout(this.aliveTimer);
           this.aliveTimer = undefined;
         }
-        this.latency.value = new Date().getTime() - message.timestamp;
+        this.latency.value = new Date().getTime() - message.payload.timestamp;
         this.aliveTimer = setTimeout(() => {
           console.log('WS心跳超时,断开连接');
           this.disconnect('heartbeat_timeout');

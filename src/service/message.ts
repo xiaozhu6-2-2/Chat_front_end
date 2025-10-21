@@ -1,43 +1,62 @@
+/*
+1、群聊私聊区分：chatType
+2、消息ID生成：采用时间戳+随机数，首次获取历史消息时，按时间戳排列。
+3、接收的/发送的新消息无脑入队尾
+*/
+
 interface Message {
-  type: string;          // 消息类型
-  data: any;             // 消息数据
-  timestamp: number;     // 时间戳
-  messageId: string;     // 消息ID
-  print(): void;         // 日志输出
+  type: string;          // 消息类型 分私聊/群聊/pingpong/通知 
+
+  payload: {
+    messageId: string;
+    timestamp: number; 
+    senderId?: string;
+    receiverId?: string;
+    chatType?: string;
+    detail?: string;
+  };
+
+  print(): void;         // 日志输出 
 }
 
 abstract class BaseMessage implements Message {
   type: string;
-  data: any;
-  timestamp: number;
-  messageId: string;
-  constructor(type: string, data: any, timestamp: number, messageId: string) {
+
+  payload : {
+    messageId: string;  //时间戳+随机数，保证唯一性，由基类生成
+    timestamp: number; //由基类生成
+    senderId?: string;
+    receiverId?: string;
+    chatType?: string;
+    detail?: string;
+  };
+
+  constructor(type: string,  payload: Omit<Message['payload'], 'messageId' | 'timestamp'>) {
     this.type = type;
-    this.data = data;
-    this.timestamp = timestamp;
-    this.messageId = messageId;
+    this.payload = {
+      //基类生成messageId和timestamp
+      messageId: `${Date.now()}${Math.floor(Math.random() * 10000)}`, //时间戳+随机数,保证唯一性
+      timestamp: Date.now(),
+      ...payload, //合并实参的payload
+    }
   }
   print(): void {
-    console.log(`type: ${this.type}, data: ${this.data}, timestamp: ${this.timestamp}, messageId: ${this.messageId}`);
+    console.log(`type: ${this.type}, payload: ${JSON.stringify(this.payload)}`);
   }
 }
 
 class MessageText extends BaseMessage {
-  constructor(data: string, timestamp: number, messageId: string) {
-    super('text', data, timestamp, messageId);
-  }
-  print(): void {
-    console.log(`[${this.type}] ${this.data} at ${new Date(this.timestamp)}`);
+  //需要senderId, receiverId, chatType, detail
+  constructor(payload: Omit<Message['payload'], 'messageId' | 'timestamp'>) {
+    super('text', payload);
   }
 }
 
 
 class MessagePing extends BaseMessage {
-  constructor(){
-    super('heartbeat', 'ping', Date.now(), '1');
-  }
-  print(): void {
-    console.log(`[${this.type}] ${this.data} at ${new Date(this.timestamp)}`);
+  constructor(senderId:string){
+    //心跳，需要senderId
+    super('ping', {senderId:senderId});
   }
 }
 
