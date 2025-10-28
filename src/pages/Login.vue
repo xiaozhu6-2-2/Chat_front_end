@@ -6,7 +6,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { generateSecureCredentials } from '../service/crypto';
-import axios from 'axios';
+import { noauthApi } from '../service/api';
 
 const router = useRouter();
 const baseURL = import.meta.env.VITE_API_BASE_URL;
@@ -34,7 +34,7 @@ const loginClick = async () => {
 async function loginPost(encryptedAccount, encryptedPassword) {
   if(encryptedAccount && encryptedPassword){
     try {
-      const response = await axios.post(`${baseURL}/auth/login`, {
+      const response = await noauthApi.post("/login", {
         account: encryptedAccount,
         password: encryptedPassword
       })
