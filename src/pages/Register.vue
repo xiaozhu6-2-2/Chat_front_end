@@ -41,9 +41,9 @@
 <script setup>
 import { ref } from 'vue'
 import validator from 'validator';
-import axios from 'axios';
 import { useRouter } from 'vue-router';
 import { generateSecureCredentials } from '../service/crypto';
+import { noauthApi } from '@/service/api';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 const router = useRouter();
@@ -91,7 +91,7 @@ const registerClick = async () => {
 //注册请求
 async function registerPost(encryptedAccount, encryptedPassword) {
   try {
-    const response = await axios.post(`${baseURL}/auth/register`, {
+    const response = await noauthApi.post('/register', {
       account: encryptedAccount,
       password: encryptedPassword,
       username: username.value

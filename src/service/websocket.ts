@@ -11,8 +11,9 @@
 
 import { ref, type Ref } from 'vue';
 import type { Message } from './message';
-import { MessagePing } from './message';
-import { MessageHandler } from './message';
+import { MessagePing, MessagePong } from './message';
+import { messageService } from './message';
+
 
 /**
  * WebSocket服务配置接口
@@ -45,6 +46,9 @@ class WebSocketService {
   
   /** 用户认证token */
   private token: string | undefined = undefined;
+
+  /** 发送者ID */
+  private senderId: string | undefined = undefined;
   
   // ========== 计时器管理 ==========
   
@@ -106,9 +110,10 @@ class WebSocketService {
    * 建立WebSocket连接
    */
   //异步函数，因为结果需要等待事件的监听，让事件监听函数返回一个promise来结束connect函数
-  async connect(token: string): Promise<void> {
-    // 保存token
+  async connect(token: string, senderId: string): Promise<void> {
+    // 保存用户信息
     this.token = token;
+    this.senderId = senderId;
     
     // 清理旧连接
     this.cleanup();
@@ -419,23 +424,38 @@ class WebSocketService {
 
       // 处理心跳
       //当前实现存在问题：收到的pong可能是很久之前的，延迟不准，心跳有可能已经超时，需要通过时间戳来确定
-      if (message.type === 'heartbeat') {
-        console.log(`WS收到心跳: ${message.payload.timestamp}`);
-        if (this.aliveTimer) {
-          clearTimeout(this.aliveTimer);
-          this.aliveTimer = undefined;
+      switch (message.type) {
+        case 'Pong': {
+          console.log(`WS收到心跳: ${message.payload.timestamp}`);
+          if (this.aliveTimer) {
+            clearTimeout(this.aliveTimer);
+            this.aliveTimer = undefined;
+          }
+          this.latency.value = new Date().getTime() - message.payload.timestamp;
+          this.aliveTimer = setTimeout(() => {
+            console.log('WS心跳超时,断开连接');
+            this.disconnect('heartbeat_timeout');
+          }, this.config.aliveTimeout) as unknown as number;
+          break;
         }
-        this.latency.value = new Date().getTime() - message.payload.timestamp;
-        this.aliveTimer = setTimeout(() => {
-          console.log('WS心跳超时,断开连接');
-          this.disconnect('heartbeat_timeout');
-        }, this.config.aliveTimeout) as unknown as number;
-        return;
+        case 'Ping': {
+          try {
+            if(this.senderId){
+              const messagePong: Message = new MessagePong(this.senderId);
+              if(this.ws && this.ws.readyState === WebSocket.OPEN){
+                this.ws.send(messagePong.toJSON());
+              }
+            }
+          } catch (error) {
+            console.error("WS发送pong失败");
+          }
+          break;
+        }
+        default: {
+          // 直接调用消息处理器
+          messageService.updateMessage(message);
+        }
       }
-
-      // 直接调用消息处理器
-      MessageHandler(message);
-      
     } catch (error) {
       console.error('Failed to parse WebSocket message:', error);
       this.handleError('Message parsing failed');
@@ -474,8 +494,8 @@ class WebSocketService {
     this.connectionState.value = 'reconnecting';
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = undefined;
-      if (this.token) {
-        this.connect(this.token).catch(error => {
+      if (this.token && this.senderId) {
+        this.connect(this.token, this.senderId).catch(error => {
           console.error('重连失败:', error);
         });
       }

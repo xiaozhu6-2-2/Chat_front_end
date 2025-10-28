@@ -1,11 +1,11 @@
 // 原始账号密码都通过获取的公钥加密 → 后端通过私钥解密获取原始账号密码 → 数据库比对 → 返回token
 import JSEncrypt from 'jsencrypt'
-import axios from 'axios'
+import { noauthApi } from './api';
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 
 export async function fetchSessionKey() {
     // 获取公钥
-    const response = await axios.get(`${baseURL}/auth/session-key`);
+    const response = await noauthApi.get('/session-key');
     return response.data.public_key;
 }
 
