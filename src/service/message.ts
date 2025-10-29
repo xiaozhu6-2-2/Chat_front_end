@@ -1,3 +1,4 @@
+//service/message.ts
 /*
 1、群聊私聊区分：chatType
 2、消息ID生成：采用时间戳+随机数，首次获取历史消息时，按时间戳排列。
@@ -25,7 +26,6 @@ interface Message {
     detail?: string;
   };
 
-  toJSON(): string;     // 序列化为json字符串
   print(): void;         // 日志输出 
 }
 
@@ -67,15 +67,8 @@ abstract class BaseMessage implements Message {
     }
   }
 
-  toJSON(): string {
-    return JSON.stringify({
-      type: this.type,
-      payload: this.payload,
-    });
-  }
-
   print(): void {
-    console.log(`type: ${this.type}, payload: ${this.toJSON()}`);
+    console.log(`type: ${this.type}, payload: ${this.payload}`);
   }
 }
 
@@ -131,6 +124,7 @@ class MessageService {
       this.sortMessages(messages);
     });
     this.isInitialized = true;
+    console.log("messageService初始化成功");
   }
 
   //入列操作，判断消息类型，入队尾
@@ -297,33 +291,46 @@ class MessageService {
   //todo: 发送消息后端的ack确认机制以及id生成机制
   //这里的send是用于需要入列的消息，比如私聊、群聊、通知等
   sendWithUpdate(message: Message) {
-    console.log(`发送消息：${message.toJSON()} 入列`)
     //ws连接检测、消息发送队列都在wsService中维护
-    websocketService.send(message);
-    this.enqueueMessage(message);
+    try{
+      websocketService.send(message);
+      this.enqueueMessage(message);
+      console.log(`发送消息：${message} 入列`)
+    }catch(error){
+      console.error(error);
+    }
   }
 
-  //ping/pong不入列可以直接用ws的send方法
+  //不入列发送，用于ping/pong/system等消息
   sendWithoutUpdate(message: Message) {
-    console.log(`发送消息：${message.toJSON()} 不入列`)
+    console.log(`发送消息：${message} 不入列`)
     websocketService.send(message);
   }
 
   //组件获取消息列表，返回computed是为了保证map.get(id)时，id变化时，messages也会响应式更新
   //reactive(map)并不能监测 .get(id) 的变化，所以需要用computed包裹
-  getMessages(mapType: 'Group' | 'Private' | 'Notification', idRef: Ref<string>) {
-    const map = mapType === 'Group'
-      ? this.groupMessages
-      : mapType === 'Private'
-      ? this.privateMessages
-      : this.notificationMessages
+  getMessages(mapType: string, idRef: Ref<string>) {
+    let map: Map<string, Message[]>;
 
-    return computed(() => map.get(idRef.value) || [])
+    switch (mapType) {
+      case 'Group':
+        map = this.groupMessages;
+        break;
+      case 'Private':
+        map = this.privateMessages;
+        break;
+      case 'Notification':
+        map = this.notificationMessages;
+        break;
+      default:
+        throw new Error(`Unknown mapType: ${mapType}`);
+    }
+
+    return computed(() => map.get(idRef.value) || []);
   }
 }
 
 
 export type { Message };
 export { MessageText, MessagePing, MessagePong };
-//整个服务都响应式导出，可以检测到服务的任何变化
 export const messageService = new MessageService();

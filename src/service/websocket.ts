@@ -1,3 +1,5 @@
+//service/websocket.ts
+
 //实现说明：
 //1. 关于验证：建立ws时url附带了参数token，服务端根据token进行验证，验证通过后才建立ws连接。
 //2. 关于消息处理，除了心跳，其余直接传入到messageHandler进行下一步处理
@@ -386,12 +388,11 @@ class WebSocketService {
    */
   private startHeartbeat(): void {
     this.stopHeartbeat();
-    const storedUserId = localStorage.getItem('userId');
-    if (!storedUserId) {
+    if (!this.senderId) {
       console.error('未获取到userId，无法发送心跳');
       throw new Error('未获取到userId，无法发送心跳');
     }
-    const messagePing: MessagePing = new MessagePing(storedUserId);
+    const messagePing: MessagePing = new MessagePing(this.senderId);
     
     this.heartbeatTimer = setInterval(() => {
       if (this.isConnected) {
@@ -443,7 +444,7 @@ class WebSocketService {
             if(this.senderId){
               const messagePong: Message = new MessagePong(this.senderId);
               if(this.ws && this.ws.readyState === WebSocket.OPEN){
-                this.ws.send(messagePong.toJSON());
+                this.ws.send(JSON.stringify(messagePong));
               }
             }
           } catch (error) {
