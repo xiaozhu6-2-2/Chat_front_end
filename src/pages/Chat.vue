@@ -1,246 +1,336 @@
 <template>
-  <div class="wrapper">
-    <h2>聊天页面</h2>
-    
-    <!-- 控制区域 -->
-    <div class="controls">
-      <button class="button" @click="toggleChatType">{{ contentType }}</button>
-      <input 
-        class="chatId-input"
-        type="text"
-        v-model="chatId"
-        :placeholder="contentType === 'Group' ? '输入群聊ID' : '输入用户ID'"
-      />
+  <div class="chat-container">
+    <!-- 聊天控制面板 -->
+    <div class="chat-controls">
+      <div class="control-group">
+        <label>聊天类型：</label>
+        <select v-model="chatType">
+          <option value="Private">私聊</option>
+          <option value="Group">群聊</option>
+        </select>
+      </div>
+      
+      <div class="control-group">
+        <label>聊天ID：</label>
+        <input v-model="currentChatId" placeholder="输入聊天ID" />
+        <button @click="switchChat">切换聊天</button>
+      </div>
     </div>
 
-    <!-- 消息列表区域 -->
-    <div class="message-container">
-      <div class="message-queue">
+    <!-- 消息发送区域 -->
+    <div class="message-input">
+      <div class="input-group">
+        <label>接收者ID：</label>
+        <input v-model="receiverId" placeholder="接收者用户ID或群ID" />
+      </div>
+      
+      <div class="input-group">
+        <label>消息内容：</label>
+        <textarea v-model="messageInput" placeholder="输入消息内容" rows="3"></textarea>
+      </div>
+      
+      <button @click="sendMessage" :disabled="!canSend">发送消息</button>
+    </div>
+
+    <!-- 消息显示区域 -->
+    <div class="messages-container">
+      <div class="messages-header">
+        <h3>消息列表 - {{ currentChatId || '未选择聊天' }}</h3>
+        <span>共 {{ displayedMessages.length }} 条消息</span>
+      </div>
+      
+      <div class="messages-list">
         <div 
-          v-for="(msg, index) in reversedMessageQueue" 
-          :key="msg.payload.messageId || index"
-          class="message"
-          :class="getMessageClass(msg)"
+          v-for="message in displayedMessages" 
+          :key="message.payload.messageId"
+          :class="['message-item', getMessageClass(message)]"
         >
           <div class="message-header">
-            <span class="sender">{{ msg.payload.senderId }}</span>
-            <span class="arrow">→</span>
-            <span class="receiver">{{ msg.payload.receiverId }}</span>
+            <span class="sender">{{ message.payload.senderId }}</span>
+            <span class="time">{{ formatTime(message.payload.timestamp) }}</span>
           </div>
-          <div class="message-content">
-            {{ msg.payload.detail }}
-          </div>
-          <div class="message-time">
-            {{ formatTime(msg.payload.timestamp) }}
-          </div>
+          <div class="message-content">{{ message.payload.detail }}</div>
+          <div class="message-id">ID: {{ message.payload.messageId }}</div>
+        </div>
+        
+        <div v-if="displayedMessages.length === 0" class="no-messages">
+          暂无消息
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<script setup lang='ts'>
-import { ref, computed, watch } from 'vue'; 
-import type { Message } from '@/service/message';
-import { messageService, MessageText } from '@/service/message';
-
-console.log('chat page');
+<script setup lang="ts">
+import { ref, computed, onMounted, watch } from 'vue'
+import { messageService, MessageText } from '@/service/message'
 
 // 响应式数据
-const contentType = ref<"Group" | "Private">("Group");
-const chatId = ref("");
-const userId = localStorage.getItem("userId");
-if(!userId){
-  throw new Error("chat界面userId为空");
-  //后续处理可以考虑重定向到login
+const chatType = ref<'Private' | 'Group'>('Private')
+const currentChatId = ref('')
+const receiverId = ref('')
+const messageInput = ref('')
+
+// 从localStorage获取当前用户信息
+const currentUserId = localStorage.getItem('userid')
+
+// 计算属性
+const canSend = computed(() => {
+  return receiverId.value.trim() && messageInput.value.trim() && currentUserId
+})
+
+// 获取显示的消息列表（新消息在最上方）
+const displayedMessages = computed(() => {
+  // 从messageService获取当前聊天的消息
+  const messages = messageService.getMessages(chatType.value, currentChatId).value
+  
+  // 按时间戳降序排列（新消息在最上方）
+  return [...messages].sort((a, b) => b.payload.timestamp - a.payload.timestamp)
+})
+
+// 消息发送函数
+const sendMessage = async () => {
+  if (!canSend.value) return
+
+  try {
+    // 创建文本消息
+    const message = new MessageText(chatType.value, {
+      senderId: currentUserId!,
+      receiverId: receiverId.value,
+      chatType: 'text', // 文本消息
+      detail: messageInput.value
+    })
+
+    // 发送消息（会自动入列）
+    messageService.sendWithUpdate(message)
+    
+    // 清空输入框
+    messageInput.value = ''
+    
+    console.log('消息发送成功:', message)
+  } catch (error) {
+    console.error('发送消息失败:', error)
+    alert('发送消息失败，请检查网络连接')
+  }
 }
 
-// 切换聊天类型
-const toggleChatType = () => {
-  contentType.value = contentType.value === "Group" ? "Private" : "Group";
-  // 切换类型后重新获取历史消息
-  fetchHistoryMessages();
-};
-
-// 获取历史消息的函数
-const fetchHistoryMessages = () => {
-  if (contentType.value === "Group") {
-    messageService.fetchHistoryGroupMessages(chatId.value);
-  } else {
-    messageService.fetchHistoryPrivateMessages(chatId.value);
+// 切换聊天
+const switchChat = async () => {
+  if (!currentChatId.value.trim()) {
+    alert('请输入聊天ID')
+    return
   }
-};
 
-// 监听 chatId 变化，自动获取对应聊天记录
-watch(chatId, (newChatId) => {
-  if (newChatId) {
-    fetchHistoryMessages();
+  try {
+    // 根据聊天类型加载历史消息
+    if (chatType.value === 'Private') {
+      await messageService.fetchHistoryPrivateMessages(currentChatId.value)
+    } else {
+      await messageService.fetchHistoryGroupMessages(currentChatId.value)
+    }
+    
+    console.log(`切换到${chatType.value}聊天: ${currentChatId.value}`)
+  } catch (error) {
+    console.error('切换聊天失败:', error)
+    alert('切换聊天失败')
   }
-});
+}
 
-// 测试数据 - 在实际应用中这些会通过WS接收
-const messagesTest: MessageText[] = [
-  new MessageText("Private", {
-    senderId: userId,
-    receiverId: "1002",
-    chatType: "Private",
-    detail: "你好，这是一条私聊消息。",
-  }),
-  new MessageText("Group", {
-    senderId: userId,
-    receiverId: "group1",
-    chatType: "Group",
-    detail: "大家好，这是一条群聊消息。",
-  }),
-  new MessageText("Group", {
-    senderId: userId,
-    receiverId: "group1",
-    chatType: "Group",
-    detail: "这是最新的群聊消息！",
-  }),
-];
-
-// 发送测试消息
-messagesTest.forEach(message => {
-  messageService.sendWithUpdate(message);
-});
-
-// 获取原始消息列表
-const messageQueue = computed((): Message[] => {
-  return messageService.getMessages(contentType.value, chatId).value || [];
-});
-
-// 反转消息列表，使新消息显示在顶部
-const reversedMessageQueue = computed((): Message[] => {
-  return [...messageQueue.value].reverse();
-});
-
-// 消息样式类
-const getMessageClass = (msg: Message) => {
+// 工具函数
+const getMessageClass = (message: any) => {
+  // 判断是否是自己发送的消息
+  const isOwn = message.payload.senderId === currentUserId
   return {
-    'private-message': msg.payload.chatType === 'Private',
-    'group-message': msg.payload.chatType === 'Group'
-  };
-};
+    'own-message': isOwn,
+    'other-message': !isOwn
+  }
+}
 
-// 格式化时间显示
 const formatTime = (timestamp: number) => {
-  return new Date(timestamp).toLocaleString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  });
-};
+  return new Date(timestamp).toLocaleTimeString()
+}
+
+// 监听聊天类型变化，清空当前聊天ID
+watch(chatType, () => {
+  currentChatId.value = ''
+})
+
+// 组件挂载时检查登录状态
+onMounted(() => {
+  if (!currentUserId) {
+    alert('请先登录')
+    // 这里可以添加路由跳转到登录页
+    return
+  }
+  
+  console.log('Chat组件已加载，当前用户:', currentUserId)
+})
 </script>
 
 <style scoped>
-.wrapper {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  padding: 20px;
+.chat-container {
   max-width: 800px;
   margin: 0 auto;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  color: #000000; /* 改为黑色 */
 }
 
-.controls {
+.chat-controls {
   display: flex;
-  gap: 15px;
-  align-items: center;
+  gap: 20px;
   margin-bottom: 20px;
   padding: 15px;
-  background-color: #f5f5f5;
+  background: #f5f5f5;
   border-radius: 8px;
 }
 
-.chatId-input {
-  height: 40px;
-  width: 200px;
-  padding: 0 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #000000;
 }
 
-.button {
-  height: 40px;
-  width: 100px;
-  background-color: rgb(54, 120, 178);
+.control-group label {
+  font-weight: bold;
+  color: #000000; /* 改为黑色 */
+}
+
+.message-input {
+  padding: 15px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.input-group {
+  margin-bottom: 15px;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #000000; /* 改为黑色 */
+}
+
+.input-group input,
+.input-group textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+  color: #000000; /* 改为黑色 */
+}
+
+.input-group input::placeholder,
+.input-group textarea::placeholder {
+  color: #666666; /* 占位符文字颜色稍浅 */
+}
+
+button {
+  padding: 10px 20px;
+  background: #007bff;
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
-  font-weight: bold;
 }
 
-.button:hover {
-  background-color: rgb(45, 100, 150);
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }
 
-.message-container {
-  flex: 1;
-  border: 1px solid #e0e0e0;
+button:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.messages-container {
+  border: 1px solid #ddd;
   border-radius: 8px;
   overflow: hidden;
-  background-color: #fafafa;
 }
 
-.message-queue {
+.messages-header {
+  padding: 15px;
+  background: #e9ecef;
+  border-bottom: 1px solid #ddd;
   display: flex;
-  flex-direction: column;
-  height: 100%;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.messages-header h3 {
+  color: #000000; /* 改为黑色 */
+}
+
+.messages-header span {
+  color: #000000; /* 改为黑色 */
+}
+
+.messages-list {
+  height: 400px;
   overflow-y: auto;
   padding: 10px;
 }
 
-.message {
-  padding: 12px 16px;
-  margin-bottom: 10px;
+.message-item {
+  margin-bottom: 15px;
+  padding: 10px;
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  background-color: white;
+  border: 1px solid #e0e0e0;
+  color: #000000; /* 改为黑色 */
 }
 
-.private-message {
-  border-left: 4px solid #ff6b6b;
-  background-color: #fff5f5;
+.own-message {
+  background: #e3f2fd;
+  margin-left: 20%;
 }
 
-.group-message {
-  border-left: 4px solid #4ecdc4;
-  background-color: #f0fffe;
+.other-message {
+  background: #f5f5f5;
+  margin-right: 20%;
 }
 
 .message-header {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  font-size: 14px;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  font-size: 0.9em;
 }
 
 .sender {
   font-weight: bold;
-  color: #333;
+  color: #000000; /* 改为黑色 */
 }
 
-.receiver {
-  color: #666;
-}
-
-.arrow {
-  color: #999;
+.time {
+  color: #000000; /* 改为黑色 */
+  font-size: 0.8em;
 }
 
 .message-content {
-  margin-bottom: 8px;
+  margin-bottom: 5px;
   line-height: 1.4;
-  color: #333;
+  color: #000000; /* 改为黑色 */
 }
 
-.message-time {
-  font-size: 12px;
-  color: #888;
+.message-id {
+  font-size: 0.7em;
+  color: #000000; /* 改为黑色 */
   text-align: right;
+}
+
+.no-messages {
+  text-align: center;
+  color: #000000; /* 改为黑色 */
+  padding: 40px;
+}
+
+option {
+  color: #000000;
 }
 </style>
