@@ -12,7 +12,7 @@
 //事件处理器未完善
 
 import { ref, type Ref } from 'vue';
-import type { Message } from './message';
+import type { Message,LocalMessage } from './message';
 import { MessagePing, MessagePong } from './message';
 import { messageService } from './message';
 
@@ -27,15 +27,14 @@ interface WebSocketConfig {
   maxReconnectAttempts: number; // 最大重连次数
   timeout: number;              // 连接超时(ms)
   aliveTimeout: number;     // 心跳检测超时(ms)
+  messageQueueTimeout: number; //缓冲队列轮询间隔
+  ackTimeout: number;
 }
 
 /**
  * WebSocket连接状态类型
  */
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
-
-//连接断开原因
-type DisconnectReason = 'logout' | 'page_close' | 'manual' | 'reconnect' | 'auth_failed' | 'error' | 'heartbeat_timeout';
 
 class WebSocketService {
   // ========== 核心属性 ==========
@@ -65,6 +64,9 @@ class WebSocketService {
 
   /** 心跳检测超时计时器 */
   private aliveTimer: number | undefined = undefined;
+
+  /* 消息缓冲队列轮询计时器 */
+  private messageQueueTimer: number | undefined = undefined;
   
   // ========== 状态管理 ==========
   
@@ -75,7 +77,7 @@ class WebSocketService {
   private reconnectAttempts: number = 0;
   
   /** 消息队列（连接断开时缓存消息） */
-  private messageQueue: Array<Message> = [];
+  private messageQueue: Array<LocalMessage> = [];
   
   /** 事件处理器映射表 */
   private eventHandlers: Map<string, Function[]> = new Map();
@@ -102,6 +104,8 @@ class WebSocketService {
       maxReconnectAttempts: 5,
       timeout: 90000,
       aliveTimeout: 90000,
+      messageQueueTimeout: 1000,
+      ackTimeout: 5000,
       ...config
     };
   }
@@ -184,10 +188,17 @@ class WebSocketService {
   /**
    * 断开WebSocket连接
    */
-  disconnect(reason: DisconnectReason = 'manual'): void {
-    this.isManualDisconnect = true;//标记是否需要重连，目前未处理reason参数
+  disconnect(reconnectFlag: Boolean, reason:string): void {
+    if(reconnectFlag){
+      this.isManualDisconnect = true;
+    }else{
+      //立即重发消息队列，清空队列
+      this.flushMessageQueue();
+      this.messageQueue = [];
+    }
+
+
     this.connectionState.value = 'disconnected';
-    
     // 清理所有计时器
     this.cleanupTimers();
 
@@ -210,9 +221,6 @@ class WebSocketService {
     if (this.ws) {
       this.ws.close(1000, `Disconnect: ${reason}`);//可以添加事件监听器追踪close事件
     }
-    
-    // 清空消息队列
-    this.messageQueue = [];
 
     //重置重连次数
     this.reconnectAttempts = 0;
@@ -236,16 +244,28 @@ class WebSocketService {
   /**
    * 发送消息
    */
-  send(message: Message): void {
+  send(message: LocalMessage): void {
 
     if (this.isConnected) {
       // 连接正常，直接发送
       this.ws?.send(JSON.stringify(message));
+      //群聊/私聊/通知入列，等待ACK确认
+      switch(message.type){
+        case 'Group':
+        case 'Private':
+        case 'Notification':
+          message.sendStatus='sending';
+          this.messageQueue.push(message);
+          break;
+        default: break;
+      }
       console.log(`WS发送消息: ${message.type} ${message.payload}`);
     } else {
       // 连接断开，加入消息队列
+      //不需要检测type，重发的时候发现是pending，直接重发并出列
+      message.sendStatus='pending';
       this.messageQueue.push(message);
-      console.log('Message queued, waiting for connection...');
+      console.log('WS未连接, 消息已加入缓冲队列');
     }
   }
 
@@ -337,8 +357,12 @@ class WebSocketService {
       console.error("WS心跳启动失败");
     }
     
-    // // 发送积压的消息
-    // this.flushMessageQueue();
+    // 发送积压的消息
+    this.flushMessageQueue();
+
+    
+    //开始轮询缓冲队列
+    this.checkMessageQueue();
     
     // 触发连接成功事件
     // this.dispatchEvent('connected');
@@ -395,9 +419,9 @@ class WebSocketService {
     const messagePing: MessagePing = new MessagePing(this.senderId);
     
     this.heartbeatTimer = setInterval(() => {
-      if (this.isConnected) {
-        this.send(messagePing);
-        console.log('WS发送心跳');
+      if (this.ws && this.isConnected && this.ws?.readyState===WebSocket.OPEN) {
+        this.ws.send(JSON.stringify(messagePing));
+        // console.log('WS发送心跳');
       }
     }, this.config.heartbeatInterval) as unknown as number;
   }
@@ -427,15 +451,14 @@ class WebSocketService {
       //当前实现存在问题：收到的pong可能是很久之前的，延迟不准，心跳有可能已经超时，需要通过时间戳来确定
       switch (message.type) {
         case 'Pong': {
-          console.log(`WS收到心跳: ${message.payload.timestamp}`);
+          // console.log(`WS收到心跳: ${message.payload.timestamp}`);
           if (this.aliveTimer) {
             clearTimeout(this.aliveTimer);
             this.aliveTimer = undefined;
           }
-          this.latency.value = new Date().getTime() - message.payload.timestamp;
           this.aliveTimer = setTimeout(() => {
-            console.log('WS心跳超时,断开连接');
-            this.disconnect('heartbeat_timeout');
+            console.warn('WS心跳超时,断开连接');
+            this.disconnect(true, 'heartbeat_timeout');
           }, this.config.aliveTimeout) as unknown as number;
           break;
         }
@@ -451,6 +474,18 @@ class WebSocketService {
             console.error("WS发送pong失败");
           }
           break;
+        }
+        case 'Ack': {
+          const tempId=message.payload.messageId;
+          const realId=message.payload.detail;
+          if(tempId && realId){
+            this.messageQueue.forEach(m=>{
+              if(m.payload.messageId===tempId){
+                m.payload.messageId=realId;
+                m.sendStatus='sent';
+              }
+            });
+          }
         }
         default: {
           // 直接调用消息处理器
@@ -519,6 +554,33 @@ class WebSocketService {
     }
   }
 
+  //轮询检测消息队列
+  private checkMessageQueue():void {
+    this.messageQueueTimer = setInterval(()=>{
+      this.messageQueue.forEach(message=>{
+        if(message.sendStatus==='pending'){
+          this.send(message);
+        }else if(message.sendStatus==='sending'){
+          const timestamp = message.payload.timestamp;
+          if(!timestamp){
+            console.warn('消息缓冲队列出现缺少时间戳的消息');
+          }else{
+            if(Date.now()-timestamp!>this.config.ackTimeout){
+              //发送超时
+              message.sendStatus='failed';
+            }else{
+              this.send(message);
+            }
+          }
+        }
+      })
+      //pending和failed的消息重发后马上出列
+      this.messageQueue = this.messageQueue.filter(
+        message => message.sendStatus !== 'pending' && message.sendStatus !== 'failed'
+      )
+    },this.config.messageQueueTimeout);
+  }
+
   /**
    * 清理所有计时器
    */
@@ -536,6 +598,11 @@ class WebSocketService {
     if (this.aliveTimer) {
       clearTimeout(this.aliveTimer);
       this.aliveTimer = undefined;
+    }
+
+    if(this.messageQueueTimer){
+      clearTimeout(this.messageQueueTimer);
+      this.messageQueueTimer = undefined;
     }
     
     this.stopHeartbeat();

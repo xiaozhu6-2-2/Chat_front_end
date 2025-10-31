@@ -17,8 +17,8 @@ interface Message {
   type: string;          // 消息类型 分私聊/群聊/pingpong/通知 
 
   payload: {
-    messageId: string; //时间戳+随机数，保证唯一性，由基类生成
-    timestamp: number; //由基类生成
+    messageId?: string; //时间戳+随机数，保证唯一性，由基类生成
+    timestamp?: number; //由基类生成
     chatId?: string;   //群聊是receiverId/私聊是两个用户的senderId组合，由小到大
     senderId?: string;
     receiverId?: string;
@@ -27,14 +27,18 @@ interface Message {
   };
 
   print(): void;         // 日志输出 
+  saveCheck(): Boolean;
 }
 
-abstract class BaseMessage implements Message {
+
+type SendStatus = 'pending' | 'sending' | 'sent' | 'failed';
+//前端消息，用于增设前端需要的新增字段，接收和存储都使用localMessage，发送的时候使用message
+class LocalMessage implements Message {
   type: string;
 
   payload : {
-    messageId: string;  
-    timestamp: number; 
+    messageId?: string;  
+    timestamp?: number; 
     chatId?: string;
     senderId?: string;
     receiverId?: string;
@@ -42,20 +46,30 @@ abstract class BaseMessage implements Message {
     detail?: string;
   };
 
-  constructor(type: string,  payload: Omit<Message['payload'], 'messageId' | 'timestamp'>) {
+  //仅在前端使用的字段
+  sendStatus?: SendStatus;
+  userIsSender?: Boolean;
+
+  constructor(type: string,  payload: Message['payload']) {
     this.type = type;
-    this.payload = {
-      //基类生成messageId和timestamp
-      messageId: `${Date.now()}${Math.floor(Math.random() * 10000)}`, //时间戳+随机数,保证唯一性
-      timestamp: Date.now(),
-      ...payload, //合并实参的payload
+    this.payload =  { ...payload };
+
+    if (!this.payload.messageId) {
+    this.payload.messageId = `${Date.now()}${Math.floor(Math.random() * 10000)}`;
     }
-    if((type === "Group" || type === "Private") && payload.senderId && payload.receiverId){
-      this.payload.chatId = this.generateChatId(type, payload.senderId, payload.receiverId);
+    
+    if (!this.payload.timestamp) {
+      this.payload.timestamp = Date.now();
+    }
+    
+    // 只有在没有chatId且满足条件时才生成
+    if (!this.payload.chatId && (type === "Group" || type === "Private") && 
+        this.payload.senderId && this.payload.receiverId) {
+      this.payload.chatId = this.generateChatId(type, this.payload.senderId, this.payload.receiverId);
     }
   }
 
-  private generateChatId(type: string, senderId: string, receiverId: string): string {
+  generateChatId(type: string, senderId: string, receiverId: string): string {
     if (type === "Group") {
       return `${receiverId}`
     }else if (type === "Private") {
@@ -70,9 +84,24 @@ abstract class BaseMessage implements Message {
   print(): void {
     console.log(`type: ${this.type}, payload: ${this.payload}`);
   }
+
+  saveCheck(): Boolean {
+    const requiredFields = [
+      this.type,
+      this.payload.messageId,
+      this.payload.timestamp,
+      this.payload.senderId
+    ];
+  
+    return requiredFields.every(field => field != null && field !== '');
+  }
+
+  static toLocalMessage(message:Message):LocalMessage{
+    return new LocalMessage(message.type,message.payload);
+  }
 }
 
-class MessageText extends BaseMessage {
+class MessageText extends LocalMessage {
   //需要senderId, receiverId, chatType, detail
   constructor(type: string, payload: Omit<Message['payload'], 'messageId' | 'timestamp'>) {
     super(type, payload);
@@ -80,22 +109,18 @@ class MessageText extends BaseMessage {
 }
 
 
-class MessagePing extends BaseMessage {
+class MessagePing extends LocalMessage {
   constructor(senderId:string){
     //心跳，需要senderId
     super('Ping', {senderId:senderId});
   }
 }
 
-class MessagePong extends BaseMessage {
+class MessagePong extends LocalMessage {
   constructor(senderId:string){
     //响应心跳，需要senderId
     super('Pong', {senderId:senderId});
   }
-}
-
-function MessageHandler(message: Message) {
-  message.print();
 }
 
 class MessageService {
@@ -104,11 +129,11 @@ class MessageService {
   //初始化时，通过api从服务器拉取历史消息
   //对于在线状态的维护，好友在线状态实时更新，群聊成员在线状态轮询更新
   //好友上/下线采用通知的方法
-  groupMessages = reactive(new Map<string, Message[]>())
-  privateMessages = reactive(new Map<string, Message[]>())
-  notificationMessages = reactive(new Map<string, Message[]>())
+  groupMessages = reactive(new Map<string, LocalMessage[]>())
+  privateMessages = reactive(new Map<string, LocalMessage[]>())
+  notificationMessages = reactive(new Map<string, LocalMessage[]>())
 
-
+  userId: string | undefined = undefined;
   token: string | undefined = undefined;
   isInitialized: boolean = false;
   //用于记录已加载历史消息的群聊
@@ -116,8 +141,9 @@ class MessageService {
 
   constructor() {}
 
-  async init(token: string): Promise<void> {
+  async init(token: string, userId: string): Promise<void> {
     this.token = token;
+    this.userId = userId;
     //必须先拿到token才能拉取历史通知
     await this.fetchHistoryNotificationMessages();
     this.notificationMessages.forEach(messages => {
@@ -128,10 +154,11 @@ class MessageService {
   }
 
   //入列操作，判断消息类型，入队尾
-  enqueueMessage(message: Message) {
-    switch (message.type) {
+  enqueueMessage(message: LocalMessage) {
+    const reactiveMessage = reactive(message);
+    switch (reactiveMessage.type) {
       case "Group": {
-        let chatId = message.payload.chatId;
+        let chatId = reactiveMessage.payload.chatId;
         if(!chatId){
           console.warn('群聊消息缺少receiverId');
           return;
@@ -142,13 +169,13 @@ class MessageService {
         }
         //判断是否已存在相同的消息
         const arr = this.groupMessages.get(chatId)!;
-        if (arr.some(m => m.payload.messageId === message.payload.messageId)) return;
-        arr.push(message);
+        if (arr.some(m => m.payload.messageId === reactiveMessage.payload.messageId)) return;
+        arr.push(reactiveMessage);
         break;
       }
       case "Private": {
         //私聊消息
-        let chatId = message.payload.chatId;
+        let chatId = reactiveMessage.payload.chatId;
         if(!chatId){
           console.warn('私聊消息缺少receiverId');
           return;
@@ -158,13 +185,13 @@ class MessageService {
         }
         //判断是否已存在相同的消息
         const arr = this.privateMessages.get(chatId)!;
-        if (arr.some(m => m.payload.messageId === message.payload.messageId)) return;
-        arr.push(message);
+        if (arr.some(m => m.payload.messageId === reactiveMessage.payload.messageId)) return;
+        arr.push(reactiveMessage);
         break;
       }
       case "Notification": {
         //通知消息，通过chatType区分
-        let notificationId = message.payload.chatType;
+        let notificationId = reactiveMessage.payload.chatType;
         if(!notificationId){
           console.warn('通知消息缺少chatType');
           return;
@@ -174,37 +201,37 @@ class MessageService {
         }
         //判断是否已存在相同的消息
         const arr = this.notificationMessages.get(notificationId)!;
-        if (arr.some(m => m.payload.messageId === message.payload.messageId)) return;
-        arr.push(message);
+        if (arr.some(m => m.payload.messageId === reactiveMessage.payload.messageId)) return;
+        arr.push(reactiveMessage);
         break;
       }
       default: {
-        console.warn(`非法消息类型：${message.type} 尝试入列`);
+        console.warn(`非法消息类型：${reactiveMessage.type} 尝试入列`);
       }
     }
   }
 
   //排序操作，找到chatId和消息类型对应的消息数组，按时间戳排序
-  sortMessages(messages: Message[]|undefined) {
+  sortMessages(messages: LocalMessage[]|undefined) {
     if (!messages) {
       return;
     }
-    messages.sort((a, b) => a.payload.timestamp - b.payload.timestamp);
+    messages.sort((a, b) => a.payload.timestamp! - b.payload.timestamp!);
   }
 
-  //初始化加载，用于拉取通知
+  //拉取历史通知
   async fetchHistoryNotificationMessages():Promise<void> {
     if(!this.token){
       console.error('token为空, 无法拉取历史通知');
       return;
     }
-    //TODO: 实现拉取历史通知消息
     try{
       const response = await authApi.post('/history/notifications');
       if (response.status === 200) {
         const messages:Message[] = response.data.messages;
         messages.forEach(message => {
-          this.enqueueMessage(message);
+          const localMessage = LocalMessage.toLocalMessage(message);
+          this.enqueueMessage(localMessage);
         });
       }else{
         console.error(`拉取历史通知失败：${response.status} ${response.data.message}`);
@@ -227,7 +254,8 @@ class MessageService {
       if (response.status === 200) {
         const messages:Message[] = response.data.messages;
         messages.forEach(message => {
-          this.enqueueMessage(message);
+          const localMessage = LocalMessage.toLocalMessage(message);
+          this.enqueueMessage(localMessage);
         });
         if(this.privateMessages.has(chatId)){
           this.sortMessages(this.privateMessages.get(chatId));
@@ -253,7 +281,8 @@ class MessageService {
       if (response.status === 200) {
         const messages:Message[] = response.data.messages;
         messages.forEach(message => {
-          this.enqueueMessage(message);
+          const localMessage = LocalMessage.toLocalMessage(message);
+          this.enqueueMessage(localMessage);
         });
         if(this.groupMessages.has(chatId)){
           this.sortMessages(this.groupMessages.get(chatId));
@@ -271,11 +300,16 @@ class MessageService {
 
   //ws的onmessage中调用，根据type决定接收的新消息是否入列
   updateMessage(message: Message) {
-    switch (message.type) {
+    const localMessage = LocalMessage.toLocalMessage(message);
+    this.enqueueMessage(localMessage);
+    switch (localMessage.type) {
       case "Group":
       case "Private":
       case "Notification": {
-        this.enqueueMessage(message);
+        if(localMessage.payload.senderId===this.userId){
+          localMessage.userIsSender=true;
+        }
+        this.enqueueMessage(localMessage);
         break;
       }
       case "System": {
@@ -283,14 +317,14 @@ class MessageService {
         break;
       }
       default: {
-        console.warn(`未知消息类型：${message.type} 尝试更新`);
+        console.warn(`未知消息类型：${localMessage.type} 尝试更新`);
       }
     }
   }
 
   //todo: 发送消息后端的ack确认机制以及id生成机制
   //这里的send是用于需要入列的消息，比如私聊、群聊、通知等
-  sendWithUpdate(message: Message) {
+  sendWithUpdate(message: LocalMessage) {
     //ws连接检测、消息发送队列都在wsService中维护
     try{
       websocketService.send(message);
@@ -302,7 +336,7 @@ class MessageService {
   }
 
   //不入列发送，用于ping/pong/system等消息
-  sendWithoutUpdate(message: Message) {
+  sendWithoutUpdate(message: LocalMessage) {
     console.log(`发送消息：${message} 不入列`)
     websocketService.send(message);
   }
@@ -310,7 +344,7 @@ class MessageService {
   //组件获取消息列表，返回computed是为了保证map.get(id)时，id变化时，messages也会响应式更新
   //reactive(map)并不能监测 .get(id) 的变化，所以需要用computed包裹
   getMessages(mapType: string, idRef: Ref<string>) {
-    let map: Map<string, Message[]>;
+    let map: Map<string, LocalMessage[]>;
 
     switch (mapType) {
       case 'Group':
@@ -331,6 +365,6 @@ class MessageService {
 }
 
 
-export type { Message };
+export type { Message,LocalMessage };
 export { MessageText, MessagePing, MessagePong };
 export const messageService = new MessageService();
