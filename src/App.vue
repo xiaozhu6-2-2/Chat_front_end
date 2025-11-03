@@ -1,5 +1,5 @@
 <template>
-  <v-app>
+  <v-app id="app">
     <router-view />
   </v-app>
 </template>
@@ -24,5 +24,10 @@ html, body, #app,#app > * {
 
 body::-webkit-scrollbar {
   width: 0 !important;
+}
+
+/* 隐藏浏览器滚动条 */
+body::-webkit-scrollbar {
+  display: none;
 }
 </style>

@@ -8,9 +8,18 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AppFooter: typeof import('./components/AppFooter.vue')['default']
-    HelloWorld: typeof import('./components/HelloWorld.vue')['default']
+    ChatArea: typeof import('./components/chat/chatArea.vue')['default']
+    ChatList: typeof import('./components/chat/chatList.vue')['default']
+    ContactCard: typeof import('./components/contact/contactCard.vue')['default']
+    ContactList: typeof import('./components/contact/contactList.vue')['default']
+    EchatLoading: typeof import('./components/echatLoading.vue')['default']
+    EchatWelcome: typeof import('./components/echatWelcome.vue')['default']
+    GroupCard: typeof import('./components/contact/groupCard.vue')['default']
+    MyMessage: typeof import('./components/chat/myMessage.vue')['default']
+    OtherMessage: typeof import('./components/chat/otherMessage.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    SettingList: typeof import('./components/setting/settingList.vue')['default']
+    SettingsTable: typeof import('./components/setting/settingsTable.vue')['default']
   }
 }
