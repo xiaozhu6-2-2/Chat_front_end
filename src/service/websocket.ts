@@ -486,6 +486,7 @@ class WebSocketService {
               }
             });
           }
+          break;
         }
         default: {
           // 直接调用消息处理器
