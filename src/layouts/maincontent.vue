@@ -89,7 +89,7 @@ import { ref, computed } from 'vue'
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #1A1A25;
+  background-color: #1a2523;
   overflow: hidden;
 }
 </style>

@@ -1,9 +1,4 @@
 <template>
-<<<<<<< HEAD
-  <v-main>
-    <router-view />
-  </v-main>
-=======
   <v-app>
     <v-card>
       <v-layout>
@@ -87,7 +82,6 @@
       </v-layout>
     </v-card>
   </v-app>
->>>>>>> merge-attempt
 </template>
   
   <script setup>

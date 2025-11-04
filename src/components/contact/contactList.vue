@@ -1,3 +1,4 @@
+<!-- todo:虚拟滚动 -->
 <template>
   <div class="wechat-sidebar">
     <!-- 分类列表 -->
