@@ -4,131 +4,27 @@
 2、消息ID生成：采用时间戳+随机数，首次获取历史消息时，按时间戳排列。
 3、接收的/发送的新消息无脑入队尾
 4、send封装需要ws实例
+5、支持开发环境和生产环境切换：
+   - 开发环境：使用mockDataService提供模拟数据
+   - 生产环境：使用真实API和WebSocket
 */
-import { reactive } from 'vue';
+import { reactive, computed } from 'vue';
 import type {Ref} from 'vue';
 import { websocketService } from './websocket';
 import { authApi } from './api';
-
-
-type MessageType = "Group" | "Private" | "Notification" | "System" | "Ping" | "Pong";
-
-interface Message {
-  type: string;          // 消息类型 分私聊/群聊/pingpong/通知 
-
-  payload: {
-    messageId?: string; //时间戳+随机数，保证唯一性，由基类生成
-    timestamp?: number; //由基类生成
-    chatId?: string;   //群聊是receiverId/私聊是两个用户的senderId组合，由小到大
-    senderId?: string;
-    receiverId?: string;
-    chatType?: string; //区分text/img/file，决定detail的识别方法;对于通知消息，chatType是通知类型，如好友请求/群邀请等
-    detail?: string;
-  };
-
-  print(): void;         // 日志输出 
-  saveCheck(): Boolean;
-}
-
-
-type SendStatus = 'pending' | 'sending' | 'sent' | 'failed';
-//前端消息，用于增设前端需要的新增字段，接收和存储都使用localMessage，发送的时候使用message
-class LocalMessage implements Message {
-  type: string;
-
-  payload : {
-    messageId?: string;  
-    timestamp?: number; 
-    chatId?: string;
-    senderId?: string;
-    receiverId?: string;
-    chatType?: string;
-    detail?: string;
-  };
-
-  //仅在前端使用的字段
-  sendStatus?: SendStatus;
-  userIsSender?: Boolean;
-
-  constructor(type: string,  payload: Message['payload']) {
-    this.type = type;
-    this.payload =  { ...payload };
-
-    if (!this.payload.messageId) {
-    this.payload.messageId = `${Date.now()}${Math.floor(Math.random() * 10000)}`;
-    }
-    
-    if (!this.payload.timestamp) {
-      this.payload.timestamp = Date.now();
-    }
-    
-    // 只有在没有chatId且满足条件时才生成
-    if (!this.payload.chatId && (type === "Group" || type === "Private") && 
-        this.payload.senderId && this.payload.receiverId) {
-      this.payload.chatId = this.generateChatId(type, this.payload.senderId, this.payload.receiverId);
-    }
-  }
-
-  generateChatId(type: string, senderId: string, receiverId: string): string {
-    if (type === "Group") {
-      return `${receiverId}`
-    }else if (type === "Private") {
-      //由小到大拼接两个用户的senderId
-      const sortedIds = [senderId, receiverId].sort();
-      return `${sortedIds[0]}-${sortedIds[1]}`
-    }else{
-      return "";
-    }
-  }
-
-  print(): void {
-    console.log(`type: ${this.type}, payload: ${this.payload}`);
-  }
-
-  saveCheck(): Boolean {
-    const requiredFields = [
-      this.type,
-      this.payload.messageId,
-      this.payload.timestamp,
-      this.payload.senderId
-    ];
-  
-    return requiredFields.every(field => field != null && field !== '');
-  }
-
-  static toLocalMessage(message:Message):LocalMessage{
-    return new LocalMessage(message.type,message.payload);
-  }
-}
-
-class MessageText extends LocalMessage {
-  //需要senderId, receiverId, chatType, detail
-  constructor(type: string, payload: Omit<Message['payload'], 'messageId' | 'timestamp'>) {
-    super(type, payload);
-  }
-}
-
-
-class MessagePing extends LocalMessage {
-  constructor(senderId:string){
-    //心跳，需要senderId
-    super('Ping', {senderId:senderId});
-  }
-}
-
-class MessagePong extends LocalMessage {
-  constructor(senderId:string){
-    //响应心跳，需要senderId
-    super('Pong', {senderId:senderId});
-  }
-}
+import { envConfig, devLog, isDevelopment } from '@/utils/env';
+import { mockDataService } from './mockDataService';
+import { friendService } from './friendService';
+import type { Message } from './messageTypes';
+import { ContentType, LocalMessage, MessageStatus, MessageText } from './messageTypes';
+import type { UserSearchResult, FriendWithUserInfo, FriendRequest } from './messageTypes';
 
 class MessageService {
   //消息map，group、private、Notification
   //每个群聊、私聊维护一个数组，按时间戳排列
-  //初始化时，通过api从服务器拉取历史消息
-  //对于在线状态的维护，好友在线状态实时更新，群聊成员在线状态轮询更新
-  //好友上/下线采用通知的方法
+  //初始化时，根据环境选择数据源：
+  // - 开发环境：使用mockDataService
+  // - 生产环境：从服务器API拉取
   groupMessages = reactive(new Map<string, LocalMessage[]>())
   privateMessages = reactive(new Map<string, LocalMessage[]>())
   notificationMessages = reactive(new Map<string, LocalMessage[]>())
@@ -139,18 +35,129 @@ class MessageService {
   //用于记录已加载历史消息的群聊
   loadedChats: Set<string> = new Set();
 
-  constructor() {}
+  constructor() {
+    // 只有在开发环境且启用mock数据时才自动初始化
+    if (isDevelopment() && envConfig.useMockData) {
+      this.initDevelopmentMode()
+    }
+  }
+
+  /**
+   * 开发环境初始化
+   */
+  private initDevelopmentMode(): void {
+    devLog('Initializing MessageService in development mode')
+
+    // 使用环境配置中的模拟用户信息
+    this.userId = envConfig.mockUserId
+    this.token = envConfig.mockUserToken
+    this.isInitialized = true
+
+    // 预加载一些模拟数据
+    this.loadMockData()
+  }
+
+  /**
+   * 加载模拟数据
+   */
+  private loadMockData(): void {
+    const mockChats = mockDataService.getMockChats()
+
+    mockChats.forEach(chat => {
+      if (chat.type === 'Group') {
+        this.loadMockGroupMessages(chat.id)
+      } else {
+        this.loadMockPrivateMessages(chat.id)
+      }
+    })
+
+    devLog('Mock data loaded successfully')
+  }
+
+  /**
+   * 加载模拟群聊消息
+   */
+  private loadMockGroupMessages(chatId: string): void {
+    const messages = mockDataService.getMockMessages(chatId)
+
+    if (!this.groupMessages.has(chatId)) {
+      this.groupMessages.set(chatId, reactive([]))
+    }
+
+    const messageArray = this.groupMessages.get(chatId)!
+    messages.forEach(message => {
+      if (!messageArray.some(m => m.payload.messageId === message.payload.messageId)) {
+        messageArray.push(message)
+      }
+    })
+
+    this.loadedChats.add(chatId)
+  }
+
+  /**
+   * 加载模拟私聊消息
+   */
+  private loadMockPrivateMessages(chatId: string): void {
+    const messages = mockDataService.getMockMessages(chatId)
+
+    if (!this.privateMessages.has(chatId)) {
+      this.privateMessages.set(chatId, reactive([]))
+    }
+
+    const messageArray = this.privateMessages.get(chatId)!
+    messages.forEach(message => {
+      if (!messageArray.some(m => m.payload.messageId === message.payload.messageId)) {
+        messageArray.push(message)
+      }
+    })
+
+    this.loadedChats.add(chatId)
+  }
+
+  /**
+   * 判断是否使用模拟数据
+   */
+  private shouldUseMockData(): boolean {
+    return isDevelopment() && envConfig.useMockData
+  }
 
   async init(token: string, userId: string): Promise<void> {
+    // 开发环境已经初始化过，直接返回
+    if (this.shouldUseMockData() && this.isInitialized) {
+      devLog('MessageService already initialized in development mode')
+      return
+    }
+
     this.token = token;
     this.userId = userId;
-    //必须先拿到token才能拉取历史通知
-    await this.fetchHistoryNotificationMessages();
-    this.notificationMessages.forEach(messages => {
-      this.sortMessages(messages);
-    });
+
+    // 初始化 friendService
+    friendService.init(token, userId);
+
+    // 生产环境或开发环境关闭模拟数据时，连接真实的WebSocket
+    if (!this.shouldUseMockData()) {
+      try {
+        // 连接WebSocket服务
+        devLog('Connecting to WebSocket server...');
+        await websocketService.connect(token, userId);
+        devLog('WebSocket connected successfully');
+
+        // 获取历史通知消息
+        await this.fetchHistoryNotificationMessages();
+        this.notificationMessages.forEach(messages => {
+          this.sortMessages(messages);
+        });
+      } catch (error) {
+        console.error('Failed to connect WebSocket:', error);
+        throw new Error(`WebSocket连接失败: ${error}`);
+      }
+    }
+
     this.isInitialized = true;
-    console.log("messageService初始化成功");
+    devLog('MessageService initialized successfully', {
+      mode: this.shouldUseMockData() ? 'mock' : 'production',
+      userId: this.userId
+    });
   }
 
   //入列操作，判断消息类型，入队尾
@@ -191,9 +198,9 @@ class MessageService {
       }
       case "Notification": {
         //通知消息，通过chatType区分
-        let notificationId = reactiveMessage.payload.chatType;
+        let notificationId = reactiveMessage.payload.contentType;
         if(!notificationId){
-          console.warn('通知消息缺少chatType');
+          console.warn('通知消息缺少contentType');
           return;
         }
         if (!this.notificationMessages.has(notificationId)) {
@@ -243,12 +250,23 @@ class MessageService {
   }
 
   //历史消息按需加载并排序，需要传入聊天号
-  //todo: 实现按页加载，不需要一次性获取该群聊的所有的历史消息
+  //根据环境选择数据源：
+  // - 开发环境：使用mockDataService
+  // - 生产环境：调用API
   async fetchHistoryPrivateMessages(chatId: string): Promise<void> {
     if(this.loadedChats.has(chatId)){
       return;
     }
     this.loadedChats.add(chatId);
+
+    // 开发环境使用模拟数据
+    if (this.shouldUseMockData()) {
+      devLog(`Fetching mock private messages for ${chatId}`)
+      this.loadMockPrivateMessages(chatId)
+      return
+    }
+
+    // 生产环境调用API
     try{
       const response = await authApi.post('/history/private', { chatId });
       if (response.status === 200) {
@@ -271,11 +289,21 @@ class MessageService {
     }
   }
 
-  async fetchHistoryGroupMessages(chatId: string): Promise<void> {
+  async fetchHistoryGroupMessages(chatId: string,): Promise<void> {
+    //未拉取过的群聊不拉取历史消息
     if(this.loadedChats.has(chatId)){
       return;
     }
     this.loadedChats.add(chatId);
+
+    // 开发环境使用模拟数据
+    if (this.shouldUseMockData()) {
+      devLog(`Fetching mock group messages for ${chatId}`)
+      this.loadMockGroupMessages(chatId)
+      return
+    }
+
+    // 生产环境调用API
     try{
       const response = await authApi.post('/history/group', { chatId });
       if (response.status === 200) {
@@ -324,7 +352,17 @@ class MessageService {
 
   //todo: 发送消息后端的ack确认机制以及id生成机制
   //这里的send是用于需要入列的消息，比如私聊、群聊、通知等
+  //根据环境选择发送方式：
+  // - 开发环境：模拟发送，添加到mock数据
+  // - 生产环境：通过WebSocket发送
   sendWithUpdate(message: LocalMessage) {
+    // 开发环境使用模拟发送
+    if (this.shouldUseMockData()) {
+      this.mockSendMessage(message)
+      return
+    }
+
+    // 生产环境通过WebSocket发送
     //ws连接检测、消息发送队列都在wsService中维护
     try{
       websocketService.send(message);
@@ -332,13 +370,70 @@ class MessageService {
       console.log(`发送消息：${message} 入列`)
     }catch(error){
       console.error(error);
+      // 发送失败时标记消息状态
+      message.sendStatus = MessageStatus.FAILED
     }
   }
 
   //不入列发送，用于ping/pong/system等消息
   sendWithoutUpdate(message: LocalMessage) {
     console.log(`发送消息：${message} 不入列`)
+
+    // 开发环境模拟发送
+    if (this.shouldUseMockData()) {
+      devLog('Mock: Message sent without update')
+      return
+    }
+
+    // 生产环境通过WebSocket发送
     websocketService.send(message);
+  }
+
+  /**
+   * 模拟发送消息
+   */
+  private mockSendMessage(message: LocalMessage): void {
+    // 设置发送中状态
+    message.sendStatus = MessageStatus.SENDING  
+    message.userIsSender = true
+
+    // 立即将消息入队，显示为发送中状态
+    this.enqueueMessage(message)
+    // 模拟发送延迟
+    mockDataService.simulateSendDelay(() => {
+      // 模拟发送成功
+      message.sendStatus = MessageStatus.SENT
+      devLog('Mock message sent successfully', message)
+
+      // 模拟接收到回复消息
+      this.mockReceiveReply(message)
+
+    }, 1000)
+
+    devLog('Mock message sending initiated', message)
+  }
+
+  /**
+   * 模拟接收回复消息
+   */
+  private mockReceiveReply(originalMessage: LocalMessage): void {
+    if (Math.random() > 0.3) { // 70%概率收到回复
+      const replyMessage = new MessageText(originalMessage.type, {
+        senderId: 'user-002', // 模拟其他用户回复
+        receiverId: originalMessage.payload.chatId,
+        contentType: ContentType.TEXT,
+        detail: `收到你的消息："${originalMessage.payload.detail}"`
+      })
+
+      replyMessage.userIsSender = false
+      replyMessage.sendStatus = MessageStatus.SENT
+
+      // 延迟一下再添加回复，模拟网络延迟
+      setTimeout(() => {
+        this.enqueueMessage(replyMessage)
+        devLog('Mock reply message received', replyMessage)
+      }, 500)
+    }
   }
 
   //组件获取消息列表，返回computed是为了保证map.get(id)时，id变化时，messages也会响应式更新
@@ -362,9 +457,97 @@ class MessageService {
 
     return computed(() => map.get(idRef.value) || []);
   }
-}
+
+  // ============ 好友相关的服务方法 ============
+
+  /**
+   * 搜索用户
+   * @param query 搜索关键词
+   * @returns 搜索结果
+   */
+  async searchUsers(query: string): Promise<UserSearchResult[]> {
+    return await friendService.searchUsers(query);
+  }
+
+  /**
+   * 发送好友请求
+   * @param receiver_uid 接收者用户ID
+   * @param apply_text 申请文本
+   * @returns 好友请求数据
+   */
+  async sendFriendRequest(receiver_uid: string, apply_text?: string): Promise<FriendRequest> {
+    try {
+      // 使用 friendService 创建好友请求
+      return await friendService.createFriendRequest(receiver_uid, apply_text);
+    } catch (error) {
+      console.error('发送好友请求失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 响应好友请求
+   * @param req_id 请求ID
+   * @param status 响应状态
+   */
+  async respondToFriendRequest(req_id: string, status: 'accepted' | 'rejected'): Promise<void> {
+    try {
+      // 使用 friendService 处理响应逻辑
+      await friendService.respondToFriendRequest(req_id, status);
+    } catch (error) {
+      console.error('响应好友请求失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取好友列表
+   * @returns 好友列表
+   */
+  async getFriends(): Promise<FriendWithUserInfo[]> {
+    return await friendService.getFriends();
+  }
+
+  /**
+   * 获取待处理的好友请求
+   * @returns 请求列表
+   */
+  async getPendingRequests(): Promise<{
+    receivedRequests: FriendRequest[]
+    sentRequests: FriendRequest[]
+  }> {
+    return await friendService.getPendingRequests();
+  }
+
+  /**
+   * 删除好友
+   * @param friendId 好友ID
+   */
+  async removeFriend(friendId: string): Promise<void> {
+    return await friendService.removeFriend(friendId);
+  }
+
+  /**
+   * 更新好友备注
+   * @param friendId 好友ID
+   * @param remark 备注内容
+   */
+  async updateFriendRemark(friendId: string, remark: string): Promise<void> {
+    return await friendService.updateFriendRemark(friendId, remark);
+  }
+
+  /**
+   * 设置好友黑名单状态
+   * @param friendId 好友ID
+   * @param is_blacklist 是否黑名单
+   */
+  async setFriendBlacklist(friendId: string, is_blacklist: boolean): Promise<void> {
+    return await friendService.setFriendBlacklist(friendId, is_blacklist);
+  }
+
+  }
 
 
-export type { Message,LocalMessage };
-export { MessageText, MessagePing, MessagePong };
+export type { LocalMessage } from './messageTypes';
+export { friendService } from './friendService';
 export const messageService = new MessageService();

@@ -5,6 +5,7 @@
 </template>
 
 <script lang="ts" setup>
+
 </script>
 
 <style>
@@ -30,4 +31,4 @@ body::-webkit-scrollbar {
 body::-webkit-scrollbar {
   display: none;
 }
-</style>
+</style> 

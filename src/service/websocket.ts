@@ -12,10 +12,11 @@
 //事件处理器未完善
 
 import { ref, type Ref } from 'vue';
-import type { Message,LocalMessage } from './message';
-import { MessagePing, MessagePong } from './message';
+import type { Message, LocalMessage } from './messageTypes';
+import { MessagePing, MessagePong, MessageStatus, MessageType } from './messageTypes';
 import { messageService } from './message';
-
+import { useFriendStore } from '@/stores/friendStore';
+import type { FriendNotificationDetail } from './messageTypes';
 
 /**
  * WebSocket服务配置接口
@@ -254,7 +255,7 @@ class WebSocketService {
         case 'Group':
         case 'Private':
         case 'Notification':
-          message.sendStatus='sending';
+          message.sendStatus = MessageStatus.SENDING;
           this.messageQueue.push(message);
           break;
         default: break;
@@ -263,7 +264,7 @@ class WebSocketService {
     } else {
       // 连接断开，加入消息队列
       //不需要检测type，重发的时候发现是pending，直接重发并出列
-      message.sendStatus='pending';
+      message.sendStatus = MessageStatus.PENDING;
       this.messageQueue.push(message);
       console.log('WS未连接, 消息已加入缓冲队列');
     }
@@ -475,27 +476,116 @@ class WebSocketService {
           }
           break;
         }
-        case 'Ack': {
+        case 'Ack': // Ack消息确认
           const tempId=message.payload.messageId;
           const realId=message.payload.detail;
           if(tempId && realId){
             this.messageQueue.forEach(m=>{
               if(m.payload.messageId===tempId){
                 m.payload.messageId=realId;
-                m.sendStatus='sent';
+                m.sendStatus = MessageStatus.SENT;
               }
             });
           }
           break;
-        }
-        default: {
-          // 直接调用消息处理器
-          messageService.updateMessage(message);
-        }
+        case 'Notification':
+          // 处理好友相关通知
+          if (message.payload.contentType === 'friend') {
+            this.handleFriendNotification(message);
+          } else {
+            // 其他类型的通知消息
+            messageService.updateMessage(message);
+          }
+          break;
+          // todo private group消息在这里扩展websocket
+        default:
+          // 处理其他未明确的消息类型
+          if (!Object.values(MessageType).includes(message.type as MessageType)) {
+            // 直接调用消息处理器
+            messageService.updateMessage(message);
+          }
+          break;
       }
     } catch (error) {
       console.error('Failed to parse WebSocket message:', error);
       this.handleError('Message parsing failed');
+    }
+  }
+
+  /**
+   * 处理好友相关的通知消息
+   */
+  private handleFriendNotification(message: Message): void {
+    try {
+      const friendStore = useFriendStore();
+
+      if (!message.payload.detail) {
+        console.warn('Friend notification missing detail');
+        return;
+      }
+
+      const notificationDetail: FriendNotificationDetail = JSON.parse(message.payload.detail);
+
+      console.log('Processing friend notification:', notificationDetail);
+
+      switch (notificationDetail.action) {
+        case 'friend_request':
+          // 收到好友请求
+          if (notificationDetail.sender_uid && notificationDetail.req_id) {
+            const friendRequest = {
+              req_id: notificationDetail.req_id,
+              sender_uid: notificationDetail.sender_uid,
+              receiver_uid: notificationDetail.receiver_uid || this.senderId || '',
+              status: 'pending' as const,
+              apply_text: notificationDetail.apply_text,
+              create_time: new Date().toISOString(),
+              sender_info: notificationDetail.user_info
+            };
+
+            friendStore.addPendingRequest(friendRequest);
+            console.log('Friend request added to pending:', friendRequest);
+          }
+          break;
+
+        case 'friend_response':
+          // 好友请求响应
+          if (notificationDetail.req_id && notificationDetail.status) {
+            friendStore.updateRequestStatus(
+              notificationDetail.req_id,
+              notificationDetail.status,
+              new Date().toISOString()
+            );
+
+            // 如果接受了请求，可能需要更新好友列表
+            if (notificationDetail.status === 'accepted') {
+              // TODO: 可以在这里触发好友列表刷新
+              console.log('Friend request accepted:', notificationDetail.req_id);
+            }
+          }
+          break;
+
+        case 'friend_added':
+          // 好友添加成功
+          console.log('Friend added successfully');
+          // TODO: 刷新好友列表
+          break;
+
+        case 'friend_removed':
+          // 好友被删除
+          console.log('Friend removed');
+          // TODO: 更新好友状态
+          break;
+
+        default:
+          console.warn('Unknown friend notification action:', notificationDetail.action);
+          break;
+      }
+
+      // 将消息加入通知消息队列
+      messageService.updateMessage(message);
+
+    } catch (error) {
+      console.error('Failed to process friend notification:', error);
     }
   }
 
@@ -568,7 +658,7 @@ class WebSocketService {
           }else{
             if(Date.now()-timestamp!>this.config.ackTimeout){
               //发送超时
-              message.sendStatus='failed';
+              message.sendStatus = MessageStatus.FAILED;
             }else{
               this.send(message);
             }

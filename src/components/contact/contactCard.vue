@@ -48,15 +48,9 @@
   </template>
   
   <script setup lang="ts">
-  interface Contact {
-    id: string;
-    name: string;
-    initial: string;
-  }
-  
-  defineProps<{
-    contact: Contact;
-  }>();
+import type { ContactCardProps } from '../../types/componentProps'
+
+  defineProps<ContactCardProps>()
   </script>
   
   <style scoped>
