@@ -70,12 +70,27 @@
           </v-list-item>
         </template>
       </v-list-group>
+
+      <!-- 添加好友 -->
+      <v-list-item
+        class="contact-item add-friend-item"
+        @click="navigateToAddFriend"
+      >
+        <div class="contact_content">
+          <div class="contact-avatar add-friend-avatar">
+            <v-icon icon="mdi-account-plus" color="white"></v-icon>
+          </div>
+          <div class="contact-name">添加好友</div>
+        </div>
+      </v-list-item>
     </v-list>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
+import type { ContactListProps } from '@/types/componentProps';
 
 interface Contact {
   id: string;
@@ -149,13 +164,19 @@ const groupedContacts = computed(() => {
 });
 
 // 定义 props 和 emits
-defineProps<{
-  activeItem?: { type: string; data: any } | null;
-}>();
+defineProps<ContactListProps>();
 
 const emit = defineEmits<{
   (e: "itemClick", type: "contact" | "group", data: Contact | Group): void;
 }>();
+
+// Router 实例
+const router = useRouter();
+
+// 导航到添加好友页面
+const navigateToAddFriend = () => {
+  router.push('/AddFriend');
+};
 
 // 修改 setActiveItem 方法
 const setActiveItem = (id: string) => {
@@ -181,7 +202,7 @@ const setActiveItem = (id: string) => {
 };
 
 // 切换分组展开状态
-const toggleGroup = (groupName: string) => {
+const toggleGroup = (groupName: '群聊' | '公众号' | '联系人') => {
   openGroups.value[groupName] = !openGroups.value[groupName];
 };
 </script>
@@ -225,9 +246,19 @@ const toggleGroup = (groupName: string) => {
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 18px;
-  font-weight: bold;
-  flex-shrink: 0;
+}
+
+.add-friend-avatar {
+  background-color: #1976d2;
+}
+
+.add-friend-item {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 8px;
+}
+
+.add-friend-item:hover {
+  background-color: rgba(25, 118, 210, 0.1);
 }
 
 .contact-name {

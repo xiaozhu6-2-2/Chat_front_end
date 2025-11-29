@@ -4,7 +4,7 @@
     <template #detailbar>
       <contactList :active-item="activeItem" @item-click="handleItemClick" />
     </template>
-    <template #main>
+    <template #main class="d-flex align-center justify-center">
       <!-- 默认界面 -->
 
       <div
@@ -43,17 +43,21 @@ interface Contact {
 interface Group {
   id: string;
   name: string;
+  initial?: string;
 }
 
-interface ActiveItem {
-  type: "contact" | "group";
-  data: Contact | Group;
-}
+type ActiveItem =
+  | { type: "contact"; data: Contact }
+  | { type: "group"; data: Group }
 
 const activeItem = ref<ActiveItem | null>(null);
 
 const handleItemClick = (type: "contact" | "group", data: Contact | Group) => {
-  activeItem.value = { type, data };
+  if (type === "contact") {
+    activeItem.value = { type, data: data as Contact };
+  } else {
+    activeItem.value = { type, data: data as Group };
+  }
 };
 </script>
 

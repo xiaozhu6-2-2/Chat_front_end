@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build --force",
-    "lint": "eslint . --fix"
+    "lint": "eslint . --fix",
+    "analyze-components": "node scripts/update-component-types.js"
   },
   "dependencies": {
     "@fontsource/roboto": "5.2.7",

@@ -60,14 +60,9 @@
   </template>
   
   <script setup lang="ts">
-  interface Group {
-    id: string;
-    name: string;
-  }
-  
-  defineProps<{
-    group: Group;
-  }>();
+import type { GroupCardProps } from '../../types/componentProps'
+
+  defineProps<GroupCardProps>()
   </script>
   
   <style scoped>

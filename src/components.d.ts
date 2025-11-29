@@ -8,18 +8,25 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    Avatar: typeof import('./components/global/Avatar.vue')['default']
     ChatArea: typeof import('./components/chat/chatArea.vue')['default']
     ChatList: typeof import('./components/chat/chatList.vue')['default']
     ContactCard: typeof import('./components/contact/contactCard.vue')['default']
+    ContactCardModal: typeof import('./components/global/ContactCardModal.vue')['default']
     ContactList: typeof import('./components/contact/contactList.vue')['default']
-    EchatLoading: typeof import('./components/echatLoading.vue')['default']
-    EchatWelcome: typeof import('./components/echatWelcome.vue')['default']
+    EchatLoading: typeof import('./components/global/echatLoading.vue')['default']
+    EchatWelcome: typeof import('./components/global/echatWelcome.vue')['default']
+    FriendCard: typeof import('./components/friend/FriendCard.vue')['default']
+    FriendRequestItem: typeof import('./components/friend/FriendRequestItem.vue')['default']
+    FriendRequestPanel: typeof import('./components/friend/FriendRequestPanel.vue')['default']
     GroupCard: typeof import('./components/contact/groupCard.vue')['default']
-    MyMessage: typeof import('./components/chat/myMessage.vue')['default']
-    OtherMessage: typeof import('./components/chat/otherMessage.vue')['default']
+    MessageBubble: typeof import('./components/chat/Message/MessageBubble.vue')['default']
+    OnlineBoard: typeof import('./components/chat/onlineBoard.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
-    SettingList: typeof import('./components/setting/settingList.vue')['default']
-    SettingsTable: typeof import('./components/setting/settingsTable.vue')['default']
+    SettingsDialog: typeof import('./components/setting/settingsDialog.vue')['default']
+    UserSearchPanel: typeof import('./components/friend/UserSearchPanel.vue')['default']
+    UserSearchResultCard: typeof import('./components/friend/UserSearchResultCard.vue')['default']
+    VirtualMessageList: typeof import('./components/chat/VirtualMessageList.vue')['default']
   }
 }

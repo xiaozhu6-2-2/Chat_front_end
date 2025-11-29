@@ -1,0 +1,355 @@
+<template>
+  <div class="message-bubble" :class="messageClasses">
+    <div v-if="!isOwnMessage" class="message-avatar-container">
+      <Avatar
+        :url="senderAvatar"
+        :name="senderName"
+        :size="40"
+        :clickable="true"
+        avatar-class="custom-avatar"
+        @click="handleAvatarClick"
+      />
+    </div>
+
+    <div class="message-content">
+      <div v-if="!isOwnMessage" class="message-sender">
+        {{ senderName }}
+      </div>
+
+      <div class="message-bubble-content" :class="bubbleClasses">
+        <!-- Text Message -->
+        <div v-if="isTextMessage" class="message-text">
+          {{ message.payload.detail }}
+        </div>
+
+        <!-- Image Message -->
+        <div v-else-if="isImageMessage" class="message-image">
+          <v-img
+            :src="message.payload.detail"
+            :alt="'图片'"
+            max-width="200"
+            max-height="200"
+            cover
+            @click="previewImage"
+          />
+        </div>
+
+        <!-- File Message -->
+        <div v-else-if="isFileMessage" class="message-file">
+          <v-icon class="mr-2">mdi-file</v-icon>
+          <span>{{ getFileName(message.payload.detail || '') }}</span>
+        </div>
+
+        <!-- System Message -->
+        <div v-else-if="isSystemMessage" class="message-system">
+          {{ message.payload.detail }}
+        </div>
+      </div>
+
+      <div class="message-meta">
+        <span class="message-time">{{ formatTime(message.payload.timestamp) }}</span>
+        <span v-if="isOwnMessage" class="message-status">
+          <v-icon
+            :icon="statusIcon"
+            :color="statusColor"
+            size="16"
+          />
+        </span>
+      </div>
+    </div>
+
+    <div v-if="isOwnMessage" class="message-avatar-container">
+      <Avatar
+        :url="currentUserAvatar"
+        :name="'我'"
+        :size="40"
+        :clickable="true"
+        avatar-class="custom-avatar"
+        @click="handleMyAvatarClick"
+      />
+    </div>
+
+    <!-- 联系人卡片弹窗 -->
+    <ContactCardModal
+      v-if="showContactCard && selectedContactInfo"
+      :contact-info="selectedContactInfo"
+      v-model="showContactCard"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import type { LocalMessage } from '../../../service/messageTypes'
+import { ContentType, MessageType } from '../../../service/messageTypes'
+import Avatar from '../../../components/global/Avatar.vue'
+import ContactCardModal from '../../../components/global/ContactCardModal.vue'
+
+import type { MessageBubbleProps } from '../../../types/componentProps'
+
+const props = withDefaults(defineProps<MessageBubbleProps>(), {
+  currentUserId: 'current-user'
+})
+
+const emit = defineEmits<{
+  imagePreview: [imageUrl: string]
+}>()
+
+const showContactCard = ref(false)
+const selectedContactInfo = ref<any>(null)
+
+const isOwnMessage = computed(() =>
+  props.message.userIsSender || props.message.payload.senderId === props.currentUserId
+)
+
+const messageClasses = computed(() => ({
+  'own-message': isOwnMessage.value,
+  'other-message': !isOwnMessage.value
+}))
+
+const bubbleClasses = computed(() => ({
+  'own-bubble': isOwnMessage.value,
+  'other-bubble': !isOwnMessage.value,
+  'system-bubble': props.message.type === 'System'
+}))
+
+const senderName = computed(() => {
+  // 这里可以根据需要从用户服务中获取用户名
+  return props.message.payload.senderId || '未知用户'
+})
+
+const senderAvatar = computed(() => {
+  // 这里可以根据需要从用户服务中获取用户头像
+  return '/src/assets/default-avatar.png'
+})
+
+const currentUserAvatar = computed(() =>
+  '/src/assets/yxd.jpg' // This should come from user store
+)
+
+const statusIcon = computed(() => {
+  switch (props.message.sendStatus) {
+    case 'pending':
+      return 'mdi-clock-outline'
+    case 'sending':
+      return 'mdi-clock-outline'
+    case 'sent':
+      return 'mdi-check'
+    case 'failed':
+      return 'mdi-alert-circle'
+    default:
+      return 'mdi-check'
+  }
+})
+
+const statusColor = computed(() => {
+  switch (props.message.sendStatus) {
+    case 'pending':
+    case 'sending':
+      return 'grey'
+    case 'sent':
+      return 'grey'
+    case 'failed':
+      return 'error'
+    default:
+      return 'grey'
+  }
+})
+
+const formatTime = (timestamp?: number) => {
+  if (!timestamp) return ''
+  const date = new Date(timestamp)
+  return date.toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const getFileName = (filePath: string) => {
+  return filePath.split('/').pop() || filePath
+}
+
+const isImageMessage = computed(() => {
+  return props.message.payload.contentType === ContentType.IMAGE ||
+         (props.message.type === MessageType.GROUP && props.message.payload.detail?.startsWith('http'))
+})
+
+const isTextMessage = computed(() => {
+  return props.message.payload.contentType === ContentType.TEXT
+})
+
+const isFileMessage = computed(() => {
+  return props.message.payload.contentType === ContentType.FILE
+})
+
+const isSystemMessage = computed(() => {
+  return props.message.type === MessageType.SYSTEM || props.message.type === MessageType.NOTIFICATION
+})
+
+const previewImage = () => {
+  if (isImageMessage.value && props.message.payload.detail) {
+    emit('imagePreview', props.message.payload.detail)
+  }
+}
+
+// 处理头像点击事件
+const handleAvatarClick = () => {
+  selectedContactInfo.value = {
+    id: senderName.value,
+    name: senderName.value,
+    avatar: senderAvatar.value,
+    email: `${senderName.value.toLowerCase()}@example.com`,
+    phone: `+86 138****${Math.random().toString().slice(-4)}`,
+    initial: senderName.value.charAt(0)
+  }
+  showContactCard.value = true
+}
+
+// 处理自己头像点击事件
+const handleMyAvatarClick = () => {
+  selectedContactInfo.value = {
+    id: 'current-user',
+    name: '我',
+    avatar: currentUserAvatar.value,
+    email: 'me@example.com',
+    phone: '+86 138****0001',
+    initial: '我'
+  }
+  showContactCard.value = true
+}
+</script>
+
+<style lang="scss" scoped>
+.message-bubble {
+  display: flex;
+  margin-bottom: 16px;
+  max-width: 80%;
+  width: auto;
+  &.own-message {
+    margin-left: auto;
+  }
+
+  &.other-message {
+    margin-right: auto;
+  }
+}
+
+.message-avatar-container {
+  flex-shrink: 0;
+  margin: 0 8px;
+}
+
+.message-avatar{
+  border-radius: 8px !important;
+}
+
+.message-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  max-width: 70%; // 限制内容区域最大宽度
+}
+
+.message-sender {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 4px;
+  margin-left: 12px;
+}
+
+.message-bubble-content {
+  padding: 8px 12px;
+  border-radius: 18px;
+  word-wrap: break-word;
+  max-width: fit-content;
+  min-width: 0;
+  align-self: flex-start;
+
+  &.own-bubble {
+    background-color: #1976d2;
+    color: black;
+    border-radius: 4px;
+    align-self: flex-end;
+  }
+
+  &.other-bubble {
+    background-color: #1c1c1e;
+    color: white;
+    border-radius: 4px;
+    align-self: flex-start;
+  }
+
+  &.system-bubble {
+    background-color: transparent;
+    color: rgba(255, 255, 255, 0.6);
+    text-align: center;
+    font-style: italic;
+    font-size: 12px;
+    align-self: center;
+    max-width: 90%;
+  }
+}
+
+.message-text {
+  display: inline-block;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 100%;
+  text-align: left;
+
+  .own-bubble & {
+    text-align: left;
+  }
+}
+
+.message-image {
+  cursor: pointer;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+.message-file {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.message-system {
+  text-align: center;
+}
+
+.message-meta {
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  gap: 4px;
+
+  .own-message & {
+    flex-direction: row-reverse;
+    margin-right: 12px;
+  }
+
+  .other-message & {
+    margin-left: 12px;
+  }
+}
+
+.message-time {
+  white-space: nowrap;
+}
+
+.message-status {
+  display: flex;
+  align-items: center;
+}
+</style>

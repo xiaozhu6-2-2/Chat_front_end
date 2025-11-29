@@ -1,0 +1,276 @@
+《畅聊》数据库设计
+
+我们准备构建一个具有完备功能的在线聊天软件，需要构建一个数据库系统以方便管理用户、聊天记录等数据及其业务运作活动。
+需求分析
+1.用户需要记录的信息包括：用户编号（编号唯一），用户名，账号，密码，性别，地区，联系方式，创建时间，头像；
+
+2.每个用户之间可以成为好友，需要记录的信息包括：好友编号（编号唯一），用户编号，目标编号（保证用户1的uid<用户2的uid，以方便查询，同时保证用户之间只有一个私聊会话），创建时间，是否黑名单，备注1，备注2，标签1，标签2。
+
+3.用户成为好友需要申请，申请需要的信息包括：申请编号（编号唯一），发送者，接收者，状态，申请时间，处理时间，申请文本。
+
+4.每个用户可以参加不同的群聊，群聊需要记录的信息包括群聊编号（编号唯一），群聊名称，群主，群头像，群简介，创建时间。
+
+5.每个群聊有不同的群聊成员，群聊成员表需要记录的信息包括（用户编号，群聊编号）联合主键，权限，群成员昵称，等级，加入时间，是否免打扰，标签，备注，置顶状态。
+
+群组成员可被禁言，禁言需要记录禁言编号，群聊编号，用户编号，禁言时间，禁言开始时间。//若现在时间 > 禁言开始时间 + 禁言时间，视为解除禁言，并将禁言时间设为0
+
+6.群聊有不同的群聊消息，群聊消息需要记录的信息包括消息编号（编号唯一），群聊编号，消息文本，发送用户，发送时间，撤回状态，消息类型，@字段，引用消息编号，是否群公告。
+
+为区分消息已读状态，消息已读状态表需要记录消息编号，群聊编号，用户编号。
+
+7.用户加入群聊时需先申请，申请需要记录的信息包括申请编号（编号唯一），群聊编号，申请者，状态，申请时间，处理时间，申请文本，审核人。
+
+8.好友之间可以进行私聊，私聊需要记录的信息包括私聊编号（编号唯一），用户1，用户2（保证用户1的uid<用户2的uid，以方便查询，同时保证用户之间只有一个私聊会话），创建时间，置顶状态。
+
+9.私聊有不同的私聊消息，私聊消息需要记录的信息包括消息编号，私聊编号，消息文本，发送者，发送时间，撤回状态，是否已读，消息类型；
+
+
+逻辑结构设计：
+用户（用户编号，用户名，账号，密码，性别，地区，联系方式，创建时间，头像）
+主键：用户编号（uid）
+唯一约束：账号（account）
+索引：idx_username (用户名)，idx_region (地区)
+      idx_account（账号）
+
+好友（好友编号，用户编号，目标编号，创建时间，是否黑名单，备注，目标备注，标签，目标标签）
+主键：好友编号（fid）
+外键：用户编号→user(uid)，目标用户编号→user(uid)
+唯一约束：unique_friend_pair (uid, to_uid)
+索引：idx_uid (uid)，idx_to_uid (to_uid)
+
+好友申请（申请编号，发送者，接收者，状态，申请时间，处理时间，申请文本）
+主键：申请编号（req_id）
+外键：发送者 → user(uid)，接收者 → user(uid)
+索引：idx_sender (sender_uid)，idx_receiver (receiver_uid)，
+idx_create_time (create_time)
+
+群聊（群聊编号，群聊名称，群主，群头像，群简介，创建时间）
+主键：群聊编号（gid）
+外键：群主 → user(uid)
+索引：idx_manager (manager_uid)
+      idx_name(group_name)
+
+群聊成员（用户编号，群聊编号，权限，群成员昵称，等级，加入时间，是否免打扰，标签，备注，置顶状态）
+主键：用户编号（uid），群聊编号（gid）
+外键：用户编号 → user(uid)，群聊编号 → group_chat(gid)
+索引：idx_gid (gid)，idx_uid(uid)
+
+禁言状态（禁言编号，群聊编号，用户编号，禁言时间，禁言开始时间）
+主键：禁言编号（ban_id）
+外键：群聊编号 group_chat（gid），用户编号user（uid）
+索引：idx_gid（gid），idx_uid（uid）
+
+群聊消息（消息编号，群聊编号，消息文本，发送用户，发送时间，撤回状态，消息类型，@字段，引用编号，是否群公告）
+主键：消息编号（msg_id）
+外键：群聊编号 → group_chat(gid)，发送用户 → user(uid)，引用编号group_message(msg_id)
+索引：idx_gid_time (gid, send_time)，idx_sender (sender_uid)，
+      idx_type(type),idx_time(send_time)
+
+群聊消息已读状态（消息编号，群聊编号，用户编号）
+主键：消息编号（msg_id），用户编号（uid）
+外键：消息编号 → group_message(msg_id)，用户编号 → user(uid)，
+群聊编号 → group_chat(gid)
+索引：idx_gid(gid)，idx_msg(msg_id)
+
+群聊加入申请（申请编号，群聊编号，申请者，状态，申请时间，处理时间，申请文本，审核人）
+主键：申请编号（req_id）
+外键：群聊编号 → group_chat(gid)，申请者 → user(uid)，审核人->user(uid)
+索引：idx_gid (gid)，idx_applicant (applicant_uid)，idx_create_time (create_time)
+
+私聊（私聊编号，用户1，用户2，创建时间，置顶状态）
+主键：私聊编号（pid）
+外键：用户1 → user(uid)，用户2 → user(uid)
+唯一约束：unique_conversation (uid1, uid2)
+索引：idx_uid1 (uid1)，idx_uid2 (uid2)
+
+私聊消息（消息编号，私聊编号，消息文本，发送者，发送时间，撤回状态，是否已读，消息类型）
+主键：私聊消息编号（msg_id）
+外键：私聊编号 → private_chat(pid)，发送用户 → user(uid)
+索引：idx_pid_time (pid, send_time)，idx_sender (sender_uid),idx_time(send_time)
+
+创建数据库：
+create table user
+(
+uid varchar(20) not null primary key comment '用户编号',
+username varchar(50) not null comment '用户名',
+account varchar(100) not null unique comment '账号',
+password varchar(100) not null comment '密码',
+gender enum('male','female','other') default'other' comment '性别',
+region varchar(100) comment '地区',
+email varchar(100) comment '联系方式',
+create_time datetime default current_timestamp comment '创建时间',
+avatar varchar(500) comment '头像',
+bio VARCHAR(90) comment '简介',
+unique key uk_account (account),
+index idx_username (username),
+index idx_region (region)
+) comment '用户表';
+create table friends
+(
+fid varchar(20) not null primary key comment '好友编号',
+uid varchar(20) not null comment '用户编号',
+to_uid varchar(20) not null comment '目标编号',
+create_time datetime default current_timestamp comment '添加时间',
+is_blacklist boolean default false comment '是否黑名单',
+remark varchar(255) default null comment '备注',
+to_remark varchar(255) default null comment '目标备注',
+tag varchar(255) default null comment '标签',
+to_tag varchar(255) default null comment '目标标签',
+
+unique key unique_friend_pair (uid, to_uid),
+index idx_uid (uid), 
+index idx_to_uid (to_uid),
+foreign key (uid) references user(uid) on delete cascade,
+foreign key (to_uid) references user(uid) on delete cascade
+)comment='好友关系表';
+
+create table friend_request
+(
+req_id varchar(20) primary key comment '申请编号',
+sender_uid varchar(20) not null comment '发送者编号',
+receiver_uid varchar(20) not null comment '接收者编号',
+status enum('pending','accepted','rejected','expired') default 'pending' comment '申请状态',
+apply_text varchar(500) default null comment '申请文本',
+create_time datetime default current_timestamp comment '申请时间',
+handle_time datetime default null comment '处理时间',
+index idx_sender (sender_uid),
+index idx_receiver (receiver_uid),
+index idx_create_time (create_time),
+foreign key (sender_uid) references user(uid) on delete cascade,
+foreign key (receiver_uid) references user(uid) on delete cascade 
+) comment='好友申请记录表';
+
+create table group_chat
+(
+gid varchar(20) primary key comment '群聊编号',
+group_name varchar(100) not null comment '群聊名称',
+manager_uid varchar(20) not null comment '群主',
+group_avatar varchar(255) default null comment '群头像',
+group_intro varchar(500) default null comment '群简介',
+create_time datetime default current_timestamp comment '创建时间',
+index idx_manager (manager_uid),
+index idx_name (group_name),
+foreign key (manager_uid) references user(uid) on delete cascade
+)comment='群聊信息表';
+
+create table group_member
+(
+uid varchar(20) not null comment '用户编号',
+gid varchar(20) not null comment '群聊编号',
+role enum('member', 'admin', 'owner') not null default 'member' comment '权限',
+nickname varchar(100) default null comment '群成员昵称',
+level tinyint unsigned default 0 comment '等级',
+join_time datetime default current_timestamp comment '加入时间',
+do_not_disturb boolean default false comment '是否免打扰',
+tag varchar(255) default null comment '标签',
+remark varchar(255) default null comment '备注',
+is_pinned boolean default false comment '置顶状态',
+primary key (uid, gid),
+index idx_gid (gid),
+index idx_uid (uid),
+foreign key (uid) references user(uid) on delete cascade,
+foreign key (gid) references group_chat(gid) on delete cascade
+)comment='群成员关系表';
+
+create table mute_record 
+(
+ban_id varchar(20) not null primary key comment '禁言编号',
+gid varchar(20) not null comment '群聊编号',
+uid varchar(20) not null comment '用户编号',
+mute_duration int unsigned not null comment '禁言时间',
+start_time datetime default current_timestamp comment '禁言开始时间',
+index idx_gid (gid),
+index idx_uid (uid),
+foreign key (gid) references group_chat(gid) on delete cascade,
+foreign key (uid) references user(uid) on delete cascade
+)comment = '禁言状态表';
+
+create table group_message
+(
+msg_id varchar(20)  primary key comment '消息编号',
+gid varchar(20) not null comment '群聊编号',
+content text not null comment '消息文本',
+sender_uid varchar(20) not null comment '发送者',
+send_time datetime default current_timestamp comment '发送时间',
+is_revoked boolean default false comment '是否撤回',
+type enum('text', 'image', 'file', 'voice', 'video', 'link', 'emoji', 'announcement') not null default 'text' comment '消息类型',
+mentioned_uids json default null comment '@字段',
+quote_msg_id varchar(20) default null comment '引用编号',is_announcement boolean default false comment '是否群公告',
+
+index idx_gid_time (gid, send_time),
+index idx_sender (sender_uid),
+index idx_type (type),
+index idx_time (send_time),
+
+foreign key (gid) references group_chat(gid) on delete cascade,
+foreign key (sender_uid) references user(uid) on delete cascade,
+foreign key (quote_msg_id) references group_message(msg_id) on delete set null
+)comment='群聊消息记录表';
+
+create table group_message_read
+(
+msg_id varchar(20) not null comment '消息编号',
+gid varchar(20) not null comment '群聊编号',
+uid varchar(20) not null comment '用户编号',
+
+primary key (msg_id, uid),
+index idx_gid(gid),
+index idx_uid(uid),
+foreign key (msg_id) references group_message(msg_id) on delete cascade,
+foreign key (gid) references group_chat(gid) on delete cascade,
+foreign key (uid) references user(uid) on delete cascade
+)comment='群消息已读状态表';
+
+
+
+
+create table group_join_request
+(
+req_id varchar(20)  primary key comment '申请编号',
+gid varchar(20) not null comment '群聊编号',
+applicant_uid varchar(20) not null comment '申请者',
+approver_uid varchar(20) default null comment '审核人',
+status enum('pending','accepted','rejected','expired') not null default 'pending' comment '申请状态',
+apply_text varchar(500) default null comment '申请文本',
+create_time datetime default current_timestamp comment '申请时间',
+handle_time datetime default null comment '处理时间',
+index idx_gid (gid),
+index idx_applicant (applicant_uid),
+index idx_create_time (create_time),
+
+foreign key (gid) references group_chat(gid) on delete cascade,
+foreign key (applicant_uid) references user(uid) on delete cascade,
+foreign key (approver_uid) references user(uid) on delete set null
+ ) comment='群聊加入申请记录表';
+
+
+create table private_chat
+(
+pid varchar(20)  primary key comment '私聊编号',
+uid1 varchar(20) not null comment '用户1',
+uid2 varchar(20) not null comment '用户2',
+create_time datetime default current_timestamp comment '创建时间',
+is_pinned_by_uid1 boolean default false comment '用户1是否置顶',    is_pinned_by_uid2 boolean default false comment '用户2是否置顶',
+unique key unique_conversation (uid1, uid2),
+index idx_uid1 (uid1),
+index idx_uid2 (uid2),
+foreign key (uid1) references user(uid) on delete cascade,
+foreign key (uid2) references user(uid) on delete cascade
+)comment='私聊会话表';
+
+create table private_message
+(
+msg_id varchar(20)  primary key comment '消息编号',
+pid varchar(20) not null comment '私聊会话编号',
+content text not null comment '消息文本',
+sender_uid varchar(20) not null comment '发送者',
+send_time datetime default current_timestamp comment '发送时间',
+is_revoked boolean default false comment '是否已撤回',
+is_read boolean default false comment '是否已读',
+type enum('text', 'image', 'file', 'voice', 'video', 'link', 'emoji') not null default 'text' comment '消息类型',
+    index idx_pid_time (pid, send_time),
+index idx_sender (sender_uid),
+index idx_time (send_time),
+foreign key (pid) references private_chat(pid) on delete cascade,
+foreign key (sender_uid) references user(uid) on delete cascade
+)comment='私聊消息记录表';
