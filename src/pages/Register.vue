@@ -195,7 +195,7 @@
 
                   <v-textarea
                     v-model="registerForm.bio"
-                    label="个人简介（可选）"
+                    label="个人简介"
                     prepend-inner-icon="mdi-text"
                     variant="outlined"
                     color="primary"
@@ -237,7 +237,7 @@
                     注册成功！
                   </h2>
                   <p class="text-body-2 text-grey mb-2">
-                    欢迎加入易聊
+                    欢迎使用易聊
                   </p>
                   <p class="text-h6 text-primary font-weight-medium">
                     {{ registerForm.username }}
@@ -247,7 +247,7 @@
                 <v-btn
                   color="primary"
                   size="large"
-                  @click="goToChat"
+                  @click="goToLogin"
                   class="px-8"
                 >
                   开始聊天
@@ -342,7 +342,7 @@ const genderOptions = [
 
 // 左侧功能特色列表
 const features = ref([
-  { icon: 'mdi-shield-check', text: '轻量快捷聊天' },
+  { icon: 'mdi-flash', text: '轻量快捷聊天' },
   { icon: 'mdi-rocket-launch', text: '极速消息传递' },
   { icon: 'mdi-group', text: '多人群组聊天' },
   { icon: 'mdi-cloud', text: '云端消息同步' }
@@ -486,8 +486,8 @@ const goBack = () => {
 }
 
 // 注册成功后跳转到聊天页面
-const goToChat = () => {
-  router.push('/chat')
+const goToLogin = () => {
+  router.push('/login')
 }
 
 </script>

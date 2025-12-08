@@ -26,19 +26,23 @@
         color="primary"
         class="mr-4"
         @click="goToLogin"
-        v-if="$route.path !== '/Login'"
+        v-if="$route.name !== '/Login'"
       >
         <v-icon start>mdi-login</v-icon>
         登录
       </v-btn>
 
-      <!-- 如果在注册页面，添加"已有账户"提示 -->
-      <div
-        v-if="$route.path === '/Register'"
-        class="text-white text-body-2 mr-3"
+      <!-- 如果在登录界面，显示注册按钮 -->
+      <v-btn
+        variant="outlined"
+        color="primary"
+        class="mr-4"
+        @click="goToRegister"
+        v-if="$route.name == '/Login'"
       >
-        已有账户？
-      </div>
+        <v-icon start>mdi-account-plus</v-icon>
+        注册
+      </v-btn>
     </v-app-bar>
 
     <!-- 主要内容区域 -->
@@ -49,13 +53,18 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { useRouter } from 'vue-router';
 
-const router = useRouter()
+const router = useRouter();
 
 // 导航到登录页面
 const goToLogin = () => {
-  router.push('/Login')
+  router.push('/login');
+}
+
+//导航到注册页面
+const goToRegister= () => {
+  router.push('/register');
 }
 </script>
 

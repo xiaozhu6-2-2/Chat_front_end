@@ -182,7 +182,7 @@ const loginError = ref('')
 
 // 左侧功能特色列表
 const features = ref([
-  { icon: 'mdi-shield-check', text: '轻量快捷聊天' },
+  { icon: 'mdi-flash', text: '轻量快捷聊天' },
   { icon: 'mdi-rocket-launch', text: '极速消息传递' },
   { icon: 'mdi-group', text: '多人群组聊天' },
   { icon: 'mdi-cloud', text: '云端消息同步' }
