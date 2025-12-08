@@ -40,6 +40,7 @@
           v-if="!user.is_friend && !user.request_sent"
           variant="elevated"
           color="primary"
+          class="ma-3"
           size="small"
           @click="showRequestDialog = true"
         >
@@ -51,6 +52,7 @@
           v-else-if="user.request_sent"
           variant="outlined"
           color="grey"
+          class="ma-3"
           size="small"
           disabled
         >
@@ -62,6 +64,7 @@
           v-else-if="user.is_friend"
           variant="outlined"
           color="success"
+          class="ma-3"
           size="small"
           disabled
         >
@@ -73,6 +76,7 @@
           v-else-if="user.request_received"
           variant="outlined"
           color="info"
+          class="ma-3"
           size="small"
           @click="$emit('handle-request', user)"
         >
@@ -83,6 +87,7 @@
         <v-btn
           variant="outlined"
           color="grey"
+          class="ma-3"
           size="small"
           @click="showProfileDialog = true"
         >
@@ -93,25 +98,70 @@
     </v-card-text>
 
     <!-- 发送好友请求对话框 -->
-    <v-dialog v-model="showRequestDialog" max-width="400">
+    <v-dialog v-model="showRequestDialog" max-width="600">
       <v-card>
-        <v-card-title class="text-h6">
-          发送好友请求
+        <v-card-title class="text-h9 align-self-center">
+          申请添加朋友
         </v-card-title>
 
         <v-card-text>
-          <p class="mb-4">
-            向 <strong>{{ user.username }}</strong> 发送好友请求
+          <p class="mb-4 text-grey text-subtitle-2">
+            发送好友请求
           </p>
 
           <v-textarea
             v-model="requestMessage"
-            label="验证消息（可选）"
             placeholder="你好，我想添加你为好友..."
-            rows="3"
+            rows="1"
             variant="outlined"
             counter="200"
           />
+        </v-card-text>
+
+        <!-- 决定不在加好友时添加备注 -->
+        <!-- <v-card-text>
+          <p class="mb-4 text-grey text-subtitle-2">
+            备注
+          </p>
+
+          <v-textarea
+            v-model="remark"
+            placeholder="好友备注（不填写则默认为用户名）"
+            rows="1"
+            variant="outlined"
+            counter="10"
+          />
+        </v-card-text> -->
+
+        <!-- 标签分组选择 -->
+        <v-card-text>
+          <p class="mb-4 text-grey text-subtitle-2">
+            标签分组（可选）
+          </p>
+
+          <v-combobox
+            v-model="selectedTags"
+            :items="recentTags"
+            label="选择或输入标签"
+            placeholder="选择标签或输入新标签"
+            variant="outlined"
+            chips
+            multiple
+            clearable
+            counter="10"
+            :rules="tagRules"
+          >
+            <template v-slot:chip="{ props, item }">
+              <v-chip
+                v-bind="props"
+                :color="getTagColor(item.raw)"
+                size="small"
+              >
+                <v-icon icon="mdi-tag" size="12" class="mr-1"></v-icon>
+                {{ item.raw }}
+              </v-chip>
+            </template>
+          </v-combobox>
         </v-card-text>
 
         <v-card-actions>
@@ -197,6 +247,17 @@ const showProfileDialog = ref(false)
 const requestMessage = ref('')
 const sending = ref(false)
 
+// 标签相关数据
+const selectedTags = ref<string[]>([])
+// TODO: 简单的静态实现，后续可以从friendStore获取真实的最近标签列表
+const recentTags = ref<string[]>(['同事', '家人', '同学', '朋友'])
+
+// 标签验证规则
+const tagRules = [
+  (tags: string[]) => tags.length === 0 || tags.every(tag => tag.length <= 10) || '标签长度不能超过10个字符',
+  (tags: string[]) => tags.length === 0 || tags.every(tag => /^[\u4e00-\u9fa5a-zA-Z0-9\s]+$/.test(tag)) || '标签只能包含中文、英文、数字和空格'
+]
+
 // 获取性别图标
 const getGenderIcon = (gender: string) => {
   switch (gender) {
@@ -233,6 +294,13 @@ const getGenderText = (gender: string) => {
   }
 }
 
+// 获取标签颜色
+const getTagColor = (tag: string): string => {
+  const colors = ['primary', 'secondary', 'success', 'warning', 'error', 'info', 'purple', 'indigo', 'teal']
+  const hash = (tag || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  return colors[hash % colors.length]
+}
+
 // 格式化日期
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('zh-CN')
@@ -242,9 +310,11 @@ const formatDate = (dateString: string) => {
 const handleSendRequest = async () => {
   sending.value = true
   try {
-    await emit('send-request', props.user, requestMessage.value)
+    // 发送标签数组（空数组表示无标签）
+    await emit('send-request', props.user, requestMessage.value, selectedTags.value)
     showRequestDialog.value = false
     requestMessage.value = ''
+    selectedTags.value = []
   } catch (error) {
     console.error('发送好友请求失败:', error)
   } finally {

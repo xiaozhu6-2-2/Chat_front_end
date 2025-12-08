@@ -1,25 +1,18 @@
 <template>
-  <maincontent>
-    <template #detailbar>
-      <chatList
-        :active-chat-id="activeChatId"
-        @chat-selected="handleChatSelected"
-      />
-    </template>
-    <template #main>
-      <!-- 默认界面 -->
-      <div v-if="!currentChat" class="welcome-container">
-        <echat-welcome />
-      </div>
+    <maincontent>
+      <template #detailbar>
+        <chatList :active-chat-id="activeChatId" @chat-selected="handleChatSelected" />
+      </template>
+      <template #main>
+        <!-- 默认界面 -->
+        <div v-if="!currentChat" class="welcome-container">
+          <echat-welcome />
+        </div>
 
-      <!-- 聊天界面 -->
-      <chatArea
-        v-else
-        :chat="currentChat"
-        @image-preview="handleImagePreview"
-      />
-    </template>
-  </maincontent>
+        <!-- 聊天界面 -->
+        <chatArea v-else :chat="currentChat" @image-preview="handleImagePreview" />
+      </template>
+    </maincontent>
 </template>
 
 <script setup lang="ts">
@@ -28,7 +21,7 @@ import maincontent from '@/layouts/maincontent.vue'
 import { useChat } from '@/composables/useChat'
 import chatList from '@/components/chat/chatList.vue'
 import chatArea from '@/components/chat/chatArea.vue'
-import type { Chat } from '../service/messageTypes'
+import type { Chat } from '@/service/messageTypes'
 
 // Use chat composable
 const { currentChat, selectChat, refreshChatList } = useChat()

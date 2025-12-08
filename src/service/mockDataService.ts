@@ -222,7 +222,7 @@ class MockDataService {
         uid: 'user001',
         username: '张三',
         account: 'zhangsan',
-        gender: 'male',
+        gender: 'male' as const,
         region: '北京',
         email: 'zhangsan@example.com',
         create_time: '2024-01-01T00:00:00Z',
@@ -236,7 +236,7 @@ class MockDataService {
         uid: 'user002',
         username: '李四',
         account: 'lisi',
-        gender: 'female',
+        gender: 'female' as const,
         region: '上海',
         email: 'lisi@example.com',
         create_time: '2024-01-02T00:00:00Z',
@@ -250,7 +250,7 @@ class MockDataService {
         uid: 'user003',
         username: '王五',
         account: 'wangwu',
-        gender: 'male',
+        gender: 'male' as const,
         region: '深圳',
         email: 'wangwu@example.com',
         create_time: '2024-01-03T00:00:00Z',
@@ -264,7 +264,7 @@ class MockDataService {
         uid: 'user004',
         username: '赵六',
         account: 'zhaoliu',
-        gender: 'female',
+        gender: 'female' as const,
         region: '广州',
         email: 'zhaoliu@example.com',
         create_time: '2024-01-04T00:00:00Z',
@@ -278,7 +278,7 @@ class MockDataService {
         uid: 'user005',
         username: '孙七',
         account: 'sunqi',
-        gender: 'other',
+        gender: 'other' as const,
         region: '杭州',
         email: 'sunqi@example.com',
         create_time: '2024-01-05T00:00:00Z',
@@ -302,9 +302,10 @@ class MockDataService {
    * 模拟发送好友请求
    * @param receiver_uid 接收者用户ID
    * @param apply_text 申请文本
+   * @param tags 标签数组
    * @returns 好友请求数据
    */
-  public async mockSendFriendRequest(receiver_uid: string, apply_text?: string): Promise<FriendRequest> {
+  public async mockSendFriendRequest(receiver_uid: string, apply_text?: string, tags?: string[]): Promise<FriendRequest> {
     await new Promise(resolve => setTimeout(resolve, 300))
 
     const request: FriendRequest = {
@@ -316,7 +317,15 @@ class MockDataService {
       create_time: new Date().toISOString()
     }
 
-    devLog('Mock send friend request', { req_id: request.req_id, receiver_uid })
+    // 如果有标签，在控制台输出用于调试
+    if (tags && tags.length > 0) {
+      devLog('Mock send friend request with tags', { req_id: request.req_id, receiver_uid, tags })
+      // TODO: 在真实的实现中，这里应该将标签保存到创建的好友关系中
+      // 可以在好友请求被接受后，为创建的好友关系设置这些标签
+    } else {
+      devLog('Mock send friend request', { req_id: request.req_id, receiver_uid })
+    }
+
     return request
   }
 
@@ -429,11 +438,12 @@ class MockDataService {
         create_time: '2024-01-10T00:00:00Z',
         is_blacklist: false,
         remark: '我的好朋友',
+        tag: '同事',
         user_info: {
           uid: 'user001',
           username: '张三',
           account: 'zhangsan',
-          gender: 'male',
+          gender: 'male' as const,
           region: '北京',
           email: 'zhangsan@example.com',
           create_time: '2024-01-01T00:00:00Z',
@@ -448,22 +458,92 @@ class MockDataService {
         create_time: '2024-01-12T00:00:00Z',
         is_blacklist: false,
         remark: '大学同学',
+        tag: '同学',
         user_info: {
           uid: 'user002',
           username: '李四',
           account: 'lisi',
-          gender: 'female',
+          gender: 'female' as const,
           region: '上海',
           email: 'lisi@example.com',
           create_time: '2024-01-02T00:00:00Z',
           avatar: 'https://cdn.vuetifyjs.com/images/lists/1.jpg',
           bio: '这是李四的个人简介'
         }
+      },
+      {
+        fid: 'friend003',
+        uid: 'user003',
+        to_uid: 'test-user-001',
+        create_time: '2024-01-15T00:00:00Z',
+        is_blacklist: false,
+        remark: '表哥',
+        tag: '家人',
+        user_info: {
+          uid: 'user003',
+          username: '王五',
+          account: 'wangwu',
+          gender: 'male' as const,
+          region: '广州',
+          email: 'wangwu@example.com',
+          create_time: '2024-01-03T00:00:00Z',
+          avatar: 'https://cdn.vuetifyjs.com/images/lists/2.jpg',
+          bio: '这是王五的个人简介'
+        }
+      },
+      {
+        fid: 'friend004',
+        uid: 'user004',
+        to_uid: 'test-user-001',
+        create_time: '2024-01-20T00:00:00Z',
+        is_blacklist: false,
+        tag: '朋友',
+        user_info: {
+          uid: 'user004',
+          username: '赵六',
+          account: 'zhaoliu',
+          gender: 'male' as const,
+          region: '深圳',
+          email: 'zhaoliu@example.com',
+          create_time: '2024-01-04T00:00:00Z',
+          avatar: 'https://cdn.vuetifyjs.com/images/lists/3.jpg',
+          bio: '这是赵六的个人简介'
+        }
+      },
+      {
+        fid: 'friend005',
+        uid: 'user005',
+        to_uid: 'test-user-001',
+        create_time: '2024-01-25T00:00:00Z',
+        is_blacklist: false,
+        tag: '同事',
+        user_info: {
+          uid: 'user005',
+          username: '钱七',
+          account: 'qianqi',
+          gender: 'female' as const,
+          region: '杭州',
+          email: 'qianqi@example.com',
+          create_time: '2024-01-05T00:00:00Z',
+          avatar: 'https://cdn.vuetifyjs.com/images/lists/4.jpg',
+          bio: '这是钱七的个人简介'
+        }
       }
     ]
 
     devLog('Mock get friends', { count: friends.length })
     return friends
+  }
+
+  /**
+   * 模拟更新好友标签
+   * @param friendId 好友ID
+   * @param tag 新标签
+   */
+  public async mockUpdateFriendTag(friendId: string, tag: string | null): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 200))
+    devLog('Mock update friend tag', { friendId, tag })
+    // 这里只是模拟，实际应用中会调用真实API
   }
 
   /**
@@ -488,7 +568,7 @@ class MockDataService {
           uid: 'user003',
           username: '王五',
           account: 'wangwu',
-          gender: 'male',
+          gender: 'male' as const,
           region: '深圳',
           email: 'wangwu@example.com',
           create_time: '2024-01-03T00:00:00Z',
@@ -507,7 +587,7 @@ class MockDataService {
           uid: 'user004',
           username: '赵六',
           account: 'zhaoliu',
-          gender: 'female',
+          gender: 'female' as const,
           region: '广州',
           email: 'zhaoliu@example.com',
           create_time: '2024-01-04T00:00:00Z',
@@ -572,6 +652,48 @@ class MockDataService {
   public async mockSetFriendBlacklist(friendId: string, is_blacklist: boolean): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 200))
     devLog('Mock set friend blacklist', { friendId, is_blacklist })
+  }
+
+  /**
+   * 获取当前用户信息（Mock）
+   */
+  public async mockGetCurrentUserInfo(): Promise<any> {
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    return {
+      uid: 'test-user-001',
+      username: 'Test User',
+      account: 'test-user',
+      gender: 'other' as const,
+      region: 'Mock Region',
+      email: 'test@example.com',
+      create_time: '2024-01-01T00:00:00Z',
+      avatar: 'https://via.placeholder.com/40',
+      bio: 'Mock user for development'
+    };
+  }
+
+  /**
+   * 模拟接收好友通知（用于测试）
+   */
+  public async mockReceiveFriendNotification(senderId: string, notificationDetail: any): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // 动态导入messageService以避免循环依赖
+    const { messageService } = await import('./message');
+
+    // 模拟创建通知消息
+    const notificationMessage = new MessageText(MessageType.NOTIFICATION, {
+      senderId,
+      receiverId: 'test-user-001',
+      contentType: ContentType.FRIEND,
+      detail: JSON.stringify(notificationDetail)
+    });
+
+    // 添加到消息队列，模拟接收
+    messageService.updateMessage(notificationMessage);
+
+    devLog('Mock friend notification received', notificationDetail);
   }
 }
 

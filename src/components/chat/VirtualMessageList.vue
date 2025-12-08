@@ -131,6 +131,35 @@ defineExpose({
   }
 }
 
+/* 整个滚动条区域 */
+.virtual-scroll::-webkit-scrollbar {
+  width: 12px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* 鼠标悬停时显示滚动条 */
+.virtual-scroll:hover::-webkit-scrollbar {
+  opacity: 1;
+}
+
+/* 滚动条轨道 */
+.virtual-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+/* 滚动条滑块 */
+.virtual-scroll::-webkit-scrollbar-thumb {
+  background: rgba(121, 119, 119, 0.3);
+  border-radius: 3px;
+  transition: background 0.3s ease;
+}
+
+.virtual-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
 .virtual-message-item {
   display: flex;
   align-items: flex-start;

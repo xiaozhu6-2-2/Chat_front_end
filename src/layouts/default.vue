@@ -23,8 +23,8 @@
           <v-list density="compact" class="button-list" nav>
             <div class="main_buttons">
               <v-list-item class="nav-item">
-                <v-btn @click="navigateTo('/')" class="nav-button" variant="text" size="large"
-                  :class="{ active: $route.path === '/' }">
+                <v-btn @click="navigateTo('/home')" class="nav-button" variant="text" size="large"
+                  :class="{ active: $route.path === '/home' }">
                   <v-img :width="32" aspect-ratio="1/1" src="@/assets/echatlogo.png" class="fixed-size-image">
                   </v-img>
                 </v-btn>
@@ -117,19 +117,6 @@ const navigateTo = (path:string) => {
   width: 100%;
 }
 
-.custom-avatar {
-  border-radius: 10px !important;
-  /* 圆角方形 */
-  overflow: hidden;
-}
-
-.custom-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  /* 等比例压缩适应 */
-}
-
 .button-list {
   display: flex;
   flex-direction: column;
@@ -186,6 +173,7 @@ const navigateTo = (path:string) => {
 #mainarea {
   height: 100vh;
   background-color: #1a1a25;
+  overflow: hidden;
 }
 
 /* 确保头像容器正确显示 */

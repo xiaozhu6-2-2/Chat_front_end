@@ -85,11 +85,11 @@ const performSearch = () => {
 }
 
 // 发送好友请求
-const handleSendRequest = async (user: UserSearchResult, message?: string) => {
+const handleSendRequest = async (user: UserSearchResult, message?: string, tags?: string[]) => {
   try {
-    await sendFriendRequest(user.uid, message)
+    await sendFriendRequest(user.uid, message, tags)
     // 这里可以添加成功提示
-    console.log('好友请求发送成功')
+    console.log('好友请求发送成功', { tags })
   } catch (error) {
     console.error('发送好友请求失败:', error)
     // 这里可以添加错误提示

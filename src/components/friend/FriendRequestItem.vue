@@ -40,9 +40,10 @@
               color="success"
               variant="elevated"
               size="small"
+              class="ma-3"
               @click="$emit('accept', request)"
             >
-              <v-icon icon="mdi-check" class="mr-1"></v-icon>
+              <v-icon icon="mdi-check" class="ma-1"></v-icon>
               接受
             </v-btn>
 
@@ -50,9 +51,10 @@
               color="error"
               variant="outlined"
               size="small"
+              class="ma-3"
               @click="$emit('reject', request)"
             >
-              <v-icon icon="mdi-close" class="mr-1"></v-icon>
+              <v-icon icon="mdi-close" class="ma-1"></v-icon>
               拒绝
             </v-btn>
           </div>

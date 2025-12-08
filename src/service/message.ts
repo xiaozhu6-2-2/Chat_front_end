@@ -15,8 +15,8 @@ import { authApi } from './api';
 import { envConfig, devLog, isDevelopment } from '@/utils/env';
 import { mockDataService } from './mockDataService';
 import { friendService } from './friendService';
-import type { Message } from './messageTypes';
-import { ContentType, LocalMessage, MessageStatus, MessageText } from './messageTypes';
+import type { Message, FriendNotificationDetail, UserProfile } from './messageTypes';
+import { ContentType, LocalMessage, MessageStatus, MessageText, MessageType } from './messageTypes';
 import type { UserSearchResult, FriendWithUserInfo, FriendRequest } from './messageTypes';
 
 class MessageService {
@@ -473,12 +473,18 @@ class MessageService {
    * 发送好友请求
    * @param receiver_uid 接收者用户ID
    * @param apply_text 申请文本
+   * @param tags 标签数组
    * @returns 好友请求数据
    */
-  async sendFriendRequest(receiver_uid: string, apply_text?: string): Promise<FriendRequest> {
+  async sendFriendRequest(receiver_uid: string, apply_text?: string, tags?: string[]): Promise<FriendRequest> {
     try {
-      // 使用 friendService 创建好友请求
-      return await friendService.createFriendRequest(receiver_uid, apply_text);
+      // 1. 创建好友请求（数据层操作）
+      const request = await friendService.createFriendRequest(receiver_uid, apply_text, tags);
+
+      // 2. 创建好友请求通知消息并通过现有消息系统发送
+      await this.sendFriendRequestMessage(receiver_uid, request, apply_text);
+
+      return request;
     } catch (error) {
       console.error('发送好友请求失败:', error);
       throw error;
@@ -492,8 +498,11 @@ class MessageService {
    */
   async respondToFriendRequest(req_id: string, status: 'accepted' | 'rejected'): Promise<void> {
     try {
-      // 使用 friendService 处理响应逻辑
+      // 1. 调用数据层API处理响应（后端处理数据库操作）
       await friendService.respondToFriendRequest(req_id, status);
+
+      // 2. 创建好友响应通知消息并通过现有消息系统发送
+      await this.sendFriendResponseMessage(req_id, status);
     } catch (error) {
       console.error('响应好友请求失败:', error);
       throw error;
@@ -543,6 +552,143 @@ class MessageService {
    */
   async setFriendBlacklist(friendId: string, is_blacklist: boolean): Promise<void> {
     return await friendService.setFriendBlacklist(friendId, is_blacklist);
+  }
+
+  // ============ WebSocket通知发送方法 ============
+
+  /**
+   * 发送好友请求的通知消息
+   * @param receiver_uid 接收者用户ID
+   * @param request 好友请求数据
+   * @param apply_text 申请文本
+   */
+  private async sendFriendRequestMessage(
+    receiver_uid: string,
+    request: FriendRequest,
+    apply_text?: string
+  ): Promise<void> {
+    try {
+      // 获取当前用户信息
+      const currentUserInfo = await this.getCurrentUserInfo();
+
+      // 创建通知详情
+      const notificationDetail: FriendNotificationDetail = {
+        action: 'friend_request',
+        req_id: request.req_id,
+        sender_uid: this.userId!,
+        receiver_uid: receiver_uid,
+        apply_text: apply_text,
+        user_info: currentUserInfo
+      };
+
+      // 创建通知消息
+      const notificationMessage = new MessageText(MessageType.NOTIFICATION, {
+        senderId: this.userId!,
+        receiverId: receiver_uid,
+        contentType: ContentType.FRIEND,
+        detail: JSON.stringify(notificationDetail)
+      });
+
+      // 使用现有的sendWithUpdate方法发送消息，这样会通过WebSocket系统发送
+      this.sendWithUpdate(notificationMessage);
+
+      devLog('Friend request message sent', {
+        req_id: request.req_id,
+        receiver_uid
+      });
+
+    } catch (error) {
+      console.error('Failed to send friend request message:', error);
+    }
+  }
+
+  /**
+   * 获取当前用户信息（开发环境Mock）
+   */
+  private async getCurrentUserInfo(): Promise<UserProfile> {
+    if (this.shouldUseMockData()) {
+      return await mockDataService.mockGetCurrentUserInfo();
+    }
+
+    // TODO: 生产环境从API获取用户信息
+    throw new Error('生产环境用户信息获取API尚未实现');
+  }
+
+  /**
+   * 发送好友请求响应的通知消息
+   * @param req_id 请求ID
+   * @param status 响应状态
+   */
+  private async sendFriendResponseMessage(
+    req_id: string,
+    status: 'accepted' | 'rejected'
+  ): Promise<void> {
+    try {
+      // 获取请求详情以确定接收者
+      const request = await this.getFriendRequestById(req_id);
+      if (!request) {
+        console.warn('Friend request not found for notification:', req_id);
+        return;
+      }
+
+      // 获取当前用户信息
+      const currentUserInfo = await this.getCurrentUserInfo();
+
+      // 创建响应通知详情
+      const notificationDetail: FriendNotificationDetail = {
+        action: 'friend_response',
+        req_id: req_id,
+        sender_uid: this.userId!,
+        receiver_uid: request.sender_uid,
+        status: status,
+        user_info: currentUserInfo
+      };
+
+      // 创建通知消息
+      const notificationMessage = new MessageText(MessageType.NOTIFICATION, {
+        senderId: this.userId!,
+        receiverId: request.sender_uid,
+        contentType: ContentType.FRIEND,
+        detail: JSON.stringify(notificationDetail)
+      });
+
+      // 使用sendWithUpdate方法发送消息，这样会通过WebSocket系统发送
+      this.sendWithUpdate(notificationMessage);
+
+      devLog('Friend response message sent', {
+        req_id,
+        status,
+        receiver_uid: request.sender_uid
+      });
+
+    } catch (error) {
+      console.error('Failed to send friend response message:', error);
+    }
+  }
+
+  /**
+   * 获取好友请求详情（用于通知发送）
+   * @param req_id 请求ID
+   * @returns 好友请求数据或null
+   */
+  private async getFriendRequestById(req_id: string): Promise<FriendRequest | null> {
+    try {
+      // 开发环境从mock数据获取
+      if (this.shouldUseMockData()) {
+        const pendingRequests = await mockDataService.mockGetPendingRequests();
+        const allRequests = [...pendingRequests.receivedRequests, ...pendingRequests.sentRequests];
+        return allRequests.find(req => req.req_id === req_id) || null;
+      }
+
+      // TODO: 生产环境从API获取
+      // const response = await authApi.get(`/auth/friend/request/${req_id}`);
+      // return response.data.request;
+
+      throw new Error('生产环境获取请求详情API尚未实现');
+    } catch (error) {
+      console.error('Failed to get friend request:', error);
+      return null;
+    }
   }
 
   }

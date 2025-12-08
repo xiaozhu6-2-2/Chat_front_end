@@ -49,11 +49,34 @@
       <v-list-group value="联系人" v-model:opened="openGroups['联系人']">
         <template #activator="{ props }">
           <v-list-item v-bind="props" prepend-icon="mdi-account" title="联系人">
+            <template v-slot:append>
+              <!-- 分组切换按钮 -->
+              <v-btn-toggle
+                v-model="groupBy"
+                mandatory
+                variant="outlined"
+                density="compact"
+                class="ml-2"
+              >
+                <v-btn value="initial" size="x-small">
+                  <v-icon icon="mdi-sort-alphabetical-descending-variant" size="12"></v-icon>
+                </v-btn>
+                <v-btn value="tag" size="x-small">
+                  <v-icon icon="mdi-tag-multiple" size="12"></v-icon>
+                </v-btn>
+              </v-btn-toggle>
+            </template>
           </v-list-item>
         </template>
 
-        <template v-for="(contacts, letter) in groupedContacts" :key="letter">
-          <div class="letter-divider">{{ letter }}</div>
+        <template v-for="(contacts, groupName) in currentGroupedContacts" :key="groupName">
+          <div class="letter-divider">
+            <span v-if="groupBy === 'tag'">
+              <v-icon icon="mdi-tag" size="12" class="mr-1"></v-icon>
+              {{ groupName }}
+            </span>
+            <span v-else>{{ groupName }}</span>
+          </div>
           <v-list-item
             v-for="contact in contacts"
             :key="contact.id"
@@ -65,10 +88,28 @@
               <div class="contact-avatar">
                 {{ contact.name.charAt(0) }}
               </div>
-              <div class="contact-name">{{ contact.name }}</div>
+              <div class="d-flex flex-column align-start flex-grow-1">
+                <div class="contact-name">{{ contact.name }}</div>
+                <v-chip
+                  v-if="groupBy === 'tag' && contact.tag"
+                  :color="getTagColor(contact.tag)"
+                  size="x-small"
+                  variant="tonal"
+                  class="mt-1"
+                >
+                  {{ contact.tag }}
+                </v-chip>
+              </div>
             </div>
           </v-list-item>
         </template>
+
+        <!-- 标签分组模式下显示空状态提示 -->
+        <div v-if="groupBy === 'tag' && Object.keys(currentGroupedContacts).length === 0" class="no-results">
+          <v-icon icon="mdi-tag-off" size="24" class="mb-2"></v-icon>
+          <p>暂无带标签的联系人</p>
+          <p class="text-caption text-grey">为好友设置标签后，即可在此查看</p>
+        </div>
       </v-list-group>
 
       <!-- 添加好友 -->
@@ -96,6 +137,7 @@ interface Contact {
   id: string;
   name: string;
   initial: string;
+  tag?: string;
 }
 
 interface Group {
@@ -105,6 +147,7 @@ interface Group {
 
 // 响应式状态
 const activeItem = ref<string | null>(null);
+const groupBy = ref<'initial' | 'tag'>('initial'); // 分组模式
 const openGroups = ref({
   群聊: true,
   公众号: true,
@@ -121,23 +164,23 @@ const groups: Group[] = [
   { id: "g6", name: "产品经理交流" },
 ];
 
-// 静态联系人数据
+// 静态联系人数据（包含标签示例）
 const contacts: Contact[] = [
-  { id: "c1", name: "张三", initial: "Z" },
-  { id: "c2", name: "李四", initial: "L" },
-  { id: "c3", name: "王五", initial: "W" },
-  { id: "c4", name: "赵六", initial: "Z" },
+  { id: "c1", name: "张三", initial: "Z", tag: "同事" },
+  { id: "c2", name: "李四", initial: "L", tag: "家人" },
+  { id: "c3", name: "王五", initial: "W", tag: "同学" },
+  { id: "c4", name: "赵六", initial: "Z", tag: "同事" },
   { id: "c5", name: "钱七", initial: "Q" },
-  { id: "c6", name: "孙八", initial: "S" },
-  { id: "c7", name: "周九", initial: "Z" },
-  { id: "c8", name: "吴十", initial: "W" },
-  { id: "c9", name: "郑十一", initial: "Z" },
-  { id: "c10", name: "王小明", initial: "W" },
+  { id: "c6", name: "孙八", initial: "S", tag: "同学" },
+  { id: "c7", name: "周九", initial: "Z", tag: "朋友" },
+  { id: "c8", name: "吴十", initial: "W", tag: "家人" },
+  { id: "c9", name: "郑十一", initial: "Z", tag: "同事" },
+  { id: "c10", name: "王小明", initial: "W", tag: "同学" },
   { id: "c11", name: "刘芳", initial: "L" },
-  { id: "c12", name: "陈华", initial: "C" },
-  { id: "c13", name: "杨帆", initial: "Y" },
-  { id: "c14", name: "黄蓉", initial: "H" },
-  { id: "c15", name: "欧阳锋", initial: "O" },
+  { id: "c12", name: "陈华", initial: "C", tag: "朋友" },
+  { id: "c13", name: "杨帆", initial: "Y", tag: "同事" },
+  { id: "c14", name: "黄蓉", initial: "H", tag: "家人" },
+  { id: "c15", name: "欧阳锋", initial: "O", tag: "同学" },
 ];
 
 // 计算属性 - 排序后的群聊
@@ -162,6 +205,32 @@ const groupedContacts = computed(() => {
   });
   return groupsMap;
 });
+
+// 计算属性 - 按标签分组的联系人
+const groupedContactsByTag = computed(() => {
+  const groupsMap: Record<string, Contact[]> = {};
+  sortedContacts.value.forEach((contact) => {
+    if (contact.tag) {
+      if (!groupsMap[contact.tag]) {
+        groupsMap[contact.tag] = [];
+      }
+      groupsMap[contact.tag].push(contact);
+    }
+  });
+  return groupsMap;
+});
+
+// 根据分组模式返回对应的分组数据
+const currentGroupedContacts = computed(() => {
+  return groupBy.value === 'tag' ? groupedContactsByTag.value : groupedContacts.value;
+});
+
+// 获取标签颜色
+const getTagColor = (tag: string): string => {
+  const colors = ['primary', 'secondary', 'success', 'warning', 'error', 'info', 'purple', 'indigo', 'teal']
+  const hash = (tag || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  return colors[hash % colors.length]
+}
 
 // 定义 props 和 emits
 defineProps<ContactListProps>();

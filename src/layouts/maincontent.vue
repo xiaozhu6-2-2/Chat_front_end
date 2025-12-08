@@ -5,7 +5,7 @@
         <v-row no-gutters class="fill-height">
           <!-- 侧边栏 -->
           <!--使用栅格布局-->
-          <v-col cols="12" md="4" lg="2" class="detailbar-container">
+          <v-col cols="12" md="4" lg="2" sm="1" class="detailbar-container">
             <div class="search-section">
               <!-- 所有的 Vuetify 输入组件都有一个 details 部分，在搜索框的下方，用来显示提示 -->
               <v-text-field class="searchInput" prepend-inner-icon="mdi-magnify" label="搜索" variant="solo" clearable
@@ -32,7 +32,7 @@
           </v-col>
 
           <!-- 主内容区域 -->
-          <v-col cols="12" md="8" lg="10" class="main-content">
+          <v-col cols="12" md="8" lg="10" sm="11" class="main-content">
             <slot name="main"></slot>
           </v-col>
         </v-row>
