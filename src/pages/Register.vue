@@ -1,5 +1,5 @@
 <template>
-  <!-- 主容器，使用全屏高度 -->
+    <!-- 主容器，使用全屏高度 -->
   <v-container fluid class="fill-height container">
     <!-- 行布局，垂直和水平居中 -->
     <v-row align-content="center" justify="center" class="fill-height">
@@ -297,10 +297,16 @@
       </v-col>
     </v-row>
   </v-container>
+
 </template>
 
+<route lang="yaml">
+meta:
+  layout: auth
+</route>
+
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { generateSecureCredentials } from '@/service/crypto';
 import { noauthApi } from '@/service/api';

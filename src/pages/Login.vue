@@ -151,6 +151,11 @@
   </v-container>
 </template>
 
+<route lang="yaml">
+meta:
+  layout: auth
+</route>
+
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import type { VForm } from 'vuetify/components'
