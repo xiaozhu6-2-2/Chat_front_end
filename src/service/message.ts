@@ -219,7 +219,7 @@ class MessageService {
   }
 
   //排序操作，找到chatId和消息类型对应的消息数组，按时间戳排序
-  sortMessages(messages: LocalMessage[]|undefined) {
+  private sortMessages(messages: LocalMessage[]|undefined) {
     if (!messages) {
       return;
     }
@@ -227,7 +227,7 @@ class MessageService {
   }
 
   //拉取历史通知
-  async fetchHistoryNotificationMessages():Promise<void> {
+  private async fetchHistoryNotificationMessages():Promise<void> {
     if(!this.token){
       console.error('token为空, 无法拉取历史通知');
       return;

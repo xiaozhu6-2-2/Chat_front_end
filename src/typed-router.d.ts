@@ -22,6 +22,7 @@ declare module 'vue-router/auto-routes' {
     '/AddFriend': RouteRecordInfo<'/AddFriend', '/AddFriend', Record<never, never>, Record<never, never>>,
     '/chat': RouteRecordInfo<'/chat', '/chat', Record<never, never>, Record<never, never>>,
     '/contact': RouteRecordInfo<'/contact', '/contact', Record<never, never>, Record<never, never>>,
+    '/demo': RouteRecordInfo<'/demo', '/demo', Record<never, never>, Record<never, never>>,
     '/Login': RouteRecordInfo<'/Login', '/Login', Record<never, never>, Record<never, never>>,
     '/Register': RouteRecordInfo<'/Register', '/Register', Record<never, never>, Record<never, never>>,
     '/settings': RouteRecordInfo<'/settings', '/settings', Record<never, never>, Record<never, never>>,
@@ -52,6 +53,10 @@ declare module 'vue-router/auto-routes' {
     }
     'src/pages/contact.vue': {
       routes: '/contact'
+      views: never
+    }
+    'src/pages/demo.vue': {
+      routes: '/demo'
       views: never
     }
     'src/pages/Login.vue': {
