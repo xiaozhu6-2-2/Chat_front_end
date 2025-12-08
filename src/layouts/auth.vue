@@ -26,7 +26,7 @@
         color="primary"
         class="mr-4"
         @click="goToLogin"
-        v-if="$route.name !== '/Login'"
+        v-if="$route.path === '/register' || $route.path === '/index'"
       >
         <v-icon start>mdi-login</v-icon>
         登录
@@ -38,7 +38,7 @@
         color="primary"
         class="mr-4"
         @click="goToRegister"
-        v-if="$route.name == '/Login'"
+        v-if="$route.path === '/login'"
       >
         <v-icon start>mdi-account-plus</v-icon>
         注册
