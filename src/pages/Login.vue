@@ -176,7 +176,7 @@ const loginForm = reactive({
 
 const showPassword = ref(false)
 const loading = ref(false)
-//匹配ref="loginForm"的表单，用于表单验证
+//用于验证规则
 const loginFormRef = ref<VForm | null>(null)
 const loginError = ref('')
 
@@ -221,15 +221,15 @@ const handleLogin = async () => {
     );
 
     // 发送登录请求
-    const response = await noauthApi.post("/login", {
+    const response = await noauthApi.post("/auth/login", {
       account: encryptedAccount,
       password: encryptedPassword
     })
 
     // 登录成功后的处理
     if (response.status === 200) {
-      const userName = response.data.userName;
-      const userId = response.data.userId;
+      const userName = response.data.username;
+      const userId = response.data.uid;
       const token = response.data.token;
 
       if (token && userName && userId) {
@@ -238,11 +238,11 @@ const handleLogin = async () => {
         localStorage.setItem('username', userName);
         localStorage.setItem('userid', userId);
 
-        // 初始化消息服务
-        messageService.init(token, userId);
-
         // 连接WebSocket
         await websocketService.connect(token, userId);
+
+        // 初始化消息服务
+        await messageService.init(token, userId);
 
         // 跳转到聊天页面
         router.push('/chat');
@@ -272,12 +272,12 @@ const handleLogin = async () => {
 
 // 跳转到注册页面
 const goToRegister = () => {
-  router.push('/Register')
+  router.push('/register')
 }
 
 // 处理忘记密码
 const handleForgotPassword = () => {
-  alert('请联系管理员重置密码')
+  router.push('/forget')
 }
 
 </script>
