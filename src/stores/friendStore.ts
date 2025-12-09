@@ -80,6 +80,32 @@ export const useFriendStore = defineStore('friend', () => {
     }
   })
 
+  // 标签相关计算属性
+  const getFriendsByTag = computed(() => {
+    return (tag: string) => {
+      return Array.from(friends.value.values())
+        .filter(friend => friend.tag === tag && !friend.is_blacklist)
+    }
+  })
+
+  const getAllTags = computed(() => {
+    const tags = new Set<string>()
+    Array.from(friends.value.values()).forEach(friend => {
+      if (friend.tag) tags.add(friend.tag)
+    })
+    return Array.from(tags).sort()
+  })
+
+  const getTagStats = computed(() => {
+    const stats: Record<string, number> = {}
+    Array.from(friends.value.values()).forEach(friend => {
+      if (friend.tag) {
+        stats[friend.tag] = (stats[friend.tag] || 0) + 1
+      }
+    })
+    return stats
+  })
+
   // Actions
   const setLoading = (loading: boolean) => {
     isLoading.value = loading
@@ -185,6 +211,21 @@ export const useFriendStore = defineStore('friend', () => {
     addSentRequest(request)
   }
 
+  // 标签相关actions
+  const updateFriendTag = (friendId: string, tag: string | null) => {
+    updateFriend(friendId, { tag: tag || undefined })
+  }
+
+  const removeFriendTag = (friendId: string) => {
+    updateFriendTag(friendId, null)
+  }
+
+  const batchUpdateTags = (updates: { friendId: string, tag: string | null }[]) => {
+    updates.forEach(({ friendId, tag }) => {
+      updateFriendTag(friendId, tag)
+    })
+  }
+
   return {
     // State
     friends,
@@ -203,6 +244,10 @@ export const useFriendStore = defineStore('friend', () => {
     isFriend,
     hasSentRequest,
     hasReceivedRequest,
+    // 标签相关computed
+    getFriendsByTag,
+    getAllTags,
+    getTagStats,
 
     // Actions
     setLoading,
@@ -220,6 +265,10 @@ export const useFriendStore = defineStore('friend', () => {
     clearSearchResults,
     reset,
     handleFriendResponse,
-    handleRequestSent
+    handleRequestSent,
+    // 标签相关actions
+    updateFriendTag,
+    removeFriendTag,
+    batchUpdateTags
   }
 })

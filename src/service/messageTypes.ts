@@ -182,7 +182,7 @@ interface ChatAreaProps {
   chat: Chat;
 }
 
-// 好友相关接口定义（基于数据库设计）
+// 好友接口定义（基于数据库设计）
 interface UserProfile {
   uid: string;               // 用户编号
   username: string;          // 用户名
@@ -194,15 +194,29 @@ interface UserProfile {
   avatar?: string;           // 头像
   bio?: string;              // 简介
 }
-
+// 群聊接口定义 
+// 展示群聊详细信息
+interface GroupProfile {
+  gid: string,               // 群聊编号
+  groupname: string,         // 群名
+  manager_uid: string,       // 群主id
+  avatar: string,            // 头像
+  groupintro: string,        // 群介绍
+  createdAt: string,         // 创建时间
+}
 // 用户搜索结果（用于添加好友页面）
 interface UserSearchResult extends UserProfile {
   is_friend: boolean;        // 是否已是好友
   request_sent: boolean;     // 是否已发送好友请求
   request_received: boolean; // 是否收到对方请求
 }
-
+// 群聊搜索结果（用于加入群聊）
+interface GroupSearchResult extends GroupProfile{
+  isIn: boolean;             // 是否已在群中
+  request_sent: boolean;     // 是否已发送加群请求
+}
 // 好友信息（对应 friends 表 + user 表信息）
+// 用于展示好友信息
 interface FriendWithUserInfo {
   fid: string;               // 好友编号
   uid: string;               // 好友用户ID
@@ -218,14 +232,14 @@ interface FriendWithUserInfo {
 
 // 好友请求（对应 friend_request 表）
 interface FriendRequest {
-  req_id: string;            // 申请编号
-  sender_uid: string;        // 发送者编号
-  receiver_uid: string;      // 接收者编号
+  req_id: string;              // 申请编号
+  sender_uid: string;          // 发送者编号
+  receiver_uid: string;        // 接收者编号
   status: 'pending' | 'accepted' | 'rejected' | 'expired';
-  apply_text?: string;       // 申请文本
-  create_time: string;       // 申请时间
-  handle_time?: string;      // 处理时间
-  sender_info?: UserProfile; // 发送者信息
+  apply_text?: string;         // 申请文本
+  create_time: string;         // 申请时间
+  handle_time?: string;        // 处理时间
+  sender_info?: UserProfile;   // 发送者信息
   receiver_info?: UserProfile; // 接收者信息
 }
 
@@ -248,7 +262,9 @@ export type {
   ChatListProps,
   ChatAreaProps,
   UserProfile,
+  GroupProfile,
   UserSearchResult,
+  GroupSearchResult,
   FriendWithUserInfo,
   FriendRequest,
   FriendNotificationDetail

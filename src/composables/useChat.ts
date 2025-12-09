@@ -73,11 +73,11 @@ export function useChat() {
     }
   }
 
-  const markAsRead = (chatId?: string) => {
-    const targetChatId = chatId || currentChatId.value
-    // 消息已读标记可以在 messageService 中实现
-    console.log('Mark messages as read for chat:', targetChatId)
-  }
+  // const markAsRead = (chatId?: string) => {
+  //   const targetChatId = chatId || currentChatId.value
+  //   // 消息已读标记可以在 messageService 中实现
+  //   console.log('Mark messages as read for chat:', targetChatId)
+  // }
 
   const refreshChatList = () => {
     // 聊天列表刷新逻辑根据环境选择数据源：
@@ -139,7 +139,7 @@ export function useChat() {
     // Actions
     selectChat,
     sendMessage,
-    markAsRead,
+    // markAsRead,
     refreshChatList
   }
 }

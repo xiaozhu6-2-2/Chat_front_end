@@ -58,6 +58,11 @@ interface ContactListProps {
   activeItem?: { type: string; data: any } | null;
 }
 
+/** 联系人列表 Emits */
+interface ContactListEmits {
+  (e: 'itemClick', type: 'contact' | 'group', data: any): void;
+}
+
 // ==================== 好友相关组件 Props ====================
 
 /** 好友卡片 Props */
@@ -103,8 +108,20 @@ interface FriendRequestItemEmits {
 
 /** 用户搜索结果卡片 Emits */
 interface UserSearchResultCardEmits {
-  (e: 'send-request', user: UserSearchResult, message?: string): void;
+  (e: 'send-request', user: UserSearchResult, message?: string, tags?: string[]): void;
   (e: 'handle-request', user: UserSearchResult): void;
+}
+
+/** 标签对话框 Props */
+interface TagDialogProps {
+  modelValue: boolean;
+  friend: FriendWithUserInfo;
+}
+
+/** 标签对话框 Emits */
+interface TagDialogEmits {
+  (e: 'update:modelValue', value: boolean): void;
+  (e: 'tag-updated', friendId: string, tag: string | null): void;
 }
 
 // ==================== 聊天相关组件 Props ====================
@@ -114,9 +131,19 @@ interface ChatAreaProps {
   chat: Chat;
 }
 
+/** 聊天区域 Emits */
+interface ChatAreaEmits {
+  (e: 'imagePreview', imageUrl: string): void;
+}
+
 /** 聊天列表 Props */
 interface ChatListProps {
   activeChatId?: string;
+}
+
+/** 聊天列表 Emits */
+interface ChatListEmits {
+  (e: 'chatSelected', chat: Chat): void;
 }
 
 /** 消息气泡 Props */
@@ -125,12 +152,23 @@ interface MessageBubbleProps {
   currentUserId?: string;
 }
 
+/** 消息气泡 Emits */
+interface MessageBubbleEmits {
+  (e: 'imagePreview', imageUrl: string): void;
+}
+
 /** 虚拟消息列表 Props */
 interface VirtualMessageListProps {
   messages: LocalMessage[];
   currentUserId?: string;
   autoScroll?: boolean;
   containerHeight?: number;
+}
+
+/** 虚拟消息列表 Emits */
+interface VirtualMessageListEmits {
+  (e: 'imagePreview', imageUrl: string): void;
+  (e: 'scrollNearBottom', isNearBottom: boolean): void;
 }
 
 /** 在线用户面板 Props */
@@ -156,6 +194,11 @@ interface AvatarProps {
   badgeColor?: string;
   badgeDot?: boolean;
   badgeInline?: boolean;
+}
+
+/** 头像组件 Emits */
+interface AvatarEmits {
+  (e: 'click', event: MouseEvent): void;
 }
 
 /** 联系人卡片模态框 Props */
@@ -199,6 +242,7 @@ export type {
   FriendCardProps,
   FriendRequestItemProps,
   UserSearchResultCardProps,
+  TagDialogProps,
 
   // 聊天相关
   ChatAreaProps,
@@ -217,14 +261,27 @@ export type {
 
 // Emits 接口
 export type {
+  // 联系人相关
+  ContactListEmits,
+
   // 好友相关
   FriendCardEmits,
   FriendsListPanelEmits,
   FriendRequestItemEmits,
   UserSearchResultCardEmits,
+  TagDialogEmits,
+
+  // 聊天相关
+  ChatAreaEmits,
+  ChatListEmits,
+  MessageBubbleEmits,
+  VirtualMessageListEmits,
 
   // 全局组件
+  AvatarEmits,
   ContactCardModalEmits,
+
+  // 设置相关
   SettingsDialogEmits
 };
 

@@ -42,14 +42,15 @@
       />
 
       <!-- Typing Indicator -->
-      <div v-if="isTyping" class="typing-indicator">
+      <!-- todo：检测对方正在输入 -->
+      <!-- <div v-if="isTyping" class="typing-indicator">
         <div class="typing-dots">
           <span></span>
           <span></span>
           <span></span>
         </div>
         <span class="typing-text">对方正在输入...</span>
-      </div>
+      </div> -->
     </div>
     <v-divider></v-divider>
 
@@ -155,7 +156,7 @@ const {
 // Local state
 const showOnlineBoard = ref(false)
 const showContactCard = ref(false)
-const isTyping = ref(false)
+// const isTyping = ref(false)
 const isSending = ref(false)
 const typingTimeout = ref<number>()
 const virtualMessageList = ref()
@@ -293,7 +294,7 @@ onMounted(() => {
 
 .messages-container {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: hidden;
   background-color: #1A1A25;
   display: flex;
   flex-direction: column;
@@ -307,45 +308,6 @@ onMounted(() => {
   height: 100%;
   color: rgba(255, 255, 255, 0.5);
   font-style: italic;
-}
-
-.typing-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
-}
-
-.typing-dots {
-  display: flex;
-  gap: 4px;
-
-  span {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background-color: rgba(255, 255, 255, 0.6);
-    animation: typing 1.4s infinite;
-
-    &:nth-child(2) {
-      animation-delay: 0.2s;
-    }
-
-    &:nth-child(3) {
-      animation-delay: 0.4s;
-    }
-  }
-}
-
-@keyframes typing {
-  0%, 60%, 100% {
-    opacity: 0.3;
-  }
-  30% {
-    opacity: 1;
-  }
 }
 
 .input-container {

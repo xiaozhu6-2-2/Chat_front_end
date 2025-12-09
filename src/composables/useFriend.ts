@@ -35,9 +35,9 @@ export function useFriend() {
     }
   }
 
-  const sendFriendRequest = async (receiver_uid: string, apply_text?: string) => {
+  const sendFriendRequest = async (receiver_uid: string, apply_text?: string, tags?: string[]) => {
     try {
-      const request = await messageService.sendFriendRequest(receiver_uid, apply_text)
+      const request = await messageService.sendFriendRequest(receiver_uid, apply_text, tags)
       friendStore.handleRequestSent(request)
 
       // 更新搜索结果中的状态
@@ -49,7 +49,7 @@ export function useFriend() {
         )
       )
 
-      devLog('Friend request sent', { receiver_uid, requestId: request.req_id })
+      devLog('Friend request sent', { receiver_uid, requestId: request.req_id, tags })
       return request
     } catch (error) {
       console.error('发送好友请求失败:', error)

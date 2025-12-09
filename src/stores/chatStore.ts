@@ -6,8 +6,9 @@ import { MessageStatus } from '@/service/messageTypes'
 
 export const useChatStore = defineStore('chat', () => {
   // State
+  // 响应式
   const currentChat = ref<Chat | null>(null)
-  const chatList = ref<Chat[]>([])
+  const chatList = ref<Chat[]>([])//渲染chatList的数据
   const messages = ref<LocalMessage[]>([])
   const onlineBoardVisible = ref(false)
   const isLoading = ref(false)
@@ -45,11 +46,11 @@ export const useChatStore = defineStore('chat', () => {
       updateChatUnreadCount(chat.id, 0)
     }
   }
-
+  //更新chatlist
   const updateChatList = (chats: Chat[]) => {
     chatList.value = chats
   }
-
+  //
   const addChat = (chat: Chat) => {
     const existingIndex = chatList.value.findIndex(c => c.id === chat.id)
     if (existingIndex >= 0) {
@@ -64,7 +65,7 @@ export const useChatStore = defineStore('chat', () => {
     if (chat) {
       chat.lastMessage = lastMessage
       chat.updatedAt = new Date().toISOString()
-      // Move to top if not current chat
+      // 把当前聊天移动到顶部
       if (chatId !== currentChat.value?.id) {
         chatList.value = [chat, ...chatList.value.filter(c => c.id !== chatId)]
       }
@@ -101,13 +102,13 @@ export const useChatStore = defineStore('chat', () => {
       message.sendStatus = sendStatus
     }
   }
-
+  //todo：这只是本地的假已读，真正的已读处理应该与websocket有关
   const markMessagesAsRead = (chatId: string) => {
     messages.value
       .filter(msg => msg.payload.chatId === chatId)
       .forEach(msg => {
         // LocalMessage doesn't have isRead property, could be added if needed
-        msg.sendStatus = MessageStatus.SENT // Mark as sent/read equivalent
+        msg.sendStatus = MessageStatus.READ // Mark as sent/read equivalent
       })
   }
 

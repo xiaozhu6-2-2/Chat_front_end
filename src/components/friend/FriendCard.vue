@@ -30,6 +30,19 @@
             </p>
           </div>
 
+          <!-- 标签显示 -->
+          <div v-if="friend.tag" class="d-flex align-center mb-1">
+            <v-chip
+              :color="getTagColor(friend.tag)"
+              size="x-small"
+              variant="tonal"
+              class="mr-2"
+            >
+              <v-icon icon="mdi-tag" size="10" class="mr-1"></v-icon>
+              {{ friend.tag }}
+            </v-chip>
+          </div>
+
           <!-- 地区和状态 -->
           <div class="d-flex align-center">
             <p v-if="friend.user_info.region" class="text-caption text-grey mr-3">
@@ -132,6 +145,13 @@ const emit = defineEmits<FriendCardEmits>()
 const displayName = computed(() => {
   return props.friend.remark || props.friend.user_info.username
 })
+
+// 获取标签颜色
+const getTagColor = (tag: string): string => {
+  const colors = ['primary', 'secondary', 'success', 'warning', 'error', 'info', 'purple', 'indigo', 'teal']
+  const hash = (tag || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  return colors[hash % colors.length]
+}
 
 // 格式化加入时间
 const formatJoinTime = () => {

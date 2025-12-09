@@ -62,12 +62,16 @@ class FriendService {
       }
 
       // TODO: 生产环境调用真实 API
-      // const response = await authApi.get(`/auth/users/search?q=${encodeURIComponent(query)}&limit=20`);
-      // if (response.status === 200) {
-      //   return response.data.users;
-      // } else {
-      //   throw new Error(`搜索用户失败：${response.status}`);
-      // }
+      const response = await authApi.post('/auth/friends/search', {
+        query,
+        limit: 20,
+        offset: 0
+      });
+      if (response.status === 200) {
+        return response.data.users;
+      } else {
+        throw new Error(`搜索用户失败：${response.status}`);
+      }
 
       throw new Error('生产环境用户搜索 API 尚未实现');
 
@@ -83,7 +87,7 @@ class FriendService {
    * @param apply_text 申请文本
    * @returns 好友请求数据
    */
-  async createFriendRequest(receiver_uid: string, apply_text?: string): Promise<FriendRequest> {
+  async createFriendRequest(receiver_uid: string, apply_text?: string, tags?: string[]): Promise<FriendRequest> {
     if (!this.token) {
       console.error('token为空，无法创建好友请求');
       throw new Error('未登录');
@@ -92,14 +96,15 @@ class FriendService {
     try {
       // 开发环境使用模拟数据
       if (this.shouldUseMockData()) {
-        devLog('Creating friend request with mock data', { receiver_uid, apply_text });
-        return await mockDataService.mockSendFriendRequest(receiver_uid, apply_text);
+        devLog('Creating friend request with mock data', { receiver_uid, apply_text, tags });
+        return await mockDataService.mockSendFriendRequest(receiver_uid, apply_text, tags);
       }
 
       // TODO: 生产环境调用真实 API
       // const response = await authApi.post('/auth/friend/request', {
       //   receiver_uid,
-      //   apply_text
+      //   apply_text,
+      //   tags
       // });
       // if (response.status === 200) {
       //   return response.data.request;
