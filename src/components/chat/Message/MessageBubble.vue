@@ -72,7 +72,7 @@
     <!-- 联系人卡片弹窗 -->
     <ContactCardModal
       v-if="showContactCard && selectedContactInfo"
-      :contact-info="selectedContactInfo"
+      :contact="selectedContactInfo"
       v-model="showContactCard"
     />
   </div>
@@ -80,11 +80,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { LocalMessage } from '../../../service/messageTypes'
 import { ContentType, MessageType } from '../../../service/messageTypes'
-import Avatar from '../../../components/global/Avatar.vue'
-import ContactCardModal from '../../../components/global/ContactCardModal.vue'
-
 import type { MessageBubbleProps } from '../../../types/componentProps'
 
 const props = withDefaults(defineProps<MessageBubbleProps>(), {
@@ -195,12 +191,15 @@ const previewImage = () => {
 // 处理头像点击事件
 const handleAvatarClick = () => {
   selectedContactInfo.value = {
-    id: senderName.value,
-    name: senderName.value,
-    avatar: senderAvatar.value,
+    uid: senderName.value,
+    username: senderName.value,
+    account: senderName.value,
+    gender: 'other',
+    region: '',
     email: `${senderName.value.toLowerCase()}@example.com`,
-    phone: `+86 138****${Math.random().toString().slice(-4)}`,
-    initial: senderName.value.charAt(0)
+    create_time: new Date().toISOString(),
+    avatar: senderAvatar.value,
+    bio: '用户信息'
   }
   showContactCard.value = true
 }
@@ -208,12 +207,15 @@ const handleAvatarClick = () => {
 // 处理自己头像点击事件
 const handleMyAvatarClick = () => {
   selectedContactInfo.value = {
-    id: 'current-user',
-    name: '我',
-    avatar: currentUserAvatar.value,
+    uid: 'current-user',
+    username: '我',
+    account: 'me',
+    gender: 'other',
+    region: '',
     email: 'me@example.com',
-    phone: '+86 138****0001',
-    initial: '我'
+    create_time: new Date().toISOString(),
+    avatar: currentUserAvatar.value,
+    bio: '这是我的个人信息'
   }
   showContactCard.value = true
 }

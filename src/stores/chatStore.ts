@@ -1,24 +1,25 @@
 // stores/chatStore.ts
+// 聊天UI状态管理
+// 职责：
+// - 管理当前选中的聊天
+// - 管理聊天列表
+// - 管理UI状态（加载、在线面板等）
+// 注意：消息数据由 messageService 管理，不在本 store 中存储
+
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { Chat, LocalMessage } from '@/service/messageTypes'
-import { MessageStatus } from '@/service/messageTypes'
+import type { Chat } from '@/service/messageTypes'
 
 export const useChatStore = defineStore('chat', () => {
   // State
   // 响应式
   const currentChat = ref<Chat | null>(null)
   const chatList = ref<Chat[]>([])//渲染chatList的数据
-  const messages = ref<LocalMessage[]>([])
   const onlineBoardVisible = ref(false)
   const isLoading = ref(false)
 
   // Computed
   const activeChatId = computed(() => currentChat.value?.id)
-
-  const currentChatMessages = computed(() =>
-    messages.value.filter(msg => msg.payload.chatId === currentChat.value?.id)
-  )
 
   const unreadCount = computed(() =>
     chatList.value.reduce((total, chat) => total + chat.unreadCount, 0)
@@ -79,40 +80,7 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  const incrementUnreadCount = (chatId: string) => {
-    const chat = chatList.value.find(c => c.id === chatId)
-    if (chat && chatId !== currentChat.value?.id) {
-      chat.unreadCount++
-    }
-  }
-
-  const addMessage = (message: LocalMessage) => {
-    messages.value.push(message)
-    updateChatLastMessage(message.payload.chatId!, message.payload.detail || '')
-
-    // Increment unread count if not current chat
-    if (message.payload.chatId !== currentChat.value?.id) {
-      incrementUnreadCount(message.payload.chatId!)
-    }
-  }
-
-  const updateMessageStatus = (messageId: string, sendStatus: LocalMessage['sendStatus']) => {
-    const message = messages.value.find(msg => msg.payload.messageId === messageId)
-    if (message) {
-      message.sendStatus = sendStatus
-    }
-  }
-  //todo：这只是本地的假已读，真正的已读处理应该与websocket有关
-  const markMessagesAsRead = (chatId: string) => {
-    messages.value
-      .filter(msg => msg.payload.chatId === chatId)
-      .forEach(msg => {
-        // LocalMessage doesn't have isRead property, could be added if needed
-        msg.sendStatus = MessageStatus.READ // Mark as sent/read equivalent
-      })
-  }
-
-  const setOnlineBoardVisible = (visible: boolean) => {
+    const setOnlineBoardVisible = (visible: boolean) => {
     onlineBoardVisible.value = visible
   }
 
@@ -124,7 +92,6 @@ export const useChatStore = defineStore('chat', () => {
   const reset = () => {
     currentChat.value = null
     chatList.value = []
-    messages.value = []
     onlineBoardVisible.value = false
     isLoading.value = false
   }
@@ -133,13 +100,11 @@ export const useChatStore = defineStore('chat', () => {
     // State
     currentChat,
     chatList,
-    messages,
     onlineBoardVisible,
     isLoading,
 
     // Computed
     activeChatId,
-    currentChatMessages,
     unreadCount,
     chatById,
 
@@ -149,9 +114,6 @@ export const useChatStore = defineStore('chat', () => {
     addChat,
     updateChatLastMessage,
     updateChatUnreadCount,
-    addMessage,
-    updateMessageStatus,
-    markMessagesAsRead,
     setOnlineBoardVisible,
     setLoading,
     reset

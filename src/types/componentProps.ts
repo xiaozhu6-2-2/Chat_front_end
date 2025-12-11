@@ -26,7 +26,18 @@ import type {
 
 // ==================== 联系人相关组件 Props ====================
 
-/** 联系人信息基础接口 */
+/** 联系人数据联合类型 */
+type ContactData = UserProfile | FriendWithUserInfo;
+
+/** 类型守卫函数：判断是否为好友类型 */
+function isFriend(contact: ContactData): contact is FriendWithUserInfo {
+  return 'fid' in contact && 'user_info' in contact;
+}
+
+/** 联系人卡片模式 */
+type ContactCardMode = 'friend' | 'stranger';
+
+/** 联系人信息基础接口（保留向后兼容） */
 interface BaseContactInfo {
   id: string;
   name: string;
@@ -203,14 +214,20 @@ interface AvatarEmits {
 
 /** 联系人卡片模态框 Props */
 interface ContactCardModalProps {
-  contactInfo: BaseContactInfo;
+  contact: ContactData;
   modelValue?: boolean;
+  mode?: ContactCardMode;
 }
 
 /** 联系人卡片模态框 Emits */
 interface ContactCardModalEmits {
   (e: 'update:modelValue', value: boolean): void;
-  (e: 'send-message', contact: BaseContactInfo): void;
+  (e: 'send-message', contact: ContactData): void;
+  (e: 'add-friend', contact: ContactData, message?: string, tags?: string[]): void;
+  (e: 'remove-friend', friend: FriendWithUserInfo): void;
+  (e: 'edit-remark', friend: FriendWithUserInfo, remark: string): void;
+  (e: 'set-tag', friend: FriendWithUserInfo, tag: string): void;
+  (e: 'set-blacklist', friend: FriendWithUserInfo, isBlacklist: boolean): void;
 }
 
 // ==================== 设置相关组件 Props ====================
@@ -237,6 +254,8 @@ export type {
   ContactCardProps,
   GroupCardProps,
   ContactListProps,
+  ContactData,
+  ContactCardMode,
 
   // 好友相关
   FriendCardProps,
@@ -258,6 +277,9 @@ export type {
   // 设置相关
   SettingsDialogProps
 };
+
+// 导出类型守卫函数
+export { isFriend };
 
 // Emits 接口
 export type {

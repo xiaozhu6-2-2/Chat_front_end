@@ -2,18 +2,14 @@
   <v-card class="chat-container" elevation="0">
     <!-- 顶部聊天信息栏 -->
     <v-toolbar density="compact" class="chat-header">
-      <ContactCardModal :contact-info="currentChatContact!" v-model="showContactCard">
-        <template #activator="{ props }">
-          <Avatar
-            :url="currentChat?.avatar"
-            :name="currentChat?.name"
-            :size="40"
-            :clickable="true"
-            avatar-class="custom-avatar ml-6"
-            v-bind="props"
-          />
-        </template>
-      </ContactCardModal>
+      <Avatar
+        :url="currentChat?.avatar"
+        :name="currentChat?.name"
+        :size="40"
+        :clickable="false"
+        avatar-class="custom-avatar ml-6"
+        v-bind="props"
+      />
       <v-toolbar-title>{{ currentChat?.name }}</v-toolbar-title>
       <v-spacer></v-spacer>
 
@@ -121,156 +117,168 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { useChat } from '@/composables/useChat'
-import { useMessageInput } from '@/composables/useMessageInput'
-import { useChatStore } from '@/stores/chatStore'
-import { messageService } from '../../service/message'
-import { ChatType } from '../../service/messageTypes'
-import Avatar from '../../components/global/Avatar.vue'
-import ContactCardModal from '../../components/global/ContactCardModal.vue'
-import OnlineBoard from './onlineBoard.vue'
-import VirtualMessageList from './VirtualMessageList.vue'
-import type { Chat } from '../../service/messageTypes'
-import type { LocalMessage } from '../../service/messageTypes'
-import type { ChatAreaProps } from '@/types/componentProps'
+import { ref, computed, watch, onMounted } from "vue";
+import { useChat } from "@/composables/useChat";
+import { useMessageInput } from "@/composables/useMessageInput";
+import { useChatStore } from "@/stores/chatStore";
+import { messageService } from "../../service/message";
+import { ChatType } from "../../service/messageTypes";
+import Avatar from "../../components/global/Avatar.vue";
+import ContactCardModal from "../../components/global/ContactCardModal.vue";
+import OnlineBoard from "./onlineBoard.vue";
+import VirtualMessageList from "./VirtualMessageList.vue";
+import type { Chat } from "../../service/messageTypes";
+import type { LocalMessage } from "../../service/messageTypes";
+import type { ChatAreaProps } from "@/types/componentProps";
 
-const props = defineProps<ChatAreaProps>()
+const props = defineProps<ChatAreaProps>();
 
 const emit = defineEmits<{
-  imagePreview: [imageUrl: string]
-}>()
+  imagePreview: [imageUrl: string];
+}>();
 
 // Store and composables
-const chatStore = useChatStore()
-const { currentChat, messages, sendMessage, selectChat } = useChat()
+const chatStore = useChatStore();
+const { currentChat, messages, sendMessage, selectChat } = useChat();
 const {
   message,
   showEmojiPicker,
   emojis,
   insertEmoji,
   toggleEmojiPicker,
-  scrollToBottom
-} = useMessageInput()
+  scrollToBottom,
+} = useMessageInput();
 
 // Local state
-const showOnlineBoard = ref(false)
-const showContactCard = ref(false)
+const showOnlineBoard = ref(false);
+const showContactCard = ref(false);
 // const isTyping = ref(false)
-const isSending = ref(false)
-const typingTimeout = ref<number>()
-const virtualMessageList = ref()
+const isSending = ref(false);
+const typingTimeout = ref<number>();
+const virtualMessageList = ref();
 
 // 当前聊天联系人信息
 const currentChatContact = computed(() => {
-  if (!props.chat) return null
+  if (!props.chat) return null;
   return {
-    id: props.chat.id,
-    name: props.chat.name,
-    avatar: props.chat.avatar,
+    uid: props.chat.id,
+    username: props.chat.name,
+    account: props.chat.name.toLowerCase().replace(/\s+/g, "_"),
+    gender: "other" as const,
+    region: "",
     email: `${props.chat.name.toLowerCase()}@example.com`,
-    phone: `+86 138****${props.chat.id.slice(-4)}`,
-    initial: props.chat.name.charAt(0)
-  }
-})
+    create_time: new Date().toISOString(),
+    avatar: props.chat.avatar,
+    bio: `${props.chat.name}的聊天`,
+  };
+});
 
 // 虚拟滚动配置
-const currentUserId = ref('current-user')
-const autoScroll = ref(true)
+const currentUserId = ref("current-user");
+const autoScroll = ref(true);
 const containerHeight = computed(() => {
   // 计算容器高度，减去头部、输入框等高度
-  const headerHeight = 64 // v-toolbar 高度
-  const inputHeight = 120 // 输入区域估计高度
-  const padding = 32 // 上下边距
-  return window.innerHeight - headerHeight - inputHeight - padding - 60 // 侧边栏宽度
-})
+  const headerHeight = 64; // v-toolbar 高度
+  const inputHeight = 120; // 输入区域估计高度
+  const padding = 32; // 上下边距
+  return window.innerHeight - headerHeight - inputHeight - padding - 60; // 侧边栏宽度
+});
 
 // Computed
-const isLoading = computed(() => chatStore.isLoading)
+const isLoading = computed(() => chatStore.isLoading);
 
 // Watch for chat changes
-watch(() => props.chat, (newChat) => {
-  if (newChat) {
-    // The useChat composable will handle setting the current chat
-    // Call selectChat to load history messages
-    selectChat(newChat)
-  }
-}, { immediate: true })
+watch(
+  () => props.chat,
+  (newChat) => {
+    if (newChat) {
+      // The useChat composable will handle setting the current chat
+      // Call selectChat to load history messages
+      selectChat(newChat);
+    }
+  },
+  { immediate: true }
+);
 
 // Watch for messages to scroll to bottom
-watch(messages, () => {
-  if (autoScroll.value) {
-    virtualMessageList.value?.scrollToBottom()
-  }
-}, { deep: true })
+watch(
+  messages,
+  () => {
+    if (autoScroll.value) {
+      virtualMessageList.value?.scrollToBottom();
+    }
+  },
+  { deep: true }
+);
 
 // 处理虚拟滚动接近底部事件
 const handleScrollNearBottom = (isNearBottom: boolean) => {
-  autoScroll.value = isNearBottom
-}
+  autoScroll.value = isNearBottom;
+};
 
 // Methods
 const handleSendMessage = async () => {
-  if (!message.value.trim() || isSending.value) return
+  if (!message.value.trim() || isSending.value) return;
 
-  isSending.value = true
+  isSending.value = true;
   try {
-    await sendMessage(message.value)
-    message.value = ''
+    await sendMessage(message.value);
+    message.value = "";
   } catch (error) {
-    console.error('Failed to send message:', error)
+    console.error("Failed to send message:", error);
   } finally {
-    isSending.value = false
+    isSending.value = false;
   }
-}
+};
 
 const handleTyping = () => {
   // Clear existing timeout
   if (typingTimeout.value) {
-    clearTimeout(typingTimeout.value)
+    clearTimeout(typingTimeout.value);
   }
 
+  //todo：检测对方正在输入
   // Show typing indicator
-  isTyping.value = true
+  // isTyping.value = true;
 
   // Hide after 3 seconds of no typing
-  typingTimeout.value = window.setTimeout(() => {
-    isTyping.value = false
-  }, 3000) as unknown as number
-}
+  // typingTimeout.value = window.setTimeout(() => {
+  //   isTyping.value = false;
+  // }, 3000) as unknown as number;
+};
 
 const toggleOnlineBoard = () => {
-  showOnlineBoard.value = !showOnlineBoard.value
-  chatStore.setOnlineBoardVisible(showOnlineBoard.value)
-}
+  showOnlineBoard.value = !showOnlineBoard.value;
+  chatStore.setOnlineBoardVisible(showOnlineBoard.value);
+};
 
 const handleImagePreview = (imageUrl: string) => {
-  emit('imagePreview', imageUrl)
-}
+  emit("imagePreview", imageUrl);
+};
 
 const handleFileUpload = () => {
   // TODO: Implement file upload
-  console.log('File upload clicked')
-}
+  console.log("File upload clicked");
+};
 
 const handleVoiceRecord = () => {
   // TODO: Implement voice recording
-  console.log('Voice record clicked')
-}
+  console.log("Voice record clicked");
+};
 
 // Lifecycle
 onMounted(() => {
   // 初始化消息服务（如果需要）
   if (!messageService.isInitialized) {
     // 这里可以添加初始化逻辑，比如传入 token 和 userId
-    console.log('Message service not initialized yet')
+    console.log("Message service not initialized yet");
   }
 
   // 延迟滚动到底部，确保组件已渲染
   setTimeout(() => {
-    virtualMessageList.value?.scrollToBottom()
-  }, 100)
-})
+    virtualMessageList.value?.scrollToBottom();
+  }, 100);
+});
 </script>
 
 <style lang="scss" scoped>
@@ -282,7 +290,7 @@ onMounted(() => {
 }
 
 .chat-header {
-  background-color: #1A1A25;
+  background-color: #1a1a25;
   padding-top: 8px;
   padding-bottom: 8px;
 }
@@ -295,7 +303,7 @@ onMounted(() => {
 .messages-container {
   flex: 1;
   overflow-y: hidden;
-  background-color: #1A1A25;
+  background-color: #1a1a25;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -311,7 +319,7 @@ onMounted(() => {
 }
 
 .input-container {
-  background-color: #1A1A25;
+  background-color: #1a1a25;
   padding: 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }

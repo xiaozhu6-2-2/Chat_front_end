@@ -16,7 +16,6 @@ declare module 'vue' {
     ContactList: typeof import('./components/contact/contactList.vue')['default']
     EchatLoading: typeof import('./components/global/echatLoading.vue')['default']
     EchatWelcome: typeof import('./components/global/echatWelcome.vue')['default']
-    FriendCard: typeof import('./components/friend/FriendCard.vue')['default']
     FriendRequestItem: typeof import('./components/friend/FriendRequestItem.vue')['default']
     FriendRequestPanel: typeof import('./components/friend/FriendRequestPanel.vue')['default']
     GroupCard: typeof import('./components/contact/groupCard.vue')['default']
