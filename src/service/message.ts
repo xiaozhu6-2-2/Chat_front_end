@@ -131,16 +131,16 @@ class MessageService {
     this.token = token;
     this.userId = userId;
 
-    // 初始化 friendService
-    friendService.init(token, userId);
+    // // 初始化 friendService
+    // friendService.init(token, userId);
 
     // 生产环境或开发环境关闭模拟数据时，连接真实的WebSocket
     if (!this.shouldUseMockData()) {
       try {
-        // 连接WebSocket服务
-        devLog('Connecting to WebSocket server...');
-        await websocketService.connect(token, userId);
-        devLog('WebSocket connected successfully');
+        // // 连接WebSocket服务
+        // devLog('Connecting to WebSocket server...');
+        // await websocketService.connect(token, userId);
+        // devLog('WebSocket connected successfully');
 
         // 获取历史通知消息
         await this.fetchHistoryNotificationMessages();
@@ -349,8 +349,6 @@ class MessageService {
       }
     }
   }
-
-  //todo: 发送消息后端的ack确认机制以及id生成机制
   //这里的send是用于需要入列的消息，比如私聊、群聊、通知等
   //根据环境选择发送方式：
   // - 开发环境：模拟发送，添加到mock数据

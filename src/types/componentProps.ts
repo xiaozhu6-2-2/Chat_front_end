@@ -36,13 +36,16 @@ function isFriend(contact: ContactData): contact is FriendWithUserInfo {
 
 /** 联系人信息基础接口（保留向后兼容） */
 interface BaseContactInfo {
-  id: string;
+  id: string;          // 对应 FriendWithUserInfo.fid
+  uid: string;         // 好友的用户ID
   name: string;
   avatar?: string;
   email?: string;
   phone?: string;
   initial?: string;
   remark?: string;
+  tag?: string;        // 添加 tag 字段
+  bio?: string;        // 添加 bio 字段
 }
 
 /** 联系人卡片 Props */

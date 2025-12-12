@@ -5,7 +5,7 @@ const baseURL = import.meta.env.VITE_API_BASE_URL;
 
 export async function fetchSessionKey() {
     // 获取公钥
-    const response = await noauthApi.get('/session-key');
+    const response = await noauthApi.get('/auth/session-key');
     return response.data.public_key;
 }
 

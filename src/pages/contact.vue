@@ -56,11 +56,30 @@ import type { FriendWithUserInfo,GroupProfile } from "@/service/messageTypes";
 //   initial: string;
 // }
 
+<<<<<<< HEAD
 // interface Group {
 //   id: string;
 //   name: string;
 //   initial?: string;
 // }
+=======
+interface Contact {
+  id: string;
+  uid: string;
+  name: string;
+  initial: string;
+  tag?: string;
+  avatar?: string;
+  bio?: string;
+  remark?: string;
+}
+
+interface Group {
+  id: string;
+  name: string;
+  initial?: string;
+}
+>>>>>>> 767ef992417a363317cf0ccd1f091690b2379ed4
 
 type ActiveItem =
   | { type: "contact"; data: FriendWithUserInfo }
