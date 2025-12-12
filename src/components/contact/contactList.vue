@@ -132,12 +132,17 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import type { ContactListProps } from '@/types/componentProps';
+import { useFriend } from '@/composables/useFriend';
 
 interface Contact {
-  id: string;
+  id: string;      // 对应 friend.fid
+  uid: string;     // 对应 friend.uid
   name: string;
   initial: string;
   tag?: string;
+  avatar?: string;
+  bio?: string;
+  remark?: string;
 }
 
 interface Group {
@@ -154,6 +159,9 @@ const openGroups = ref({
   联系人: true,
 });
 
+// 使用 useFriend composable
+const { activeFriends } = useFriend();
+
 // 静态群聊数据
 const groups: Group[] = [
   { id: "g1", name: "前端开发交流群" },
@@ -164,24 +172,26 @@ const groups: Group[] = [
   { id: "g6", name: "产品经理交流" },
 ];
 
-// 静态联系人数据（包含标签示例）
-const contacts: Contact[] = [
-  { id: "c1", name: "张三", initial: "Z", tag: "同事" },
-  { id: "c2", name: "李四", initial: "L", tag: "家人" },
-  { id: "c3", name: "王五", initial: "W", tag: "同学" },
-  { id: "c4", name: "赵六", initial: "Z", tag: "同事" },
-  { id: "c5", name: "钱七", initial: "Q" },
-  { id: "c6", name: "孙八", initial: "S", tag: "同学" },
-  { id: "c7", name: "周九", initial: "Z", tag: "朋友" },
-  { id: "c8", name: "吴十", initial: "W", tag: "家人" },
-  { id: "c9", name: "郑十一", initial: "Z", tag: "同事" },
-  { id: "c10", name: "王小明", initial: "W", tag: "同学" },
-  { id: "c11", name: "刘芳", initial: "L" },
-  { id: "c12", name: "陈华", initial: "C", tag: "朋友" },
-  { id: "c13", name: "杨帆", initial: "Y", tag: "同事" },
-  { id: "c14", name: "黄蓉", initial: "H", tag: "家人" },
-  { id: "c15", name: "欧阳锋", initial: "O", tag: "同学" },
-];
+// 将好友数据转换为联系人格式
+const contacts = computed(() => {
+  return activeFriends.value.map(friend => ({
+    id: friend.fid,
+    uid: friend.uid,  // 添加 uid
+    name: friend.remark || friend.username, // 优先显示备注，没有则显示用户名
+    initial: getInitial(friend.remark || friend.username), // 提取首字母
+    tag: friend.tag, // 好友标签
+    avatar: friend.avatar, // 头像
+    bio: friend.bio,
+    remark: friend.remark
+  }))
+})
+
+// 提取首字母的辅助函数
+const getInitial = (name: string): string => {
+  // 对于中文，提取第一个字符作为首字母
+  // 对于英文，提取首字母的大写形式
+  return name.charAt(0).toUpperCase()
+}
 
 // 计算属性 - 排序后的群聊
 const sortedGroups = computed(() => {
@@ -190,7 +200,7 @@ const sortedGroups = computed(() => {
 
 // 计算属性 - 排序后的联系人
 const sortedContacts = computed(() => {
-  return [...contacts].sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
+  return [...contacts.value].sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
 });
 
 // 计算属性 - 按首字母分组的联系人
@@ -258,7 +268,7 @@ const setActiveItem = (id: string) => {
     return;
   }
 
-  found = contacts.find((c) => c.id === id);
+  found = contacts.value.find((c) => c.id === id);
   if (found) {
     emit("itemClick", "contact", found);
     return;

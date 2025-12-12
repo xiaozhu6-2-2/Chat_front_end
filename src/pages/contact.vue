@@ -36,8 +36,13 @@ import { ref } from "vue";
 
 interface Contact {
   id: string;
+  uid: string;
   name: string;
   initial: string;
+  tag?: string;
+  avatar?: string;
+  bio?: string;
+  remark?: string;
 }
 
 interface Group {

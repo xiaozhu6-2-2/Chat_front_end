@@ -2,50 +2,25 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import type {
-  UserProfile,
-  UserSearchResult,
-  FriendWithUserInfo,
-  FriendRequest
-} from '@/service/messageTypes'
+  FriendWithUserInfo
+} from '@/types/friend'
+import { friendService } from '@/service/friendService'
 
 export const useFriendStore = defineStore('friend', () => {
   // State
-  const friends = ref<Map<string, FriendWithUserInfo>>(new Map())  // fid -> friend info
-  const pendingRequests = ref<Map<string, FriendRequest>>(new Map()) // req_id -> request (我收到的请求)
-  const sentRequests = ref<Map<string, FriendRequest>>(new Map())   // req_id -> request (我发送的请求)
-  const searchResults = ref<UserSearchResult[]>([])
+  const friends = ref<Map<string, FriendWithUserInfo>>(new Map())  // fid -> friend info (包括所有好友，黑名单通过isBlacklisted字段区分)
   const isLoading = ref(false)
 
   // Computed
+  //从好友列表中筛选非黑名单好友
   const activeFriends = computed(() => {
     return Array.from(friends.value.values())
-      .filter(friend => !friend.is_blacklist)
-      .sort((a, b) => new Date(b.create_time).getTime() - new Date(a.create_time).getTime())
+      .filter(friend => !friend.isBlacklisted)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   })
 
-  const pendingRequestCount = computed(() => {
-    return Array.from(pendingRequests.value.values())
-      .filter(request => request.status === 'pending').length
-  })
-
-  const sentRequestCount = computed(() => {
-    return Array.from(sentRequests.value.values())
-      .filter(request => request.status === 'pending').length
-  })
-
-  const recentReceivedRequests = computed(() => {
-    return Array.from(pendingRequests.value.values())
-      .filter(request => request.status === 'pending')
-      .sort((a, b) => new Date(b.create_time).getTime() - new Date(a.create_time).getTime())
-      .slice(0, 10)
-  })
-
-  const recentSentRequests = computed(() => {
-    return Array.from(sentRequests.value.values())
-      .sort((a, b) => new Date(b.create_time).getTime() - new Date(a.create_time).getTime())
-      .slice(0, 10)
-  })
-
+  
+  //根据uid查找好友关系及好友信息
   const getFriendByUid = computed(() => {
     return (uid: string) => {
       return Array.from(friends.value.values())
@@ -56,35 +31,16 @@ export const useFriendStore = defineStore('friend', () => {
   const isFriend = computed(() => {
     return (uid: string) => {
       return Array.from(friends.value.values())
-        .some(friend => friend.uid === uid && !friend.is_blacklist)
+        .some(friend => friend.uid === uid && !friend.isBlacklisted)
     }
   })
 
-  const hasSentRequest = computed(() => {
-    return (receiver_uid: string) => {
-      return Array.from(sentRequests.value.values())
-        .some(request =>
-          request.receiver_uid === receiver_uid &&
-          request.status === 'pending'
-        )
-    }
-  })
-
-  const hasReceivedRequest = computed(() => {
-    return (sender_uid: string) => {
-      return Array.from(pendingRequests.value.values())
-        .some(request =>
-          request.sender_uid === sender_uid &&
-          request.status === 'pending'
-        )
-    }
-  })
-
+  
   // 标签相关计算属性
   const getFriendsByTag = computed(() => {
     return (tag: string) => {
       return Array.from(friends.value.values())
-        .filter(friend => friend.tag === tag && !friend.is_blacklist)
+        .filter(friend => friend.tag === tag && !friend.isBlacklisted)
     }
   })
 
@@ -111,10 +67,7 @@ export const useFriendStore = defineStore('friend', () => {
     isLoading.value = loading
   }
 
-  const setSearchResults = (results: UserSearchResult[]) => {
-    searchResults.value = results
-  }
-
+  
   const addFriend = (friend: FriendWithUserInfo) => {
     friends.value.set(friend.fid, friend)
   }
@@ -130,85 +83,19 @@ export const useFriendStore = defineStore('friend', () => {
     }
   }
 
-  const addPendingRequest = (request: FriendRequest) => {
-    pendingRequests.value.set(request.req_id, request)
-  }
-
-  const addSentRequest = (request: FriendRequest) => {
-    sentRequests.value.set(request.req_id, request)
-  }
-
-  const updateRequestStatus = (reqId: string, status: FriendRequest['status'], handle_time?: string) => {
-    // 更新我收到的请求
-    const receivedRequest = pendingRequests.value.get(reqId)
-    if (receivedRequest) {
-      pendingRequests.value.set(reqId, {
-        ...receivedRequest,
-        status,
-        handle_time: handle_time || new Date().toISOString()
-      })
-    }
-
-    // 更新我发送的请求
-    const sentRequest = sentRequests.value.get(reqId)
-    if (sentRequest) {
-      sentRequests.value.set(reqId, {
-        ...sentRequest,
-        status,
-        handle_time: handle_time || new Date().toISOString()
-      })
-    }
-  }
-
-  const removeRequest = (reqId: string) => {
-    pendingRequests.value.delete(reqId)
-    sentRequests.value.delete(reqId)
-  }
-
+  
   const setFriends = (friendList: FriendWithUserInfo[]) => {
+    // 清空并设置所有好友（包括黑名单）
     friends.value.clear()
     friendList.forEach(friend => {
       friends.value.set(friend.fid, friend)
     })
   }
 
-  const setPendingRequests = (requests: FriendRequest[]) => {
-    pendingRequests.value.clear()
-    requests.forEach(request => {
-      pendingRequests.value.set(request.req_id, request)
-    })
-  }
-
-  const setSentRequests = (requests: FriendRequest[]) => {
-    sentRequests.value.clear()
-    requests.forEach(request => {
-      sentRequests.value.set(request.req_id, request)
-    })
-  }
-
-  const clearSearchResults = () => {
-    searchResults.value = []
-  }
-
+  
   const reset = () => {
     friends.value.clear()
-    pendingRequests.value.clear()
-    sentRequests.value.clear()
-    searchResults.value = []
     isLoading.value = false
-  }
-
-  const handleFriendResponse = (reqId: string, status: 'accepted' | 'rejected') => {
-    const request = pendingRequests.value.get(reqId)
-    if (request && status === 'accepted') {
-      console.log('Friend request accepted:', reqId)
-    }
-
-    updateRequestStatus(reqId, status)
-  }
-
-  const handleRequestSent = (request: FriendRequest) => {
-    addSentRequest(request)
   }
 
   // 标签相关actions
@@ -226,24 +113,72 @@ export const useFriendStore = defineStore('friend', () => {
     })
   }
 
+  /**
+   * 更新好友资料（备注、黑名单状态、分组）
+   * @param friendId 好友ID
+   * @param remark 备注
+   * @param isBlacklisted 是否加入黑名单
+   * @param tag 分组标签
+   */
+  const updateFriendProfile = (
+    friendId: string,
+    remark: string,
+    isBlacklisted: boolean,
+    tag: string
+  ) => {
+    const friend = friends.value.get(friendId)
+    if (friend) {
+      // 使用现有的 updateFriend 方法更新
+      updateFriend(friendId, {
+        remark,
+        isBlacklisted,
+        tag
+      })
+    }
+  }
+
+  /**
+   * 从 API 获取好友列表并更新 store
+   * @param forceRefresh 是否强制刷新（即使已有数据）
+   */
+  const fetchFriends = async (forceRefresh = false) => {
+    // 如果已经有数据且不是强制刷新，可以跳过
+    if (!forceRefresh && friends.value.size > 0) {
+      return
+    }
+
+    setLoading(true)
+    try {
+      const friendList = await friendService.getFriendsFromApi()
+      const activeCount = friendList.filter(f => !f.isBlacklisted).length
+      const blacklistedCount = friendList.filter(f => f.isBlacklisted).length
+      console.log(`friendStore: 获取好友列表: ${activeCount} 个好友, ${blacklistedCount} 个黑名单`)
+      setFriends(friendList)
+    } catch (error) {
+      console.error('friendStore: 获取好友列表失败')
+      throw error // 重新抛出让上层处理
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 获取黑名单列表
+  const blacklistedFriends = computed(() => {
+    return Array.from(friends.value.values())
+      .filter(friend => friend.isBlacklisted)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  })
+
   return {
     // State
     friends,
-    pendingRequests,
-    sentRequests,
-    searchResults,
     isLoading,
 
     // Computed
     activeFriends,
-    pendingRequestCount,
-    sentRequestCount,
-    recentReceivedRequests,
-    recentSentRequests,
+    blacklistedFriends,
     getFriendByUid,
     isFriend,
-    hasSentRequest,
-    hasReceivedRequest,
     // 标签相关computed
     getFriendsByTag,
     getAllTags,
@@ -251,24 +186,16 @@ export const useFriendStore = defineStore('friend', () => {
 
     // Actions
     setLoading,
-    setSearchResults,
     addFriend,
     removeFriend,
     updateFriend,
-    addPendingRequest,
-    addSentRequest,
-    updateRequestStatus,
-    removeRequest,
+    updateFriendProfile,
     setFriends,
-    setPendingRequests,
-    setSentRequests,
-    clearSearchResults,
     reset,
-    handleFriendResponse,
-    handleRequestSent,
     // 标签相关actions
     updateFriendTag,
     removeFriendTag,
-    batchUpdateTags
+    batchUpdateTags,
+    fetchFriends
   }
 })

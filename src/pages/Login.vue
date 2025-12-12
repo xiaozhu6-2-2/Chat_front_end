@@ -14,30 +14,10 @@
               class="pa-8 d-flex flex-column justify-center text-white"
             >
               <!-- 品牌信息 -->
-              <div class="text-center text-md-left">
-                <v-img
-                  src="@/assets/logo.svg"
-                  alt="易聊图标"
-                  width="100"
-                  height="100"
-                ></v-img>
-                <h1 class="text-h4 font-weight-bold mb-4">易聊</h1>
-                <p class="text-h6 mb-2">连接世界，畅聊无限</p>
-              </div>
+              <BrandInfo />
 
               <!-- 特色功能列表 -->
-              <v-list class="transparent mt-8" density="compact">
-                <v-list-item
-                  v-for="feature in features"
-                  :key="feature.text"
-                  :prepend-icon="feature.icon"
-                  class="text-white"
-                >
-                  <v-list-item-title class="text-body-2">
-                    {{ feature.text }}
-                  </v-list-item-title>
-                </v-list-item>
-              </v-list>
+              <FeatureList class="mt-8" />
             </v-col>
 
             <!-- 右侧登录表单区域 -->
@@ -160,12 +140,14 @@ meta:
 import { ref, reactive } from 'vue'
 import type { VForm } from 'vuetify/components'
 import { useRouter } from 'vue-router';
-import { generateSecureCredentials } from '@/service/crypto';
-import { noauthApi } from '@/service/api';
-import { websocketService } from '@/service/websocket';
-import { messageService } from '@/service/message';
+import { useSnackbar } from '@/composables/useSnackbar'
+import { useAuth } from '@/composables/useAuth';
 
 const router = useRouter();
+
+const {login} = useAuth();
+
+const {showSuccess} = useSnackbar();
 
 // 响应式数据定义
 const loginForm = reactive({
@@ -180,13 +162,6 @@ const loading = ref(false)
 const loginFormRef = ref<VForm | null>(null)
 const loginError = ref('')
 
-// 左侧功能特色列表
-const features = ref([
-  { icon: 'mdi-flash', text: '轻量快捷聊天' },
-  { icon: 'mdi-rocket-launch', text: '极速消息传递' },
-  { icon: 'mdi-group', text: '多人群组聊天' },
-  { icon: 'mdi-cloud', text: '云端消息同步' }
-])
 
 // 表单验证规则
 const accountRules = [
@@ -214,58 +189,12 @@ const handleLogin = async () => {
   loginError.value = ''
 
   try {
-    // 加密账号密码
-    const { encryptedAccount, encryptedPassword } = await generateSecureCredentials(
-      loginForm.account,
-      loginForm.password
-    );
-
-    // 发送登录请求
-    const response = await noauthApi.post("/auth/login", {
-      account: encryptedAccount,
-      password: encryptedPassword
-    })
-
-    // 登录成功后的处理
-    if (response.status === 200) {
-      const userName = response.data.username;
-      const userId = response.data.uid;
-      const token = response.data.token;
-
-      if (token && userName && userId) {
-        // 保存登录状态
-        localStorage.setItem('token', token);
-        localStorage.setItem('username', userName);
-        localStorage.setItem('userid', userId);
-
-        // 连接WebSocket
-        await websocketService.connect(token, userId);
-
-        // 初始化消息服务
-        await messageService.init(token, userId);
-
-        // 跳转到聊天页面
-        router.push('/chat');
-      } else {
-        loginError.value = '登录响应数据不完整'
-      }
-    } else {
-      loginError.value = '登录失败，请检查账号密码'
+    const resault = await login(loginForm.account,loginForm.password,loginForm.remember);
+    if(resault.success === true){
+      router.push('/home')
+      showSuccess('登录成功')
     }
-
-  } catch (error: any) {
-    console.error('登录失败:', error)
-
-    if (error.response?.status === 401) {
-      loginError.value = '账号或密码错误'
-    } else if (error.response?.status === 500) {
-      loginError.value = '服务器错误，请稍后重试'
-    } else if (error.code === 'NETWORK_ERROR') {
-      loginError.value = '网络连接失败，请检查网络'
-    } else {
-      loginError.value = '登录失败，请重试'
-    }
-  } finally {
+  }finally {
     loading.value = false
   }
 }

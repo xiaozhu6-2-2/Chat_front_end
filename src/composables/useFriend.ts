@@ -1,160 +1,83 @@
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useFriendStore } from '@/stores/friendStore'
-import { messageService } from '@/service/message'
-import type { FriendRequest } from '@/service/messageTypes'
-import { devLog, isDevelopment } from '@/utils/env'
+import { friendService } from '@/service/friendService'
+import type { FriendWithUserInfo } from '@/types/friend'
+import { useSnackbar } from './useSnackbar'
 
 export function useFriend() {
   const friendStore = useFriendStore()
-  const searchQuery = ref<string>('')
-  const selectedTab = ref<'search' | 'requests'>('search')
+
+  const {showSuccess, showError} = useSnackbar();
+
+  //State
+  
 
   // Computed properties
-  const searchResults = computed(() => friendStore.searchResults)
+  //获取非黑名单好友列表
   const activeFriends = computed(() => friendStore.activeFriends)
-  const pendingRequests = computed(() => friendStore.recentReceivedRequests)
-  const sentRequests = computed(() => friendStore.recentSentRequests)
   const isLoading = computed(() => friendStore.isLoading)
-  const pendingRequestCount = computed(() => friendStore.pendingRequestCount)
-  const sentRequestCount = computed(() => friendStore.sentRequestCount)
+  // 获取黑名单列表
+  const blacklistedFriends = computed(() => friendStore.blacklistedFriends)
 
-  // Actions
-  const searchUsers = async (query: string) => {
-    if (!query.trim()) {
-      friendStore.setSearchResults([])
-      return
-    }
-
-    try {
-      const results = await messageService.searchUsers(query.trim())
-      friendStore.setSearchResults(results)
-      devLog('Users searched', { query, resultsCount: results.length })
-    } catch (error) {
-      console.error('搜索用户失败:', error)
-      // 可以在这里添加错误提示
-    }
-  }
-
-  const sendFriendRequest = async (receiver_uid: string, apply_text?: string, tags?: string[]) => {
-    try {
-      const request = await messageService.sendFriendRequest(receiver_uid, apply_text, tags)
-      friendStore.handleRequestSent(request)
-
-      // 更新搜索结果中的状态
-      friendStore.setSearchResults(
-        friendStore.searchResults.map(user =>
-          user.uid === receiver_uid
-            ? { ...user, request_sent: true }
-            : user
-        )
-      )
-
-      devLog('Friend request sent', { receiver_uid, requestId: request.req_id, tags })
-      return request
-    } catch (error) {
-      console.error('发送好友请求失败:', error)
-      throw error
-    }
-  }
-
-  const respondToFriendRequest = async (req_id: string, status: 'accepted' | 'rejected') => {
-    try {
-      await messageService.respondToFriendRequest(req_id, status)
-      friendStore.handleFriendResponse(req_id, status)
-
-      devLog('Friend request responded', { req_id, status })
-
-      // 如果接受了请求，刷新好友列表
-      if (status === 'accepted') {
-        await loadFriends()
-      }
-
-      return { success: true }
-    } catch (error) {
-      console.error('响应好友请求失败:', error)
-      throw error
-    }
-  }
-
-  const loadFriends = async () => {
-    try {
-      const friends = await messageService.getFriends()
-      friendStore.setFriends(friends)
-      devLog('Friends loaded', { count: friends.length })
-    } catch (error) {
-      console.error('加载好友列表失败:', error)
-      throw error
-    }
-  }
-
-  const loadPendingRequests = async () => {
-    try {
-      const { receivedRequests, sentRequests } = await messageService.getPendingRequests()
-      friendStore.setPendingRequests(receivedRequests)
-      friendStore.setSentRequests(sentRequests)
-      devLog('Pending requests loaded', {
-        received: receivedRequests.length,
-        sent: sentRequests.length
-      })
-    } catch (error) {
-      console.error('加载好友请求失败:', error)
-      throw error
-    }
-  }
-
+  //删除好友
   const removeFriend = async (friendId: string) => {
     try {
-      await messageService.removeFriend(friendId)
+      //通知后端
+      await friendService.removeFriend(friendId)
+      //前端列表删除
       friendStore.removeFriend(friendId)
-      devLog('Friend removed', { friendId })
+      console.log('useFriend: 删除好友')
     } catch (error) {
-      console.error('删除好友失败:', error)
-      throw error
+      console.error('删除好友失败')
     }
   }
 
-  const updateFriendRemark = async (friendId: string, remark: string) => {
+  //contactCard渲染时获取好友资料
+  const getFriendProfile = async (friendId: string, userId: string): Promise<FriendWithUserInfo> => {
+    // 先从store中查找
+    const friendInStore = friendStore.getFriendByUid(userId)
+    if (friendInStore) {
+      return friendInStore
+    }
+
+    // 没有则从service获取
     try {
-      await messageService.updateFriendRemark(friendId, remark)
-      friendStore.updateFriend(friendId, { remark })
-      devLog('Friend remark updated', { friendId, remark })
+      const friendProfile = await friendService.getFriendProfile(friendId, userId)
+      // 写入store
+      friendStore.addFriend(friendProfile)
+      return friendProfile
     } catch (error) {
-      console.error('更新好友备注失败:', error)
-      throw error
+      showError('获取好友资料失败')
+      console.error('useFriend: 获取好友资料失败')
+      return Promise.reject(error)
     }
   }
 
-  const setFriendBlacklist = async (friendId: string, is_blacklist: boolean) => {
-    try {
-      await messageService.setFriendBlacklist(friendId, is_blacklist)
-      friendStore.updateFriend(friendId, { is_blacklist })
-      devLog('Friend blacklist status updated', { friendId, is_blacklist })
-    } catch (error) {
-      console.error('设置好友黑名单失败:', error)
-      throw error
+  //更新好友设置，包括备注、黑名单、标签
+  const updateFriendProfile = async (
+    friendId: string,
+    remark: string,
+    isBlacklisted: boolean,
+    tag: string
+  ) => {
+    try{
+      //service通知修改
+      await friendService.updateFriendProfile(friendId, remark, isBlacklisted, tag)
+      //store更新资料
+      friendStore.updateFriendProfile(friendId, remark, isBlacklisted, tag)
+      showSuccess('更新好友资料成功')
+    }catch(err){
+      // 错误已经在 service 层处理和显示了
+      console.error('useFriend: 更新好友资料失败', err)
+      // 重新抛出错误，让调用者可以进一步处理
+      throw err
     }
   }
-
-  const clearSearchResults = () => {
-    friendStore.clearSearchResults()
-    searchQuery.value = ''
-  }
-
-  const selectTab = (tab: 'search' | 'requests') => {
-    selectedTab.value = tab
-
-    // 切换到对应标签时加载相应数据
-    if (tab === 'requests') {
-      loadPendingRequests()
-    }
-  }
-
+  
   // 检查用户关系的辅助函数
   const checkUserRelation = (uid: string) => {
     return {
-      isFriend: friendStore.isFriend(uid),
-      hasSentRequest: friendStore.hasSentRequest(uid),
-      hasReceivedRequest: friendStore.hasReceivedRequest(uid)
+      isFriend: friendStore.isFriend(uid)
     }
   }
 
@@ -163,87 +86,70 @@ export function useFriend() {
     return friendStore.getFriendByUid(uid)
   }
 
-  // 刷新好友数据
-  const refreshFriendData = async () => {
+  // 刷新好友数据，通过API获取新的好友资料并覆盖store中的数据
+  const refreshFriendData = async (fid: string, uid: string) => {
     try {
-      await Promise.all([
-        loadFriends(),
-        loadPendingRequests()
-      ])
-      devLog('Friend data refreshed')
+      console.log('useFriend: 开始刷新好友数据', { fid, uid })
+
+      // 1. 从 service 获取最新的好友资料
+      const friendProfile = await friendService.getFriendProfile(fid, uid)
+
+      // 2. 写入 store，更新本地状态
+      friendStore.addFriend(friendProfile)
+
+      console.log('useFriend: 刷新好友数据成功', { fid, uid })
+
+      return friendProfile
     } catch (error) {
-      console.error('刷新好友数据失败:', error)
-      throw error
+      // HTTP 错误已由拦截器统一处理，这里只记录日志
+      console.error('useFriend: 刷新好友数据失败', { fid, uid }, error)
     }
   }
 
-  // 初始化好友功能
-  const initializeFriendFeature = async () => {
-    // 开发环境直接加载模拟数据
-    if (isDevelopment()) {
-      devLog('Initializing friend feature in development mode')
-      await loadFriends()
-      await loadPendingRequests()
-      return
-    }
-
-    // 生产环境需要先检查用户登录状态
+  //获取所有好友分组标签
+  const getAllFriendTags = () => {
+    console.log('useFriend: 获取所有好友分组标签')
     try {
-      // TODO: 检查用户登录状态
-      // const isUserLoggedIn = await checkUserLoginStatus()
-      // if (!isUserLoggedIn) {
-      //   throw new Error('用户未登录')
-      // }
-
-      await loadFriends()
-      await loadPendingRequests()
-
-      devLog('Friend feature initialized successfully')
+      const tags = friendStore.getAllTags
+      console.log('useFriend: 获取到标签列表', tags.length, '个标签')
+      return tags
     } catch (error) {
-      console.error('初始化好友功能失败:', error)
-      throw error
+      console.error('useFriend: 获取标签列表失败', error)
+      return []
     }
   }
 
-  // 搜索防抖
-  let searchTimeout: number | null = null
-  const debouncedSearch = (query: string, delay = 500) => {
-    if (searchTimeout) {
-      clearTimeout(searchTimeout)
+  //根据分组标签获取好友
+  const getFriendsByTag = (tag: string) => {
+    console.log('useFriend: 根据标签获取好友', { tag })
+    try {
+      const friends = friendStore.getFriendsByTag(tag)
+      console.log('useFriend: 获取到', friends.length, '个好友，标签:', tag)
+      return friends
+    } catch (error) {
+      console.error('useFriend: 根据标签获取好友失败', { tag }, error)
+      return []
     }
-
-    searchTimeout = setTimeout(() => {
-      searchUsers(query)
-    }, delay)
   }
+
+
 
   return {
     // State
-    searchQuery,
-    selectedTab,
-    searchResults,
     activeFriends,
-    pendingRequests,
-    sentRequests,
+    blacklistedFriends,
     isLoading,
-    pendingRequestCount,
-    sentRequestCount,
 
     // Actions
-    searchUsers,
-    sendFriendRequest,
-    respondToFriendRequest,
-    loadFriends,
-    loadPendingRequests,
     removeFriend,
-    updateFriendRemark,
-    setFriendBlacklist,
-    clearSearchResults,
-    selectTab,
+    updateFriendProfile,
     checkUserRelation,
     getFriendByUid,
+    getFriendProfile,
     refreshFriendData,
-    initializeFriendFeature,
-    debouncedSearch
+
+    // 标签管理函数
+    getAllFriendTags,
+    getFriendsByTag,
   }
 }

@@ -63,6 +63,7 @@ declare module 'vue-router/auto-routes' {
     }
     'src/pages/forget.vue': {
       routes: '/forget'
+      views: never
     }
     'src/pages/home.vue': {
       routes: '/home'

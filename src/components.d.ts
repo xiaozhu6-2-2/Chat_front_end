@@ -9,6 +9,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     Avatar: typeof import('./components/global/Avatar.vue')['default']
+    BrandInfo: typeof import('./components/global/BrandInfo.vue')['default']
     ChatArea: typeof import('./components/chat/chatArea.vue')['default']
     ChatList: typeof import('./components/chat/chatList.vue')['default']
     ContactCard: typeof import('./components/contact/contactCard.vue')['default']
@@ -16,6 +17,7 @@ declare module 'vue' {
     ContactList: typeof import('./components/contact/contactList.vue')['default']
     EchatLoading: typeof import('./components/global/echatLoading.vue')['default']
     EchatWelcome: typeof import('./components/global/echatWelcome.vue')['default']
+    FeatureList: typeof import('./components/global/FeatureList.vue')['default']
     FriendCard: typeof import('./components/friend/FriendCard.vue')['default']
     FriendRequestItem: typeof import('./components/friend/FriendRequestItem.vue')['default']
     FriendRequestPanel: typeof import('./components/friend/FriendRequestPanel.vue')['default']
