@@ -35,10 +35,34 @@ class MockDataService {
     },
     {
       id: 'private-001',
-      name: '张三',
+      name: '张三-同事',
       type: 'Private',
-      avatar: '/src/assets/user1.jpg',
+      avatar: 'https://cdn.vuetifyjs.com/images/john.jpg',
       lastMessage: '明天见！',
+      unreadCount: 0
+    },
+    {
+      id: 'private-002',
+      name: '李四',
+      type: 'Private',
+      avatar: 'https://cdn.vuetifyjs.com/images/lists/1.jpg',
+      lastMessage: '收到，谢谢！',
+      unreadCount: 1
+    },
+    {
+      id: 'private-003',
+      name: '王五-家人',
+      type: 'Private',
+      avatar: 'https://cdn.vuetifyjs.com/images/lists/2.jpg',
+      lastMessage: '周末有空吗？',
+      unreadCount: 0
+    },
+    {
+      id: 'private-004',
+      name: '周八',
+      type: 'Private',
+      avatar: 'https://cdn.vuetifyjs.com/images/lists/5.jpg',
+      lastMessage: '（已拉黑）',
       unreadCount: 0
     }
   ]
@@ -527,6 +551,27 @@ class MockDataService {
           create_time: '2024-01-05T00:00:00Z',
           avatar: 'https://cdn.vuetifyjs.com/images/lists/4.jpg',
           bio: '这是钱七的个人简介'
+        }
+      },
+      // 添加一个黑名单好友用于测试
+      {
+        fid: 'friend006',
+        uid: 'user006',
+        to_uid: 'test-user-001',
+        create_time: '2024-01-05T00:00:00Z',
+        is_blacklist: true,
+        remark: '被拉黑的用户',
+        tag: '已拉黑',
+        user_info: {
+          uid: 'user006',
+          username: '周八',
+          account: 'zhouba',
+          gender: 'male' as const,
+          region: '成都',
+          email: 'zhouba@example.com',
+          create_time: '2024-01-06T00:00:00Z',
+          avatar: 'https://cdn.vuetifyjs.com/images/lists/5.jpg',
+          bio: '这是一个被拉黑的用户'
         }
       }
     ]
