@@ -26,7 +26,7 @@
         color="primary"
         class="mr-4"
         @click="goToLogin"
-        v-if="$route.path === '/register' || $route.path === '/index'"
+        v-if="$route.path === '/register' || $route.path === '/index' || $route.path === '/forget'"
       >
         <v-icon start>mdi-login</v-icon>
         登录

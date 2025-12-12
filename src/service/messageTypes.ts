@@ -182,18 +182,18 @@ interface ChatAreaProps {
   chat: Chat;
 }
 
-// 好友接口定义（基于数据库设计）
-interface UserProfile {
-  uid: string;               // 用户编号
-  username: string;          // 用户名
-  account: string;           // 账号
-  gender: 'male' | 'female' | 'other';
-  region?: string;           // 地区
-  email?: string;            // 联系方式
-  create_time: string;       // 创建时间
-  avatar?: string;           // 头像
-  bio?: string;              // 简介
-}
+// // 好友接口定义（基于数据库设计）
+// interface UserProfile {
+//   uid: string;               // 用户编号
+//   username: string;          // 用户名
+//   account: string;           // 账号
+//   gender: 'male' | 'female' | 'other';
+//   region?: string;           // 地区
+//   email?: string;            // 联系方式
+//   create_time: string;       // 创建时间
+//   avatar?: string;           // 头像
+//   bio?: string;              // 简介
+// }
 // 群聊接口定义 
 // 展示群聊详细信息
 interface GroupProfile {
@@ -215,20 +215,19 @@ interface GroupSearchResult extends GroupProfile{
   isIn: boolean;             // 是否已在群中
   request_sent: boolean;     // 是否已发送加群请求
 }
-// 好友信息（对应 friends 表 + user 表信息）
-// 用于展示好友信息
-interface FriendWithUserInfo {
-  fid: string;               // 好友编号
-  uid: string;               // 好友用户ID
-  to_uid: string;            // 自己的用户ID
-  create_time: string;       // 添加时间
-  is_blacklist: boolean;     // 是否黑名单
-  remark?: string;           // 备注
-  to_remark?: string;        // 对方备注
-  tag?: string;              // 标签
-  to_tag?: string;           // 对方标签
-  user_info: UserProfile;    // 用户详细信息
-}
+
+
+
+// // 用于展示好友信息
+// interface FriendWithUserInfo {
+//   fid: string;               // 好友编号
+//   uid: string;               // 好友用户ID
+//   create_time: string;       // 添加时间
+//   is_blacklist: boolean;     // 是否黑名单
+//   remark?: string;           // 备注
+//   group_by?: string;              // 分组标签
+//   user_info?: UserProfile;    // 用户详细信息, 当用户获取好友详细资料后，缓存在这里。
+// }
 
 // 好友请求（对应 friend_request 表）
 interface FriendRequest {
