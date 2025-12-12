@@ -48,29 +48,9 @@
         <span class="typing-text">对方正在输入...</span>
       </div> -->
     </div>
-    <v-divider></v-divider>
 
     <!-- 底部输入区域 -->
     <div class="input-container">
-      <!-- 工具栏 -->
-      <div class="toolbar">
-        <v-btn icon variant="text" @click="toggleEmojiPicker">
-          <v-icon>mdi-emoticon-outline</v-icon>
-        </v-btn>
-        <v-btn icon variant="text" @click="handleFileUpload">
-          <v-icon>mdi-image-outline</v-icon>
-        </v-btn>
-        <v-btn icon variant="text" @click="handleFileUpload">
-          <v-icon>mdi-file-outline</v-icon>
-        </v-btn>
-        <v-btn icon variant="text" @click="handleVoiceRecord">
-          <v-icon>mdi-microphone</v-icon>
-        </v-btn>
-        <v-spacer></v-spacer>
-        <v-btn icon variant="text">
-          <v-icon>mdi-dots-horizontal</v-icon>
-        </v-btn>
-      </div>
 
       <!-- 表情选择器 -->
       <div v-if="showEmojiPicker" class="emoji-picker">
@@ -85,7 +65,7 @@
       </div>
 
       <!-- 输入框 -->
-      <v-textarea
+      <!-- <v-textarea
         v-model="message"
         variant="plain"
         placeholder="输入消息..."
@@ -95,20 +75,12 @@
         class="message-input"
         @keydown.enter.exact.prevent="handleSendMessage"
         @input="handleTyping"
+      /> -->
+      <echatInput
+        @keydown.enter.exact.prevent="handleSendMessage"
+        v-model="message"
       />
 
-      <!-- 发送按钮 -->
-      <div class="send-button-container">
-        <v-btn
-          color="primary"
-          variant="flat"
-          :disabled="!message.trim()"
-          :loading="isSending"
-          @click="handleSendMessage"
-        >
-          发送
-        </v-btn>
-      </div>
     </div>
 
     <!-- Online Board -->
@@ -126,6 +98,8 @@ import { ChatType } from "../../service/messageTypes";
 import Avatar from "../../components/global/Avatar.vue";
 import ContactCardModal from "../../components/global/ContactCardModal.vue";
 import OnlineBoard from "./onlineBoard.vue";
+import echatInput from "./echatInput.vue";
+
 import VirtualMessageList from "./VirtualMessageList.vue";
 import type { Chat } from "../../service/messageTypes";
 import type { LocalMessage } from "../../service/messageTypes";
@@ -321,12 +295,6 @@ onMounted(() => {
 .input-container {
   background-color: #1a1a25;
   padding: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.toolbar {
-  display: flex;
-  padding: 5px 0;
 }
 
 .emoji-picker {
@@ -343,11 +311,5 @@ onMounted(() => {
 
 .message-input {
   margin: 8px 0;
-}
-
-.send-button-container {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 10px;
 }
 </style>

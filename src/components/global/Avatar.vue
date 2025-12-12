@@ -56,7 +56,7 @@ const fallbackText = computed(() => {
     // 取名字的前1-2个字符作为头像显示
     return props.name.slice(0, 2).toUpperCase()
   }
-  return props.alt.slice(0, 2).toUpperCase()
+  // return props.alt.slice(0, 2).toUpperCase()
 })
 
 const handleImageError = () => {

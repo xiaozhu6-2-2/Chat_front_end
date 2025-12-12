@@ -82,10 +82,13 @@
 import { computed, ref } from 'vue'
 import { ContentType, MessageType } from '../../../service/messageTypes'
 import type { MessageBubbleProps } from '../../../types/componentProps'
+import { useFriendStore } from '../../../stores/friendStore'
 
 const props = withDefaults(defineProps<MessageBubbleProps>(), {
   currentUserId: 'current-user'
 })
+
+const friendStore = useFriendStore()
 
 const emit = defineEmits<{
   imagePreview: [imageUrl: string]
@@ -190,23 +193,37 @@ const previewImage = () => {
 
 // 处理头像点击事件
 const handleAvatarClick = () => {
-  selectedContactInfo.value = {
-    uid: senderName.value,
-    username: senderName.value,
-    account: senderName.value,
-    gender: 'other',
-    region: '',
-    email: `${senderName.value.toLowerCase()}@example.com`,
-    create_time: new Date().toISOString(),
-    avatar: senderAvatar.value,
-    bio: '用户信息'
+  const senderId = props.message.payload.senderId
+
+  // 首先检查是否为好友
+  const friendInfo = senderId ? friendStore.getFriendByUid(senderId) : null
+
+  if (friendInfo) {
+    // 如果是好友，传递完整的 FriendWithUserInfo 数据
+    selectedContactInfo.value = friendInfo
+  } else {
+    // 如果是陌生人，构建 UserProfile 数据
+    selectedContactInfo.value = {
+      uid: senderId,
+      username: senderName.value,
+      account: senderName.value,
+      gender: 'other',
+      region: '',
+      email: `${senderName.value.toLowerCase()}@example.com`,
+      create_time: new Date().toISOString(),
+      avatar: senderAvatar.value,
+      bio: '用户信息'
+    }
   }
+
   showContactCard.value = true
 }
 
 // 处理自己头像点击事件
 const handleMyAvatarClick = () => {
+  // 自己的头像不查询好友关系，直接构建 UserProfile
   selectedContactInfo.value = {
+    // TODO：考虑从 authStore 获取真实的用户数据
     uid: 'current-user',
     username: '我',
     account: 'me',
@@ -225,7 +242,7 @@ const handleMyAvatarClick = () => {
 .message-bubble {
   display: flex;
   margin-bottom: 16px;
-  max-width: 80%;
+  // max-width: 80%;
   width: auto;
   &.own-message {
     margin-left: auto;
@@ -250,7 +267,7 @@ const handleMyAvatarClick = () => {
   flex-direction: column;
   min-width: 0;
   flex: 1;
-  max-width: 70%; // 限制内容区域最大宽度
+  // max-width: 70%; // 限制内容区域最大宽度
 }
 
 .message-sender {
@@ -267,7 +284,7 @@ const handleMyAvatarClick = () => {
   max-width: fit-content;
   min-width: 0;
   align-self: flex-start;
-
+  box-shadow: 2px 2px 5px 0 rgba(0,0,0,0.2);
   &.own-bubble {
     background-color: #1976d2;
     color: black;

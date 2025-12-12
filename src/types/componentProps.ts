@@ -34,9 +34,6 @@ function isFriend(contact: ContactData): contact is FriendWithUserInfo {
   return 'fid' in contact && 'user_info' in contact;
 }
 
-/** 联系人卡片模式 */
-type ContactCardMode = 'friend' | 'stranger';
-
 /** 联系人信息基础接口（保留向后兼容） */
 interface BaseContactInfo {
   id: string;
@@ -216,7 +213,6 @@ interface AvatarEmits {
 interface ContactCardModalProps {
   contact: ContactData;
   modelValue?: boolean;
-  mode?: ContactCardMode;
 }
 
 /** 联系人卡片模态框 Emits */
@@ -228,6 +224,7 @@ interface ContactCardModalEmits {
   (e: 'edit-remark', friend: FriendWithUserInfo, remark: string): void;
   (e: 'set-tag', friend: FriendWithUserInfo, tag: string): void;
   (e: 'set-blacklist', friend: FriendWithUserInfo, isBlacklist: boolean): void;
+  (e: 'edit-profile'): void;
 }
 
 // ==================== 设置相关组件 Props ====================
@@ -255,7 +252,6 @@ export type {
   GroupCardProps,
   ContactListProps,
   ContactData,
-  ContactCardMode,
 
   // 好友相关
   FriendCardProps,

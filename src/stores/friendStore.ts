@@ -7,6 +7,7 @@ import type {
   FriendWithUserInfo,
   FriendRequest
 } from '@/service/messageTypes'
+import { devLog, isDevelopment } from '@/utils/env'
 
 export const useFriendStore = defineStore('friend', () => {
   // State
@@ -15,6 +16,55 @@ export const useFriendStore = defineStore('friend', () => {
   const sentRequests = ref<Map<string, FriendRequest>>(new Map())   // req_id -> request (我发送的请求)
   const searchResults = ref<UserSearchResult[]>([])
   const isLoading = ref(false)
+
+  // 初始化一些测试好友数据（仅开发环境）
+  if (isDevelopment()) {
+    // 添加张三为好友
+    friends.value.set('friend-001', {
+      fid: 'friend-001',
+      uid: 'user-001',
+      to_uid: 'test-user-001',
+      create_time: '2024-01-01T00:00:00Z',
+      is_blacklist: false,
+      remark: '张三-同事',
+      tag: '同事',
+      user_info: {
+        uid: 'user-001',
+        username: '张三',
+        account: 'zhangsan',
+        gender: 'male',
+        region: '北京',
+        email: 'zhangsan@example.com',
+        create_time: '2024-01-01T00:00:00Z',
+        avatar: 'https://cdn.vuetifyjs.com/images/john.jpg',
+        bio: '这是张三的个人简介'
+      }
+    })
+
+    // 添加李四为好友
+    friends.value.set('friend-002', {
+      fid: 'friend-002',
+      uid: 'user-002',
+      to_uid: 'test-user-001',
+      create_time: '2024-01-02T00:00:00Z',
+      is_blacklist: false,
+      remark: '李四-好友',
+      tag: '朋友',
+      user_info: {
+        uid: 'user-002',
+        username: '李四',
+        account: 'lisi',
+        gender: 'female',
+        region: '上海',
+        email: 'lisi@example.com',
+        create_time: '2024-01-02T00:00:00Z',
+        avatar: 'https://cdn.vuetifyjs.com/images/lists/1.jpg',
+        bio: '这是李四的个人简介'
+      }
+    })
+
+    devLog('Mock friends initialized', { count: friends.value.size })
+  }
 
   // Computed
   const activeFriends = computed(() => {

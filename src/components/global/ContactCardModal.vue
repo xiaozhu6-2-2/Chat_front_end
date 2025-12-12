@@ -25,6 +25,14 @@
             <v-card-title>{{ contactInfo.name }}</v-card-title>
             <v-card-subtitle>联系人 ID: {{ contactInfo.id }}</v-card-subtitle>
           </div>
+          <!-- 编辑按钮 - 仅好友可见 -->
+          <v-btn
+            v-if="isContactFriend && !editMode"
+            icon="mdi-pencil"
+            variant="text"
+            size="small"
+            @click="enterEditMode"
+          />
           <v-btn
             icon="mdi-close"
             variant="text"
@@ -37,7 +45,63 @@
       <v-divider></v-divider>
 
       <v-card-text>
-        <div class="contact-details">
+        <!-- 编辑模式表单 -->
+        <v-form v-if="editMode && isContactFriend" v-model="formValid" @submit.prevent="saveEdit">
+          <div class="edit-form">
+            <!-- 备注输入框 -->
+            <v-text-field
+              v-model="editData.remark"
+              label="备注"
+              placeholder="为好友设置备注名称"
+              variant="outlined"
+              density="compact"
+              :rules="remarkRules"
+              maxlength="20"
+              counter
+              prepend-inner-icon="mdi-account-edit"
+              class="mb-4"
+            />
+
+            <!-- 标签选择器 -->
+            <v-combobox
+              v-model="editData.tag"
+              :items="recentTags"
+              label="标签"
+              placeholder="选择或输入标签"
+              variant="outlined"
+              density="compact"
+              :rules="tagRules"
+              maxlength="10"
+              counter
+              prepend-inner-icon="mdi-tag"
+              chips
+              clearable
+              class="mb-4"
+              :color="getTagColor(editData.tag || '')"
+            >
+              <template v-slot:chip="{ props: chipProps, item }">
+                <v-chip
+                  v-bind="chipProps"
+                  :color="getTagColor(item.raw)"
+                  size="small"
+                />
+              </template>
+            </v-combobox>
+
+            <!-- 黑名单开关 -->
+            <v-switch
+              v-model="editData.isBlacklist"
+              label="加入黑名单"
+              color="error"
+              inset
+              prepend-inner-icon="mdi-block-helper"
+              :messages="editData.isBlacklist ? '加入黑名单后将无法接收对方消息' : ''"
+            />
+          </div>
+        </v-form>
+
+        <!-- 查看模式详情 -->
+        <div v-else class="contact-details">
           <v-list lines="two" density="compact">
             <!-- 邮箱 -->
             <v-list-item prepend-icon="mdi-email" title="邮箱">
@@ -84,7 +148,7 @@
             <!-- 标签（如果是好友） -->
             <v-list-item v-if="isContactFriend && contactInfo.tag" prepend-icon="mdi-tag" title="标签">
               <template v-slot:subtitle>
-                <v-chip size="small" color="primary">{{ contactInfo.tag }}</v-chip>
+                <v-chip size="small" :color="getTagColor(contactInfo.tag)">{{ contactInfo.tag }}</v-chip>
               </template>
             </v-list-item>
 
@@ -112,65 +176,71 @@
       <v-card-actions class="contact-actions">
         <v-spacer />
 
-        <!-- 好友模式的操作按钮 -->
-        <template v-if="mode === 'friend'">
+        <!-- 编辑模式按钮 -->
+        <template v-if="editMode && isContactFriend">
           <v-btn
             variant="outlined"
-            prepend-icon="mdi-pencil"
-            @click="editRemark"
+            @click="cancelEdit"
+            :disabled="saving"
           >
-            编辑备注
-          </v-btn>
-          <v-btn
-            variant="outlined"
-            prepend-icon="mdi-tag"
-            @click="setTag"
-          >
-            设置标签
-          </v-btn>
-          <v-btn
-            :color="contactInfo.isBlacklist ? 'success' : 'error'"
-            :prepend-icon="contactInfo.isBlacklist ? 'mdi-account-check' : 'mdi-account-cancel'"
-            variant="outlined"
-            @click="toggleBlacklist"
-          >
-            {{ contactInfo.isBlacklist ? '移出黑名单' : '加入黑名单' }}
-          </v-btn>
-          <v-btn
-            color="error"
-            prepend-icon="mdi-account-remove"
-            variant="outlined"
-            @click="removeFriend"
-          >
-            删除好友
+            取消
           </v-btn>
           <v-btn
             color="primary"
-            prepend-icon="mdi-message"
-            @click="sendMessage"
+            variant="elevated"
+            @click="saveEdit"
+            :loading="saving"
+            :disabled="!formValid || saving"
           >
-            发送消息
+            保存
           </v-btn>
         </template>
 
-        <!-- 陌生人模式的操作按钮 -->
+        <!-- 查看模式按钮 -->
         <template v-else>
-          <!-- 如果不是当前用户，显示添加好友按钮 -->
-          <v-btn
-            v-if="!isCurrentUser"
-            color="primary"
-            prepend-icon="mdi-account-plus"
-            @click="addFriend"
-          >
-            添加好友
-          </v-btn>
-          <v-btn
-            color="success"
-            prepend-icon="mdi-message"
-            @click="sendMessage"
-          >
-            发送消息
-          </v-btn>
+          <!-- 好友模式的操作按钮 -->
+          <template v-if="isFriendContact">
+            <!-- 如果是当前用户且是好友（自己），显示编辑资料按钮 -->
+            <v-btn
+              v-if="isCurrentUser"
+              color="primary"
+              prepend-icon="mdi-account-edit"
+              @click="handleEditProfile"
+            >
+              编辑资料
+            </v-btn>
+            <!-- 如果不是当前用户，显示发送消息按钮 -->
+            <v-btn
+              v-else
+              color="primary"
+              prepend-icon="mdi-message"
+              @click="sendMessage"
+            >
+              发送消息
+            </v-btn>
+          </template>
+
+          <!-- 陌生人模式的操作按钮 -->
+          <template v-else>
+            <!-- 如果是当前用户，显示编辑资料按钮 -->
+            <v-btn
+              v-if="isCurrentUser"
+              color="primary"
+              prepend-icon="mdi-account-edit"
+              @click="handleEditProfile"
+            >
+              编辑资料
+            </v-btn>
+            <!-- 如果不是当前用户，显示添加好友按钮 -->
+            <v-btn
+              v-else
+              color="primary"
+              prepend-icon="mdi-account-plus"
+              @click="addFriend"
+            >
+              添加好友
+            </v-btn>
+          </template>
         </template>
       </v-card-actions>
     </v-card>
@@ -178,9 +248,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, reactive } from 'vue'
 import { isFriend, type ContactData } from '../../types/componentProps'
 import type { FriendWithUserInfo, UserProfile } from '../../service/messageTypes'
+import { useFriend } from '../../composables/useFriend'
 
 //作用是为这个 Vue 组件设置名称为 "ContactCardModal"
 defineOptions({
@@ -189,22 +260,54 @@ defineOptions({
 
 import type { ContactCardModalProps, ContactCardModalEmits } from '../../types/componentProps'
 
+// 使用 useFriend composable
+const { recentTags, getTagColor, saveRecentTag } = useFriend()
+
 //modelValue 是默认的 v-model 绑定属性
 const props = withDefaults(defineProps<ContactCardModalProps>(), {
-  modelValue: false,
-  mode: 'stranger'
+  modelValue: false
 })
 
 const emit = defineEmits<ContactCardModalEmits>()
 
+// 编辑状态管理
+const editMode = ref(false)
+const formValid = ref(false)
+const saving = ref(false)
+const editData = reactive({
+  remark: '',
+  tag: null as string | null,
+  isBlacklist: false
+})
+const originalData = reactive({
+  remark: '',
+  tag: null as string | null,
+  isBlacklist: false
+})
+
+// 验证规则
+const remarkRules = [
+  (v: string) => !v || v.length <= 20 || '备注不能超过20个字符'
+]
+
+const tagRules = [
+  (v: string) => !v || v.length <= 10 || '标签不能超过10个字符'
+]
+
 //监听双向绑定变量
 const dialog = computed({
   get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
+  set: (value) => {
+    if (!value && editMode.value) {
+      cancelEdit()
+    }
+    emit('update:modelValue', value)
+  }
 })
 
 // 判断是否为好友
 const isFriendContact = computed(() => {
+  console.log(props.contact)
   return props.contact && isFriend(props.contact)
 })
 
@@ -239,7 +342,7 @@ const contactInfo = computed(() => {
       avatar: profile.avatar,
       email: profile.email,
       remark: undefined,
-      initial: profile.username.charAt(0).toUpperCase(),
+      initial: (profile.username || '').charAt(0).toUpperCase(),
       account: profile.account,
       gender: profile.gender,
       region: profile.region,
@@ -265,7 +368,82 @@ const formatDate = (dateString?: string) => {
   return new Date(dateString).toLocaleDateString('zh-CN')
 }
 
+// 编辑模式方法
+const enterEditMode = () => {
+  if (!isContactFriend.value) return
+
+  // 备份当前数据
+  originalData.remark = contactInfo.value?.remark || ''
+  originalData.tag = contactInfo.value?.tag || null
+  originalData.isBlacklist = contactInfo.value?.isBlacklist || false
+
+  // 设置编辑数据
+  editData.remark = originalData.remark
+  editData.tag = originalData.tag
+  editData.isBlacklist = originalData.isBlacklist
+
+  // 进入编辑模式
+  editMode.value = true
+}
+
+const cancelEdit = () => {
+  // 恢复原始数据
+  editData.remark = originalData.remark
+  editData.tag = originalData.tag
+  editData.isBlacklist = originalData.isBlacklist
+
+  // 退出编辑模式
+  editMode.value = false
+}
+
+const saveEdit = async () => {
+  if (!formValid.value || !isContactFriend.value) return
+
+  saving.value = true
+
+  try {
+    const friend = props.contact as FriendWithUserInfo
+
+    // 检查是否有变化
+    const hasChanges =
+      editData.remark !== originalData.remark ||
+      editData.tag !== originalData.tag ||
+      editData.isBlacklist !== originalData.isBlacklist
+
+    if (hasChanges) {
+      // 备注发生变化
+      if (editData.remark !== originalData.remark) {
+        emit('edit-remark', friend, editData.remark)
+      }
+
+      // 标签发生变化
+      if (editData.tag !== originalData.tag) {
+        emit('set-tag', friend, editData.tag || '')
+        // 保存标签到最近使用
+        if (editData.tag) {
+          saveRecentTag(editData.tag)
+        }
+      }
+
+      // 黑名单状态发生变化
+      if (editData.isBlacklist !== originalData.isBlacklist) {
+        emit('set-blacklist', friend, editData.isBlacklist)
+      }
+    }
+
+    // 退出编辑模式
+    editMode.value = false
+  } catch (error) {
+    console.error('保存失败:', error)
+  } finally {
+    saving.value = false
+  }
+}
+
 const closeDialog = () => {
+  if (editMode.value) {
+    cancelEdit()
+  }
   dialog.value = false
 }
 
@@ -288,7 +466,7 @@ const removeFriend = () => {
 
 const editRemark = () => {
   if (isContactFriend.value) {
-    const newRemark = prompt('请输入新的备注名称：', contactInfo.value.remark || '')
+    const newRemark = prompt('请输入新的备注名称：', contactInfo.value?.remark || '')
     if (newRemark !== null) {
       emit('edit-remark', props.contact as FriendWithUserInfo, newRemark)
     }
@@ -297,7 +475,7 @@ const editRemark = () => {
 
 const setTag = () => {
   if (isContactFriend.value) {
-    const newTag = prompt('请输入标签：', contactInfo.value.tag || '')
+    const newTag = prompt('请输入标签：', contactInfo.value?.tag || '')
     if (newTag !== null) {
       emit('set-tag', props.contact as FriendWithUserInfo, newTag)
     }
@@ -306,8 +484,14 @@ const setTag = () => {
 
 const toggleBlacklist = () => {
   if (isContactFriend.value) {
-    emit('set-blacklist', props.contact as FriendWithUserInfo, !contactInfo.value.isBlacklist)
+    emit('set-blacklist', props.contact as FriendWithUserInfo, !contactInfo.value?.isBlacklist)
   }
+}
+
+// 处理编辑资料
+const handleEditProfile = () => {
+  emit('edit-profile')
+  closeDialog()
 }
 </script>
 
@@ -334,6 +518,10 @@ const toggleBlacklist = () => {
 
 .contact-details {
   margin-top: 8px;
+}
+
+.edit-form {
+  padding: 8px 0;
 }
 
 .contact-actions {
