@@ -6,11 +6,11 @@
         <v-navigation-drawer width="80" permanent class="sidebar">
           <!-- 头像区域 -->
           <div class="avatar-container">
-            <ContactCardModal :contact-info="currentUser" v-model="showContactCard">
+            <ContactCardModal :contact="currentUser" v-model="showContactCard">
               <template #activator="{ props }">
                 <Avatar
                   :url="currentUser.avatar"
-                  :name="currentUser.name"
+                  :name="currentUser.username"
                   :size="56"
                   :clickable="true"
                   v-bind="props"
@@ -89,12 +89,15 @@ const showContactCard = ref(false);
 
 // 当前用户信息
 const currentUser = ref({
-  id: 'current-user-001',
-  name: '我',
-  avatar: '@/assets/yxd.jpg',
+  uid: 'current-user-001',
+  username: '我',
+  account: 'me',
+  gender: 'other' as const,
+  region: '',
   email: 'me@example.com',
-  phone: '+86 138****0001',
-  initial: '我'
+  create_time: new Date().toISOString(),
+  avatar: '@/assets/yxd.jpg',
+  bio: '这是我的个人简介'
 });
 
 const navigateTo = (path:string) => {

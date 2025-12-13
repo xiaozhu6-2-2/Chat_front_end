@@ -52,7 +52,7 @@ const emit = defineEmits<{
   imagePreview: [imageUrl: string]
   scrollNearBottom: [isNearBottom: boolean]
 }>()
-
+//组件的实例ref
 const virtualScrollRef = ref()
 const showScrollToBottom = ref(false)
 const isNearBottom = ref(true)
@@ -82,10 +82,14 @@ const handleScroll = () => {
 const scrollToBottom = async () => {
   await nextTick()
   if (virtualScrollRef.value && props.messages.length > 0) {
+    //找到滚动容器
     const scrollContainer = virtualScrollRef.value.$el?.querySelector('.v-virtual-scroll__container')
     if (scrollContainer) {
+      //scrolltop:当前滚动的位置，距离顶部的像素
+      //scrollHeight:整个内容的总高度
       scrollContainer.scrollTop = scrollContainer.scrollHeight
     }
+    //隐藏按钮
     showScrollToBottom.value = false
   }
 }

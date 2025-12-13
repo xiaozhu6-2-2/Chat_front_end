@@ -1,4 +1,11 @@
 // stores/chatStore.ts
+// 聊天UI状态管理
+// 职责：
+// - 管理当前选中的聊天
+// - 管理聊天列表
+// - 管理UI状态（加载、在线面板等）
+// 注意：消息数据由 messageService 管理，不在本 store 中存储
+
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import type { Chat, ChatType } from '@/types/chat'
