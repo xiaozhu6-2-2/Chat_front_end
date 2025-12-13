@@ -1,145 +1,100 @@
 import { computed, ref } from 'vue'
 import { useChatStore } from '@/stores/chatStore'
+import type { Chat, ChatType } from '@/types/chat'
+import { useSnackbar } from '@/composables/useSnackbar'
+import { ChatService } from '@/service/chatService'
 import { messageService } from '@/service/message'
-import { MessageText, type LocalMessage, ContentType, MessageStatus } from '@/service/messageTypes'
-import {  type Chat,ChatType, MessageType } from '@/service/messageTypes'
-import { envConfig, devLog, isDevelopment } from '@/utils/env'
+
+const { showError } = useSnackbar()
 
 export function useChat() {
   const chatStore = useChatStore()
-  const currentChatId = ref<string>('')
+
 
   // Computed properties
-  const currentChat = computed(() => chatStore.currentChat)
   const chatList = computed(() => chatStore.chatList)
-  const messages = computed(() => {
-    if (!currentChatId.value || !currentChat.value) return []
-    // 根据聊天类型获取消息
-    const mapType = currentChat.value.type === ChatType.GROUP ? 'Group' : 'Private'
-    return messageService.getMessages(mapType, ref(currentChatId.value)).value
-  })
-  const unreadCount = computed(() => chatStore.unreadCount)
   const isLoading = computed(() => chatStore.isLoading)
+  const activeChatId = computed(()=> chatStore.activeChatId)
+  // 当前选中的聊天
+  const activeChat = computed(() => {
+    return chatStore.chatById(chatStore.activeChatId)
+  })
 
   // Actions
-  const selectChat = (chat: Chat) => {
-    chatStore.setCurrentChat(chat)
-    currentChatId.value = chat.id
+  //用户点击某个会话；改变activeChatId；未读消息数归零；
+  const selectChat = (chatId: string) :Chat | null => {
+    console.log(`useChat: 选择会话 ${chatId}`)
 
-    // 拉取历史消息
-    if (chat.type === ChatType.GROUP) {
-      messageService.fetchHistoryGroupMessages(chat.id)
-    } else {
-      messageService.fetchHistoryPrivateMessages(chat.id)
+    // 1. 设置当前激活的聊天
+    chatStore.setActiveChat(chatId)
+
+    // 2. 获取聊天信息
+    const chat = chatStore.chatById(chatId)
+    if (!chat) {
+      console.warn(`useChat: 未找到会话 ${chatId}`)
+      return null
     }
+
+    // 3. 重置未读数
+    chatStore.resetUnreadCount(chatId)
+
+    //4.通知后端将会话的消息标记为已读
+    messageService.markMessagesAsRead()
+
+
+    console.log(`useChat: 会话 ${chatId} 未读数已重置`)
+
+    console.log(`useChat: 会话 ${chatId} 选择成功`)
+
+    return chat
   }
 
-  const sendMessage = async (content: string) => {
-    if (!currentChat.value || !content.trim()) return
-
-    const messageType = currentChat.value.type === ChatType.GROUP ? MessageType.GROUP : MessageType.PRIVATE
-
-    // 获取当前用户ID（优先使用环境配置，其次使用默认值）
-    const currentUserId = isDevelopment() ? envConfig.mockUserId : 'current-user'
-
-    // 创建消息
-    const newMessage = new MessageText(messageType, {
-      senderId: currentUserId,
-      receiverId: currentChat.value.id,
-      contentType: ContentType.TEXT,
-      detail: content.trim()
-    })
-
-    devLog('Creating new message', {
-      type: messageType,
-      senderId: currentUserId,
-      receiverId: currentChat.value.id
-    })
-
-    // 设置发送状态
-    newMessage.sendStatus = MessageStatus.PENDING
-    newMessage.userIsSender = true
+  //创建新的会话：当用户从联系人card点击开始聊天时；当未在会话列表的会话收到新消息时。
+  const createChat = async (fidOrGid: string, chatType: ChatType): Promise<Chat | null> => {
+    console.log(`useChat: 开始创建/获取会话，${chatType === 'private' ? '好友ID' : '群组ID'}: ${fidOrGid}`)
 
     try {
-      // 发送消息
-      messageService.sendWithUpdate(newMessage)
+      // 由于数据库设计，私聊的chatId跟fid不是同一个，无法在前端缓存中查找对应的chat
+      // 目前统一通过API获取fid/gid对应的chat
+      let chat: Chat | null = null
 
-      // 更新状态为发送中
-      newMessage.sendStatus = MessageStatus.SENDING
+      if (chatType === 'private') {
+        // 获取私聊会话
+        chat = await ChatService.getPrivateChat(fidOrGid)
+      } else if (chatType === 'group') {
+        // 获取群聊会话
+        chat = await ChatService.getGroupChat(fidOrGid)
+      } else {
+        console.error(`useChat: 未知的会话类型: ${chatType}`)
+        return null
+      }
+
+      if (chat) {
+        console.log(`useChat: 成功获取会话，会话ID: ${chat.id}`)
+        // 将会话添加到列表（如果不存在）
+        chatStore.addChat(chat)
+      }
+
+      return chat
 
     } catch (error) {
-      console.error('Failed to send message:', error)
-      newMessage.sendStatus = MessageStatus.FAILED
+      console.error(`useChat: 创建/获取会话异常`, error)
+      return null
     }
   }
 
-  // const markAsRead = (chatId?: string) => {
-  //   const targetChatId = chatId || currentChatId.value
-  //   // 消息已读标记可以在 messageService 中实现
-  //   console.log('Mark messages as read for chat:', targetChatId)
-  // }
+  
 
-  const refreshChatList = () => {
-    // 聊天列表刷新逻辑根据环境选择数据源：
-    // - 开发环境：使用模拟数据
-    // - 生产环境：从API拉取
-
-    devLog('Refreshing chat list')
-
-    if (isDevelopment()) {
-      // 开发环境使用模拟数据
-      const mockChats: Chat[] = [
-        {
-          id: 'group-001',
-          name: '309宿舍群',
-          type: ChatType.GROUP,
-          avatar: '/src/assets/yxd.jpg',
-          lastMessage: '大家好！',
-          unreadCount: 3,
-          isActive: false,
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 'private-001',
-          name: '张三',
-          type: ChatType.PRIVATE,
-          avatar: '/src/assets/user1.jpg',
-          lastMessage: '明天见！',
-          unreadCount: 0,
-          isActive: false,
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 'group-002',
-          name: '前端开发交流群',
-          type: ChatType.GROUP,
-          avatar: '/src/assets/group2.jpg',
-          lastMessage: '这个功能不错',
-          unreadCount: 5,
-          isActive: false,
-          updatedAt: new Date().toISOString()
-        }
-      ]
-      chatStore.updateChatList(mockChats)
-      devLog('Mock chat list loaded', { count: mockChats.length })
-    } else {
-      // 生产环境：todo: 接入拉取聊天表的API
-      console.log('TODO: Implement chat list API call for production')
-    }
-  }
 
   return {
     // State
-    currentChat,
+    activeChatId,
+    activeChat,
     chatList,
-    messages,
-    unreadCount,
     isLoading,
 
     // Actions
     selectChat,
-    sendMessage,
-    // markAsRead,
-    refreshChatList
+    createChat
   }
 }

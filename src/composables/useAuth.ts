@@ -8,6 +8,7 @@ import { noauthApi, authApi } from '@/service/api'
 import { generateSecureCredentials } from '@/service/crypto'
 import type { AuthStorage, LoginResult } from '@/types/auth'
 import { useFriendStore } from '@/stores/friendStore'
+import { useChatStore } from '@/stores/chatStore'
 
 export function useAuth() {
   const authStore = useAuthStore()
@@ -63,6 +64,10 @@ export function useAuth() {
 
     //初始化store，提前拉取数据
     try{
+      
+      const chatStore = useChatStore();
+      await chatStore.fetchChatList();
+
       const friendStore = useFriendStore();
       await friendStore.fetchFriends();
       console.log('useAuth: 初始化store')
