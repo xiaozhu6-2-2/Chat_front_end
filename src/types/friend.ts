@@ -46,6 +46,24 @@ interface UpdateFriendProfileParams {
   group_by: string;
 }
 
+// =================联系人相关组件props与emits===============
+
+
+/** 联系人数据联合类型 */
+// type ContactData = FriendWithUserInfo;
+
+/** 类型守卫函数：判断是否为好友类型 */
+function isFriend(contact: FriendWithUserInfo | UserProfile): contact is FriendWithUserInfo {
+  return 'fid' in contact;
+}
+
+/** 联系人卡片 Props */
+interface ContactCardProps {
+  contact: FriendWithUserInfo;
+}
+
+
+// =================结构体类型转换函数==================
 //将API的响应体转为好友列表的结构体
 function FriendApiToFriendWithUserInfo(apiData: FriendProfileFromApi): FriendWithUserInfo{
   const userInfo: UserInfo = {
@@ -82,8 +100,11 @@ function FriendApiToFriendWithUserInfo(apiData: FriendProfileFromApi): FriendWit
 export type {
   FriendWithUserInfo,
   UserInfo,
+  ContactCardProps,
+  ContactData,
   UpdateFriendProfileParams
 }
 export  {
-  FriendApiToFriendWithUserInfo
+  FriendApiToFriendWithUserInfo,
+  isFriend //类型守卫函数：判断是否为好友类型
 }

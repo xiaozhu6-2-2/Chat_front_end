@@ -6,33 +6,11 @@ import { useSnackbar } from './useSnackbar'
 
 export function useFriend() {
   const friendStore = useFriendStore()
-<<<<<<< HEAD
-  const searchQuery = ref<string>('')
-  const selectedTab = ref<'search' | 'requests'>('search')
-  const recentTags = ref<string[]>([])
-
-  // 标签相关功能
-  const loadRecentTags = () => {
-    try {
-      const stored = localStorage.getItem('recentTags')
-      if (stored) {
-        recentTags.value = JSON.parse(stored)
-      }
-    } catch (error) {
-      console.error('加载最近标签失败:', error)
-      recentTags.value = []
-    }
-  }
-
-  // 初始化时加载最近使用的标签
-  loadRecentTags()
-=======
 
   const {showSuccess, showError} = useSnackbar();
 
   //State
   
->>>>>>> 767ef992417a363317cf0ccd1f091690b2379ed4
 
   // Computed properties
   //获取非黑名单好友列表
@@ -154,52 +132,10 @@ export function useFriend() {
     }
   }
 
-<<<<<<< HEAD
-  const saveRecentTag = (tag: string) => {
-    if (!tag.trim()) return
-
-    const trimmedTag = tag.trim()
-
-    // 如果标签已存在，先移除
-    const index = recentTags.value.indexOf(trimmedTag)
-    if (index > -1) {
-      recentTags.value.splice(index, 1)
-    }
-
-    // 将新标签添加到开头
-    recentTags.value.unshift(trimmedTag)
-
-    // 最多保留10个标签
-    if (recentTags.value.length > 10) {
-      recentTags.value = recentTags.value.slice(0, 10)
-    }
-
-    // 保存到 localStorage
-    try {
-      localStorage.setItem('recentTags', JSON.stringify(recentTags.value))
-    } catch (error) {
-      console.error('保存最近标签失败:', error)
-    }
-  }
-
-  const getTagColor = (tag: string): string => {
-    const colors = ['primary', 'secondary', 'success', 'warning', 'error', 'info', 'purple', 'indigo', 'teal']
-    const hash = tag.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    return colors[hash % colors.length]
-  }
-
-  return {
-    // State
-    searchQuery,
-    selectedTab,
-    recentTags,
-    searchResults,
-=======
 
 
   return {
     // State
->>>>>>> 767ef992417a363317cf0ccd1f091690b2379ed4
     activeFriends,
     blacklistedFriends,
     isLoading,
@@ -211,19 +147,9 @@ export function useFriend() {
     getFriendByUid,
     getFriendProfile,
     refreshFriendData,
-<<<<<<< HEAD
-    initializeFriendFeature,
-    debouncedSearch,
-
-    // Tag actions
-    loadRecentTags,
-    saveRecentTag,
-    getTagColor
-=======
 
     // 标签管理函数
     getAllFriendTags,
     getFriendsByTag,
->>>>>>> 767ef992417a363317cf0ccd1f091690b2379ed4
   }
 }

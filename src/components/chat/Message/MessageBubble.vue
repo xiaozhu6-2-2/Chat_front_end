@@ -83,6 +83,7 @@ import { computed, ref } from 'vue'
 import { ContentType, MessageType } from '../../../service/messageTypes'
 import type { MessageBubbleProps } from '../../../types/componentProps'
 import { useFriendStore } from '../../../stores/friendStore'
+import type { FriendWithUserInfo } from '../../../types/friend'
 
 const props = withDefaults(defineProps<MessageBubbleProps>(), {
   currentUserId: 'current-user'
@@ -95,7 +96,7 @@ const emit = defineEmits<{
 }>()
 
 const showContactCard = ref(false)
-const selectedContactInfo = ref<any>(null)
+const selectedContactInfo = ref<FriendWithUserInfo>()
 
 const isOwnMessage = computed(() =>
   props.message.userIsSender || props.message.payload.senderId === props.currentUserId
@@ -202,18 +203,8 @@ const handleAvatarClick = () => {
     // 如果是好友，传递完整的 FriendWithUserInfo 数据
     selectedContactInfo.value = friendInfo
   } else {
-    // 如果是陌生人，构建 UserProfile 数据
-    selectedContactInfo.value = {
-      uid: senderId,
-      username: senderName.value,
-      account: senderName.value,
-      gender: 'other',
-      region: '',
-      email: `${senderName.value.toLowerCase()}@example.com`,
-      create_time: new Date().toISOString(),
-      avatar: senderAvatar.value,
-      bio: '用户信息'
-    }
+    // 如果是陌生人，构建不完整的数据
+    selectedContactInfo.value = getStrangerData()
   }
 
   showContactCard.value = true
@@ -224,15 +215,19 @@ const handleMyAvatarClick = () => {
   // 自己的头像不查询好友关系，直接构建 UserProfile
   selectedContactInfo.value = {
     // TODO：考虑从 authStore 获取真实的用户数据
+    fid: '1111',
     uid: 'current-user',
     username: '我',
-    account: 'me',
-    gender: 'other',
-    region: '',
-    email: 'me@example.com',
-    create_time: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    isBlacklisted: false,
     avatar: currentUserAvatar.value,
-    bio: '这是我的个人信息'
+    bio: '这是我的个人信息',
+    info:{
+      account: '1111',
+      gender: 'male',
+      region: '11',
+      email: '111'
+    }
   }
   showContactCard.value = true
 }

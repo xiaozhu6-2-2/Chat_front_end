@@ -15,15 +15,11 @@
         <echat-welcome />
       </div>
 
-      <!-- 联系人详情 -->
-      <ContactCardModal
+      <contactCard
         v-else-if="activeItem.type === 'contact'"
         :contact="activeItem.data"
-        v-model="showContactCard"
-        
-        @edit-profile="handleEditProfile"
       />
-<!-- @send-message="handleSendMessage" -->
+
       <!-- 群聊详情 -->
       <groupCard
         v-else-if="activeItem.type === 'group'"
@@ -31,62 +27,20 @@
       />
     </template>
   </maincontent>
-
-  <!-- 用户资料编辑模态框 -->
-  <UserProfileEditModal
-    v-model="showEditProfile"
-    @profile-updated="handleProfileUpdated"
-  />
 </template>
 
 <script lang="ts" setup>
-import maincontent from "@/layouts/maincontent.vue";
-import ContactCardModal from "@/components/global/ContactCardModal.vue";
-import UserProfileEditModal from "@/components/global/UserProfileEditModal.vue";
-import Avatar from "@/components/global/Avatar.vue";
-
+import maincontent from "../layouts/maincontent.vue";
 import { ref } from "vue";
-import { useUserStore } from "@/stores/userStore";
 import { useRouter } from "vue-router";
-import type { ContactData } from "@/types/componentProps";
-import type { FriendWithUserInfo,GroupProfile } from "@/service/messageTypes";
-// interface Contact {
-//   id: string;
-//   name: string;
-//   initial: string;
-// }
-
-<<<<<<< HEAD
-// interface Group {
-//   id: string;
-//   name: string;
-//   initial?: string;
-// }
-=======
-interface Contact {
-  id: string;
-  uid: string;
-  name: string;
-  initial: string;
-  tag?: string;
-  avatar?: string;
-  bio?: string;
-  remark?: string;
-}
-
-interface Group {
-  id: string;
-  name: string;
-  initial?: string;
-}
->>>>>>> 767ef992417a363317cf0ccd1f091690b2379ed4
+import type { GroupProfile } from "../service/messageTypes";
+import type { FriendWithUserInfo } from "../types/friend";
 
 type ActiveItem =
   | { type: "contact"; data: FriendWithUserInfo }
   | { type: "group"; data: GroupProfile }
 
 // Stores
-const userStore = useUserStore();
 const router = useRouter();
 
 // Refs
@@ -95,8 +49,6 @@ const showUserCard = ref(false);
 const showContactCard = ref(false);
 const showEditProfile = ref(false);
 
-// 初始化用户资料
-userStore.initialize();
 
 const handleItemClick = (type: "contact" | "group", data: FriendWithUserInfo | GroupProfile) => {
   if (type === "contact") {
@@ -123,6 +75,10 @@ const handleEditProfile = () => {
     showContactCard.value = false;
   }
 };
+
+const handleAddFriend = (uid: string) => {
+
+}
 
 // 处理资料更新完成
 const handleProfileUpdated = (profile: any) => {

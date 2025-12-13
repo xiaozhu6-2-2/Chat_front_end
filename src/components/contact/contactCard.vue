@@ -54,7 +54,7 @@
                 </template>
               </v-list-item>
 
-              <v-list-item prepend-icon="mdi-information" title="个人简介">
+              <v-list-item v-if="detailedProfile.info?.region" prepend-icon="mdi-information" title="个人简介">
                 <template v-slot:subtitle>
                   {{ (detailedProfile.bio || '用户还未写下简介~' )}}
                 </template>
@@ -82,10 +82,10 @@
 
   <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useFriend } from '@/composables/useFriend'
-import { useSnackbar } from '@/composables/useSnackbar'
-import type { ContactCardProps } from '../../types/componentProps'
-import type { FriendWithUserInfo } from '@/types/friend'
+import { useFriend } from '../../composables/useFriend'
+import { useSnackbar } from '../../composables/useSnackbar'
+import type { ContactCardProps } from '../../types/friend'
+import type { FriendWithUserInfo } from '../../types/friend'
 
 const props = defineProps<ContactCardProps>()
 const { getFriendProfile } = useFriend()
@@ -97,7 +97,7 @@ const detailedProfile = ref<FriendWithUserInfo | null>(null)
 
 // 获取详细资料
 const fetchDetailedProfile = async () => {
-  if (!props.contact.uid || !props.contact.id) {
+  if (!props.contact.uid || !props.contact.fid) {
     console.warn('缺少必要的信息：uid 或 id')
     return
   }
@@ -105,7 +105,7 @@ const fetchDetailedProfile = async () => {
   isLoading.value = true
 
   try {
-    const profile = await getFriendProfile(props.contact.id, props.contact.uid)
+    const profile = await getFriendProfile(props.contact.fid, props.contact.uid)
     detailedProfile.value = profile
   } catch (err) {
     showError('获取好友资料失败')

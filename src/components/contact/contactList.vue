@@ -18,7 +18,7 @@
           v-for="group in sortedGroups"
           :key="group.id"
           class="contact-item"
-          :class="{ 'active-contact': activeItem === group.id }"
+          :class="{ 'active-contact': activeItemId === group.id }"
           @click="setActiveItem(group.id)"
         >
           <div class="contact_content">
@@ -29,22 +29,7 @@
           </div>
         </v-list-item>
       </v-list-group>
-
-      <!-- 公众号分组 -->
-      <v-list-group value="公众号" v-model:opened="openGroups['公众号']">
-        <template #activator="{ props }">
-          <v-list-item v-bind="props" prepend-icon="mdi-wechat" title="公众号">
-          </v-list-item>
-        </template>
-
-        <v-list-item
-          class="contact-item"
-          :class="{ 'active-contact': activeItem === 'officialAccounts' }"
-          @click="setActiveItem('officialAccounts')"
-        >
-        </v-list-item>
-      </v-list-group>
-
+      
       <!-- 联系人分组 -->
       <v-list-group value="联系人" v-model:opened="openGroups['联系人']">
         <template #activator="{ props }">
@@ -81,7 +66,7 @@
             v-for="contact in contacts"
             :key="contact.id"
             class="contact-item"
-            :class="{ 'active-contact': activeItem === contact.id }"
+            :class="{ 'active-contact': activeItemId === contact.id }"
             @click="setActiveItem(contact.id)"
           >
             <div class="contact_content">
@@ -131,18 +116,23 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import type { ContactListProps } from '@/types/componentProps';
-import { useFriend } from '@/composables/useFriend';
+import type { ContactListEmits } from "../../types/global";
+import { useFriend } from '../../composables/useFriend';
+// 定义 emits
 
+const emit = defineEmits<ContactListEmits>();
+
+// Router 实例
+const router = useRouter();
+
+//用于展示在contactlist中的结构体
 interface Contact {
   id: string;      // 对应 friend.fid
   uid: string;     // 对应 friend.uid
   name: string;
-  initial: string;
+  initial: string; // 必须要有一个initial来按首字母排序
   tag?: string;
   avatar?: string;
-  bio?: string;
-  remark?: string;
 }
 
 interface Group {
@@ -151,7 +141,7 @@ interface Group {
 }
 
 // 响应式状态
-const activeItem = ref<string | null>(null);
+const activeItemId = ref<string | null>(null);
 const groupBy = ref<'initial' | 'tag'>('initial'); // 分组模式
 const openGroups = ref({
   群聊: true,
@@ -160,7 +150,7 @@ const openGroups = ref({
 });
 
 // 使用 useFriend composable
-const { activeFriends } = useFriend();
+const { activeFriends, getFriendByUid } = useFriend();
 
 // 静态群聊数据
 const groups: Group[] = [
@@ -181,8 +171,6 @@ const contacts = computed(() => {
     initial: getInitial(friend.remark || friend.username), // 提取首字母
     tag: friend.tag, // 好友标签
     avatar: friend.avatar, // 头像
-    bio: friend.bio,
-    remark: friend.remark
   }))
 })
 
@@ -242,16 +230,6 @@ const getTagColor = (tag: string): string => {
   return colors[hash % colors.length]
 }
 
-// 定义 props 和 emits
-defineProps<ContactListProps>();
-
-const emit = defineEmits<{
-  (e: "itemClick", type: "contact" | "group", data: Contact | Group): void;
-}>();
-
-// Router 实例
-const router = useRouter();
-
 // 导航到添加好友页面
 const navigateToAddFriend = () => {
   router.push('/AddFriend');
@@ -259,9 +237,10 @@ const navigateToAddFriend = () => {
 
 // 修改 setActiveItem 方法
 const setActiveItem = (id: string) => {
-  activeItem.value = id;
+  activeItemId.value = id;
 
   // 查找并发射对应数据
+  // 只检查id来判断是群聊还是私聊
   let found = groups.find((g) => g.id === id);
   if (found) {
     emit("itemClick", "group", found);
@@ -270,14 +249,18 @@ const setActiveItem = (id: string) => {
 
   found = contacts.value.find((c) => c.id === id);
   if (found) {
-    emit("itemClick", "contact", found);
+    // 从 activeFriends 中获取完整的 FriendWithUserInfo 数据
+    const friendData = getFriendByUid(found.uid);
+    if (friendData) {
+      emit("itemClick", "contact", friendData);
+    }
     return;
   }
 
-  // 处理公众号点击
-  if (id === "officialAccounts") {
-    // 可以添加公众号处理逻辑
-  }
+  // // 处理公众号点击
+  // if (id === "officialAccounts") {
+  //   // 可以添加公众号处理逻辑
+  // }
 };
 
 // 切换分组展开状态

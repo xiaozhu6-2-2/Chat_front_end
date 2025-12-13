@@ -15,9 +15,10 @@ import { authApi } from './api';
 import { envConfig, devLog, isDevelopment } from '@/utils/env';
 import { mockDataService } from './mockDataService';
 import { friendService } from './friendService';
-import type { Message, FriendNotificationDetail, UserProfile } from './messageTypes';
+import type { Message, FriendNotificationDetail } from './messageTypes';
 import { ContentType, LocalMessage, MessageStatus, MessageText, MessageType } from './messageTypes';
-import type { UserSearchResult, FriendWithUserInfo, FriendRequest } from './messageTypes';
+import type { UserSearchResult,FriendRequest } from './messageTypes';
+import type { FriendWithUserInfo } from '@/types/friend'; 
 
 class MessageService {
   //消息map，group、private、Notification
@@ -603,14 +604,14 @@ class MessageService {
   /**
    * 获取当前用户信息（开发环境Mock）
    */
-  private async getCurrentUserInfo(): Promise<UserProfile> {
-    if (this.shouldUseMockData()) {
-      return await mockDataService.mockGetCurrentUserInfo();
-    }
+  // private async getCurrentUserInfo(): Promise<UserProfile> {
+  //   if (this.shouldUseMockData()) {
+  //     return await mockDataService.mockGetCurrentUserInfo();
+  //   }
 
-    // TODO: 生产环境从API获取用户信息
-    throw new Error('生产环境用户信息获取API尚未实现');
-  }
+  //   // TODO: 生产环境从API获取用户信息
+  //   throw new Error('生产环境用户信息获取API尚未实现');
+  // }
 
   /**
    * 发送好友请求响应的通知消息

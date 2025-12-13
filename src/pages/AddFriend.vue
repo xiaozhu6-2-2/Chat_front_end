@@ -44,19 +44,20 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useFriend } from '@/composables/useFriend'
+import { useRequestAndSearch } from '@/composables/useRequestAndSearch'
 import UserSearchPanel from '@/components/friend/UserSearchPanel.vue'
 import FriendRequestPanel from '@/components/friend/FriendRequestPanel.vue'
 
 const {
   selectedTab,
   pendingRequestCount,
-  initializeFriendFeature
-} = useFriend()
+  initializeRequestFeature
+} = useRequestAndSearch()
 
 // 页面初始化时加载好友数据
 onMounted(async () => {
   try {
-    await initializeFriendFeature()
+    await initializeRequestFeature()
   } catch (error) {
     console.error('初始化好友功能失败:', error)
   }

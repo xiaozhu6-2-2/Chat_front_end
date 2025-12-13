@@ -18,7 +18,6 @@
       <v-row>
         <v-col
           v-for="user in searchResults"
-          :key="user.uid"
           cols="12"
           sm="6"
           md="4"
@@ -56,6 +55,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useFriend } from '@/composables/useFriend'
+import { useRequestAndSearch } from '@/composables/useRequestAndSearch'
 import UserSearchResultCard from './UserSearchResultCard.vue'
 import type { UserSearchResult } from '@/service/messageTypes'
 
@@ -66,7 +66,7 @@ const {
   searchUsers,
   debouncedSearch,
   sendFriendRequest
-} = useFriend()
+} = useRequestAndSearch()
 
 // 搜索防抖
 const handleSearchInput = () => {

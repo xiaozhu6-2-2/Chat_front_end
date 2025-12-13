@@ -65,7 +65,6 @@
             <!-- 标签选择器 -->
             <v-combobox
               v-model="editData.tag"
-              :items="recentTags"
               label="标签"
               placeholder="选择或输入标签"
               variant="outlined"
@@ -77,12 +76,10 @@
               chips
               clearable
               class="mb-4"
-              :color="getTagColor(editData.tag || '')"
             >
               <template v-slot:chip="{ props: chipProps, item }">
                 <v-chip
                   v-bind="chipProps"
-                  :color="getTagColor(item.raw)"
                   size="small"
                 />
               </template>
@@ -148,7 +145,7 @@
             <!-- 标签（如果是好友） -->
             <v-list-item v-if="isContactFriend && contactInfo.tag" prepend-icon="mdi-tag" title="标签">
               <template v-slot:subtitle>
-                <v-chip size="small" :color="getTagColor(contactInfo.tag)">{{ contactInfo.tag }}</v-chip>
+                <v-chip size="small">{{ contactInfo.tag }}</v-chip>
               </template>
             </v-list-item>
 
@@ -249,8 +246,8 @@
 
 <script setup lang="ts">
 import { computed, ref, reactive } from 'vue'
-import { isFriend, type ContactData } from '../../types/componentProps'
-import type { FriendWithUserInfo, UserProfile } from '../../service/messageTypes'
+import { isFriend, type FriendWithUserInfo } from '../../types/friend'
+
 import { useFriend } from '../../composables/useFriend'
 
 //作用是为这个 Vue 组件设置名称为 "ContactCardModal"
@@ -258,10 +255,10 @@ defineOptions({
   name: 'ContactCardModal'
 })
 
-import type { ContactCardModalProps, ContactCardModalEmits } from '../../types/componentProps'
+import type { ContactCardModalProps, ContactCardModalEmits } from '../../types/global'
 
 // 使用 useFriend composable
-const { recentTags, getTagColor, saveRecentTag } = useFriend()
+const { } = useFriend()
 
 //modelValue 是默认的 v-model 绑定属性
 const props = withDefaults(defineProps<ContactCardModalProps>(), {
@@ -307,7 +304,6 @@ const dialog = computed({
 
 // 判断是否为好友
 const isFriendContact = computed(() => {
-  console.log(props.contact)
   return props.contact && isFriend(props.contact)
 })
 
@@ -318,39 +314,37 @@ const contactInfo = computed(() => {
   if (isFriendContact.value) {
     const friend = props.contact as FriendWithUserInfo
     return {
+      // 好友
       id: friend.uid,
-      name: friend.user_info.username,
-      avatar: friend.user_info.avatar,
-      email: friend.user_info.email,
-      remark: friend.remark || friend.to_remark,
-      initial: friend.user_info.username.charAt(0).toUpperCase(),
-      isBlacklist: friend.is_blacklist,
-      tag: friend.tag || friend.to_tag,
+      name: friend.username,
+      avatar: friend.avatar,
+      email: friend.info?.email,
+      remark: friend.remark,
+      initial: friend.username.charAt(0).toUpperCase(),
+      isBlacklist: friend.isBlacklisted,
+      tag: friend.tag,
       fid: friend.fid,
-      createTime: friend.create_time,
-      account: friend.user_info.account,
-      region: friend.user_info.region,
-      gender: friend.user_info.gender,
-      bio: friend.user_info.bio
+      createTime: friend.createdAt,
+      account: friend.info?.account,
+      region: friend.info?.region,
+      gender: friend.info?.gender,
+      bio: friend.bio
     }
   } else {
     // UserProfile
-    const profile = props.contact as UserProfile
+    // 非好友
+    const profile = props.contact as FriendWithUserInfo
     return {
       id: profile.uid,
       name: profile.username,
       avatar: profile.avatar,
-      email: profile.email,
-      remark: undefined,
+      email: profile.info?.email,
       initial: (profile.username || '').charAt(0).toUpperCase(),
-      account: profile.account,
-      gender: profile.gender,
-      region: profile.region,
+      account: profile.info?.account,
+      gender: profile.info?.gender,
+      region: profile.info?.region,
       bio: profile.bio,
-      createTime: profile.create_time,
-      isBlacklist: false,
-      tag: null,
-      fid: null
+      createTime: profile.createdAt,
     }
   }
 })
@@ -419,10 +413,10 @@ const saveEdit = async () => {
       // 标签发生变化
       if (editData.tag !== originalData.tag) {
         emit('set-tag', friend, editData.tag || '')
-        // 保存标签到最近使用
-        if (editData.tag) {
-          saveRecentTag(editData.tag)
-        }
+        // TODO: 保存标签到最近使用
+        // if (editData.tag) {
+        //   saveRecentTag(editData.tag)
+        // }
       }
 
       // 黑名单状态发生变化

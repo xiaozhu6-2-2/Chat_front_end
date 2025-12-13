@@ -205,7 +205,7 @@ interface GroupProfile {
   createdAt: string,         // 创建时间
 }
 // 用户搜索结果（用于添加好友页面）
-interface UserSearchResult extends UserProfile {
+interface UserSearchResult extends FriendWithUserInfo {
   is_friend: boolean;        // 是否已是好友
   request_sent: boolean;     // 是否已发送好友请求
   request_received: boolean; // 是否收到对方请求
@@ -260,11 +260,9 @@ export type {
   ChatItemProps,
   ChatListProps,
   ChatAreaProps,
-  UserProfile,
   GroupProfile,
   UserSearchResult,
   GroupSearchResult,
-  FriendWithUserInfo,
   FriendRequest,
   FriendNotificationDetail
 };

@@ -217,8 +217,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
-import { useUserStore } from '../../stores/userStore'
-import type { UserProfile } from '../../service/messageTypes'
+import { useAuthStore } from '../../stores/authStore'
+import type { FriendWithUserInfo } from '../../types/friend'
 import Avatar from './Avatar.vue'
 
 defineOptions({
@@ -236,13 +236,13 @@ const props = withDefaults(defineProps<Props>(), {
 
 interface Emits {
   (e: 'update:modelValue', value: boolean): void
-  (e: 'profile-updated', profile: UserProfile): void
+  (e: 'profile-updated', profile: FriendWithUserInfo): void
 }
 
 const emit = defineEmits<Emits>()
 
 // Store
-const userStore = useUserStore()
+// const userStore = useUserStore()
 
 // Refs
 const fileInput = ref<HTMLInputElement>()
@@ -261,7 +261,7 @@ const form = reactive({
   email: '',
   avatar: '',
   bio: '',
-  create_time: ''
+  createdAt: ''
 })
 
 // 原始数据备份
@@ -330,9 +330,28 @@ const hasChanges = computed(() => {
 })
 
 // 方法
-const loadUserData = () => {
-  const profile = userStore.currentUser
+const loadUserData = async () => {
+  const authStore = useAuthStore()
+  
+  const userId = authStore.userId
+  const profile = await getCurrentUserInfo()
 
+  // 转换为FriendWithUserInfo格式
+  const userInfo: FriendWithUserInfo = {
+    fid: '', // 当前用户不是好友，fid为空
+    uid: profile.uid || userId,
+    username: profile.username,
+    avatar: profile.avatar || '',
+    bio: profile.bio,
+    createdAt: profile.create_time,
+    isBlacklisted: false,
+    info: {
+      account: profile.account,
+      gender: profile.gender,
+      region: profile.region,
+      email: profile.email
+    }
+  }
   // 加载用户数据到表单
   Object.assign(form, profile)
 
@@ -405,7 +424,7 @@ const handleSubmit = async () => {
 
   try {
     // 准备更新数据
-    const updates: Partial<UserProfile> = {
+    const updates: Partial<FriendWithUserInfo> = {
       username: form.username,
       gender: form.gender,
       region: form.region,
@@ -414,9 +433,10 @@ const handleSubmit = async () => {
       bio: form.bio
     }
 
-    // 更新用户资料
-    const success = await userStore.updateProfile(updates)
-
+    // 更新用户资料 todo
+    
+    // const success = await userStore.updateProfile(updates)
+    const success = true
     if (success) {
       // 更新原始数据备份
       Object.assign(originalForm, {
@@ -429,7 +449,7 @@ const handleSubmit = async () => {
       })
 
       // 发出更新事件
-      emit('profile-updated', userStore.currentUser)
+      // emit('profile-updated', userStore.currentUser)
 
       // 关闭对话框
       dialog.value = false
