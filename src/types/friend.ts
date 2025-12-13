@@ -1,3 +1,5 @@
+// ==================== 基础数据类型 ====================
+
 // 用于好友列表
 interface FriendWithUserInfo {
   fid: string;               // 好友编号
@@ -5,29 +7,29 @@ interface FriendWithUserInfo {
   username: string;
   remark?: string;           // 备注
   tag?: string;              // 分组标签
-  createdAt: string;       // 添加时间
-  isBlacklisted: boolean;     // 是否黑名单
+  createdAt: string;         // 添加时间
+  isBlacklisted: boolean;    // 是否黑名单
   avatar: string;
   bio?: string;
-  info?: UserInfo;     //用户详细资料, 点击查看时获取
+  info?: UserInfo;           // 用户详细资料, 点击查看时获取
 }
 
-//挂载详细资料
-interface UserInfo{
+// 挂载详细资料
+interface UserInfo {
   account?: string;
   gender?: string;
   region?: string;
   email?: string;
 }
 
-//获取好友资料API的响应体
-interface FriendProfileFromApi{
+// 获取好友资料API的响应体
+interface FriendProfileFromApi {
   fid: string;
   uid: string;
   account: string;
   username: string;
   remark?: string;
-  group_by?: string; // 对应前端的 tag
+  group_by?: string;        // 对应前端的 tag
   is_blacklisted: boolean;
   created_at: string;
   bio?: string;
@@ -37,8 +39,7 @@ interface FriendProfileFromApi{
   email?: string;
 }
 
-
-//更新好友设置请求体
+// 更新好友设置请求体
 interface UpdateFriendProfileParams {
   fid: string;
   remark: string;
@@ -46,8 +47,10 @@ interface UpdateFriendProfileParams {
   group_by: string;
 }
 
-//将API的响应体转为好友列表的结构体
-function FriendApiToFriendWithUserInfo(apiData: FriendProfileFromApi): FriendWithUserInfo{
+// ==================== 转换函数 ====================
+
+// 将API的响应体转为好友列表的结构体
+function FriendApiToFriendWithUserInfo(apiData: FriendProfileFromApi): FriendWithUserInfo {
   const userInfo: UserInfo = {
     account: apiData.account,
     gender: apiData.gender,
@@ -59,19 +62,19 @@ function FriendApiToFriendWithUserInfo(apiData: FriendProfileFromApi): FriendWit
     uid: apiData.uid,
     username: apiData.username,
     remark: apiData.remark,
-    
+
     // 字段名映射：group_by -> tag
-    tag: apiData.group_by, 
-    
+    tag: apiData.group_by,
+
     // 字段名映射：created_at -> createdAt
-    createdAt: apiData.created_at, 
-    
+    createdAt: apiData.created_at,
+
     // 字段值类型转换：'false'/'true' 字符串 -> boolean
     isBlacklisted: apiData.is_blacklisted,
-    
+
     avatar: apiData.avatar,
     bio: apiData.bio,
-    
+
     // 3. 挂载详细资料
     info: userInfo,
   };
@@ -79,11 +82,16 @@ function FriendApiToFriendWithUserInfo(apiData: FriendProfileFromApi): FriendWit
   return friendInfo
 }
 
+
+// ==================== 导出 ====================
+
+// 基础数据类型导出
 export type {
   FriendWithUserInfo,
   UserInfo,
+  FriendProfileFromApi,
   UpdateFriendProfileParams
-}
-export  {
-  FriendApiToFriendWithUserInfo
-}
+};
+
+// 转换函数导出
+export { FriendApiToFriendWithUserInfo };

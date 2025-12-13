@@ -1,5 +1,4 @@
 import type { AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios'
-import { useSnackbarStore } from '@/stores/snackbarStore'
 import { useAuthStore } from '@/stores/authStore'
 
 // 标准化的API响应格式
@@ -128,9 +127,6 @@ export function setupRequestInterceptor(axiosInstance: any) {
 
 // 设置响应拦截器
 export function setupResponseInterceptor(axiosInstance: any) {
-  // 创建 snackbar store 实例
-  const snackbarStore = useSnackbarStore()
-
   axiosInstance.interceptors.response.use(
     (response: AxiosResponse<ApiResponse>) => {
       // 处理业务响应
@@ -160,8 +156,7 @@ export function setupResponseInterceptor(axiosInstance: any) {
       // 网络错误
       if (!error.response) {
         const message = '网络连接失败，请检查网络设置'
-        console.error(message)
-        snackbarStore.error(message, 5000)
+        console.error(`[HTTP拦截器] ${message}`)
 
         const networkError = new Error(message)
         ;(networkError as any).code = 'NETWORK_ERROR'
@@ -178,8 +173,7 @@ export function setupResponseInterceptor(axiosInstance: any) {
         const authStore = useAuthStore();
         authStore.clearAuthState();
         const message = errorData?.message || '登录已过期，请重新登录'
-        console.warn(message)
-        snackbarStore.warning(message)
+        console.warn(`[HTTP拦截器] ${message}`)
 
         const authError = new Error(message)
         ;(authError as any).code = 'AUTH_EXPIRED'
@@ -195,13 +189,13 @@ export function setupResponseInterceptor(axiosInstance: any) {
       // 根据错误码进行特殊处理
       console.error(`[错误 ${errorCode}] ${message}`)
 
-      // 使用 Snackbar 显示错误
+      // 记录错误日志
       if (status >= 500) {
-        snackbarStore.error(message, 5000)  // 服务器错误显示5秒
+        console.error(`[HTTP拦截器] 服务器错误 (${status}): ${message}`)
       } else if (status === 429) {
-        snackbarStore.warning(message, 4000)  // 频率限制显示4秒
+        console.warn(`[HTTP拦截器] 请求频率限制 (${status}): ${message}`)
       } else {
-        snackbarStore.error(message, 4000)  // 其他错误显示4秒
+        console.error(`[HTTP拦截器] 请求错误 (${status}): ${message}`)
       }
 
       const httpError = new Error(message)

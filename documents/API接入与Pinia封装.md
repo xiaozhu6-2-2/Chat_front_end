@@ -66,21 +66,86 @@
 
 ### 3. 💬 `chat` 会话模块 <a id="3-chat-会话模块"></a>
 
+#### 整体概述：
+用户登录后，store初始化获取会话列表；
+用户从联系人卡片点击"发送消息"，创建或获取对应的私聊会话；
+用户从群组卡片点击"进入群聊"，创建或获取对应的群聊会话；
+用户切换会话时，自动重置该会话的未读消息数；
+用户可以置顶重要会话，或删除不需要的会话。
+
 #### Service 职责
 
-* 负责会话列表的 API 交互 和 **已读状态更新**。
+* 负责会话相关的所有 API 交互：
+* `getChatList()`: 获取用户的会话列表
+* `getPrivateChat(fid)`: 获取或创建与指定好友的私聊会话（"获取即创建"模式）
+* `getGroupChat(gid)`: 获取或创建指定群聊会话
+* `updateIsPinned(chatId, chatType, isPinned)`: 更新会话置顶状态
+* `transformApiChat(apiChat)`: 将API响应转换为前端Chat格式
 
 #### Store 职责
 
-* 负责 **管理会话列表** 和 **未读计数**。
+* **数据存储**：
+  * `chatList`: 使用 `ref<Chat[]>` 存储所有会话列表
+  * `activeChatId`: 当前选中的会话ID
+  * `isLoading`: 加载状态
+  * `onlineBoardVisible`: 在线面板显示状态
+* **状态管理**：
+  * `chatById`: 根据 ID 获取会话的计算属性
+* **核心操作方法**：
+  * `fetchChatList()`: 获取会话列表
+  * `setActiveChat(chatId)`: 设置当前活跃会话
+  * `getChatByid(chatId)`: 根据ID获取会话
+  * `deleteChatByid(chatId)`: 删除会话（仅前端删除）
+  * `updateChatList(chats)`: 更新整个会话列表并排序
+  * `addChat(chat)`: 添加或更新单个会话
+  * `updateChatLastMessage(chatId, message)`: 更新会话最新消息
+  * `updateIsPinned(chatId, type, isPinned)`: 更新会话置顶状态
+* **未读消息管理**：
+  * `updateChatUnreadCount(chatId, count)`: 设置未读消息数
+  * `incrementUnreadCount(chatId)`: 未读消息数+1
+  * `resetUnreadCount(chatId)`: 重置未读消息数为0
+* **辅助方法**：
+  * `sortChatList()`: 会话列表排序（置顶优先，按更新时间）
+  * `setOnlineBoardVisible(visible)`: 设置在线面板显示状态
+  * `setLoading(loading)`: 设置加载状态
+  * `reset()`: 重置所有状态
 
 #### Composable 职责
 
-* 封装会话列表的 **交互逻辑**。
+* **封装会话操作逻辑**：
+  * `selectChat(chatId)`: 选择会话并重置未读数
+  * `createChat(fidOrGid, chatType)`: 创建或获取会话（支持私聊和群聊）
+* **状态暴露**：
+  * `activeChatId`: 当前活跃会话ID
+  * `activeChat`: 当前活跃会话对象
+  * `chatList`: 会话列表
+  * `isLoading`: 加载状态
 
 #### Types
 
-* 会话相关的数据结构体。
+* `Chat`: 会话接口定义
+  ```typescript
+  interface Chat {
+    id: string; // pid/gid
+    isPinned: boolean;
+    type: ChatType; // 'private' | 'group'
+    lastMessage?: string;
+    updatedAt?: string;
+    unreadCount: number;
+    avatar?: string;
+    name: string;
+  }
+  ```
+* `ChatType`: 聊天类型枚举
+  ```typescript
+  enum ChatType {
+    PRIVATE = 'private',
+    GROUP = 'group'
+  }
+  ```
+* `ChatItemProps`: 聊天项组件属性
+* `ChatListProps`: 聊天列表组件属性
+* `ChatAreaProps`: 聊天区域组件属性
 
 ### 4. 📧 `message` 消息模块 <a id="4-message-消息模块"></a>
 
