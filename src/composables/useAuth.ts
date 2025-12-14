@@ -9,6 +9,7 @@ import { generateSecureCredentials } from '@/service/crypto'
 import type { AuthStorage, LoginResult } from '@/types/auth'
 import { useFriendStore } from '@/stores/friendStore'
 import { useChatStore } from '@/stores/chatStore'
+import { useFriendRequestStore } from '@/stores/friendRequestStore'
 
 export function useAuth() {
   const authStore = useAuthStore()
@@ -65,11 +66,14 @@ export function useAuth() {
     //初始化store，提前拉取数据
     try{
       
-      const chatStore = useChatStore();
-      await chatStore.fetchChatList();
+      const chatStore = useChatStore()
+      await chatStore.fetchChatList()
 
-      const friendStore = useFriendStore();
-      await friendStore.fetchFriends();
+      const friendStore = useFriendStore()
+      await friendStore.fetchFriends()
+
+      const friendRequestStore = useFriendRequestStore()
+      await friendRequestStore.fetchFriendRequests()
       console.log('useAuth: 初始化store')
     }catch(err){
       showError(`store初始化失败: ${err}`)

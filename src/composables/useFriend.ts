@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import { useFriendStore } from '@/stores/friendStore'
 import { friendService } from '@/service/friendService'
-import type { FriendWithUserInfo } from '@/types/friend'
+import type { FriendWithUserInfo, FriendProfileUpdateOptions } from '@/types/friend'
 import { useSnackbar } from './useSnackbar'
 
 export function useFriend() {
@@ -69,6 +69,32 @@ export function useFriend() {
     }catch(err){
       // 错误已经在 service 层处理和显示了
       console.error('useFriend: 更新好友资料失败', err)
+      // 重新抛出错误，让调用者可以进一步处理
+      throw err
+    }
+  }
+
+  //部分更新好友设置（可选择传入特定字段）
+  const updateFriendProfilePartial = async (
+    friendId: string,
+    options: FriendProfileUpdateOptions
+  ) => {
+    try{
+      // service通知修改
+      await friendService.updateFriendProfilePartial(friendId, options)
+      // store更新资料
+      const currentFriend = friendStore.friends.value.get(friendId)
+      if (currentFriend) {
+        const updates: Partial<FriendWithUserInfo> = {}
+        if (options.remark !== undefined) updates.remark = options.remark
+        if (options.isBlacklisted !== undefined) updates.isBlacklisted = options.isBlacklisted
+        if (options.tag !== undefined) updates.tag = options.tag
+        friendStore.updateFriend(friendId, updates)
+      }
+      showSuccess('更新好友资料成功')
+    }catch(err){
+      // 错误已经在 service 层处理和显示了
+      console.error('useFriend: 部分更新好友资料失败', err)
       // 重新抛出错误，让调用者可以进一步处理
       throw err
     }

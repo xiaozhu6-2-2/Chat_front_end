@@ -1,16 +1,15 @@
+import type { BaseProfile } from "./global";
+
 // ==================== 基础数据类型 ====================
 
 // 用于好友列表
-interface FriendWithUserInfo {
+interface FriendWithUserInfo extends BaseProfile{
   fid: string;               // 好友编号
-  uid: string;               // 好友用户ID
-  username: string;
+  bio?: string;
   remark?: string;           // 备注
   tag?: string;              // 分组标签
   createdAt: string;         // 添加时间
   isBlacklisted: boolean;    // 是否黑名单
-  avatar: string;
-  bio?: string;
   info?: UserInfo;           // 用户详细资料, 点击查看时获取
 }
 
@@ -47,6 +46,21 @@ interface UpdateFriendProfileParams {
   group_by: string;
 }
 
+// 部分更新好友设置请求体
+interface PartialUpdateFriendProfileParams {
+  fid: string;
+  remark?: string;
+  is_blacklisted?: boolean;
+  group_by?: string;
+}
+
+// 好友资料更新选项
+type FriendProfileUpdateOptions = {
+  remark?: string;
+  isBlacklisted?: boolean;
+  tag?: string;
+}
+
 // ==================== 转换函数 ====================
 
 // 将API的响应体转为好友列表的结构体
@@ -59,9 +73,14 @@ function FriendApiToFriendWithUserInfo(apiData: FriendProfileFromApi): FriendWit
   }
   const friendInfo: FriendWithUserInfo = {
     fid: apiData.fid,
-    uid: apiData.uid,
-    username: apiData.username,
+    // BaseProfile 字段映射
+    id: apiData.uid,
+    name: apiData.username,
+    avatar: apiData.avatar,
+
+    // FriendWithUserInfo 特有字段
     remark: apiData.remark,
+    bio: apiData.bio,
 
     // 字段名映射：group_by -> tag
     tag: apiData.group_by,
@@ -71,9 +90,6 @@ function FriendApiToFriendWithUserInfo(apiData: FriendProfileFromApi): FriendWit
 
     // 字段值类型转换：'false'/'true' 字符串 -> boolean
     isBlacklisted: apiData.is_blacklisted,
-
-    avatar: apiData.avatar,
-    bio: apiData.bio,
 
     // 3. 挂载详细资料
     info: userInfo,
@@ -90,7 +106,9 @@ export type {
   FriendWithUserInfo,
   UserInfo,
   FriendProfileFromApi,
-  UpdateFriendProfileParams
+  UpdateFriendProfileParams,
+  PartialUpdateFriendProfileParams,
+  FriendProfileUpdateOptions
 };
 
 // 转换函数导出

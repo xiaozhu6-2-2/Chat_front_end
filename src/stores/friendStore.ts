@@ -24,14 +24,14 @@ export const useFriendStore = defineStore('friend', () => {
   const getFriendByUid = computed(() => {
     return (uid: string) => {
       return Array.from(friends.value.values())
-        .find(friend => friend.uid === uid)
+        .find(friend => friend.id === uid)  // 使用 id 而非 uid
     }
   })
 
   const isFriend = computed(() => {
     return (uid: string) => {
       return Array.from(friends.value.values())
-        .some(friend => friend.uid === uid && !friend.isBlacklisted)
+        .some(friend => friend.id === uid && !friend.isBlacklisted)  // 使用 id 而非 uid
     }
   })
 

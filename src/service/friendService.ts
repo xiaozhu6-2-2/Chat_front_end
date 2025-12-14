@@ -3,7 +3,7 @@
  * 负责好友相关的CRUD操作，不包括实时通知功能
  */
 
-import type { FriendWithUserInfo, UpdateFriendProfileParams } from '@/types/friend';
+import type { FriendWithUserInfo, UpdateFriendProfileParams, FriendProfileUpdateOptions } from '@/types/friend';
 import { FriendApiToFriendWithUserInfo } from '@/types/friend';
 import { authApi } from './api';
 import { useSnackbar } from '@/composables/useSnackbar';
@@ -39,27 +39,31 @@ export const friendService = {
     // 处理普通好友（已排除黑名单）
     const friends = apiResponse.friends.map(friend => ({
       fid: friend.fid,
-      uid: friend.uid,
-      username: friend.username,
+      // BaseProfile 字段
+      id: friend.uid,
+      name: friend.username,
+      avatar: friend.avatar || '',
+      // FriendWithUserInfo 特有字段
       remark: friend.remark || friend.username,
+      bio: friend.bio || '',
       tag: friend.groupBy || friend.group_by || 'default',
       isBlacklisted: false, // friends 列表中的都是非黑名单用户
       createdAt: friend.createdAt || friend.created_at || new Date().toISOString(),
-      avatar: friend.avatar || '',
-      bio: friend.bio || '',
     }));
 
     // 处理黑名单用户
     const blacklist = apiResponse.blacklist.map(friend => ({
       fid: friend.fid,
-      uid: friend.uid,
-      username: friend.username,
+      // BaseProfile 字段
+      id: friend.uid,
+      name: friend.username,
+      avatar: friend.avatar || '',
+      // FriendWithUserInfo 特有字段
       remark: friend.remark || friend.username,
+      bio: friend.bio || '',
       tag: friend.groupBy || friend.group_by || 'default',
       isBlacklisted: true, // 黑名单用户
       createdAt: friend.createdAt || friend.created_at || new Date().toISOString(),
-      avatar: friend.avatar || '',
-      bio: friend.bio || '',
     }));
 
     // 合并所有好友（包括黑名单）
@@ -128,6 +132,40 @@ export const friendService = {
       }
     } catch (error) {
       console.error('Service更新好友资料失败:', error);
+      return Promise.reject(error);
+    }
+  },
+
+  /**
+   * 部分更新好友资料
+   * @param friendId 好友ID
+   * @param options 更新选项（可选字段）
+   * @returns Promise<void>
+   */
+  async updateFriendProfilePartial(
+    friendId: string,
+    options: FriendProfileUpdateOptions
+  ): Promise<void> {
+    try {
+      // 验证至少有一个字段要更新
+      if (options.remark === undefined &&
+          options.isBlacklisted === undefined &&
+          options.tag === undefined) {
+        throw new Error('至少需要提供一个要更新的字段');
+      }
+
+      // 获取当前好友资料
+      const currentProfile = await this.getFriendProfile(friendId);
+
+      // 合并新旧值，未提供的字段使用当前值
+      const mergedRemark = options.remark ?? currentProfile.remark ?? '';
+      const mergedIsBlacklisted = options.isBlacklisted ?? currentProfile.isBlacklisted;
+      const mergedTag = options.tag ?? currentProfile.tag ?? '';
+
+      // 使用现有的完整更新方法
+      return await this.updateFriendProfile(friendId, mergedRemark, mergedIsBlacklisted, mergedTag);
+    } catch (error) {
+      console.error('Service部分更新好友资料失败:', error);
       return Promise.reject(error);
     }
   }
