@@ -1,6 +1,6 @@
-import { ref, nextTick } from 'vue'
+import { nextTick, ref } from 'vue'
 
-export function useMessageInput() {
+export function useMessageInput () {
   const message = ref('')
   const showEmojiPicker = ref(false)
   const messagesContainer = ref<HTMLElement | null>(null)
@@ -47,6 +47,6 @@ export function useMessageInput() {
     toggleEmojiPicker,
     clearInput,
     scrollToBottom,
-    handleEnterKey
+    handleEnterKey,
   }
 }

@@ -2,11 +2,11 @@
   <div class="message-bubble" :class="messageClasses">
     <div v-if="!isOwnMessage" class="message-avatar-container">
       <Avatar
-        :url="senderAvatar"
+        avatar-class="custom-avatar"
+        :clickable="true"
         :name="senderName"
         :size="40"
-        :clickable="true"
-        avatar-class="custom-avatar"
+        :url="senderAvatar"
         @click="handleAvatarClick"
       />
     </div>
@@ -25,11 +25,11 @@
         <!-- Image Message -->
         <div v-else-if="isImageMessage" class="message-image">
           <v-img
-            :src="message.payload.detail"
             :alt="'图片'"
-            max-width="200"
-            max-height="200"
             cover
+            max-height="200"
+            max-width="200"
+            :src="message.payload.detail"
             @click="previewImage"
           />
         </div>
@@ -50,8 +50,8 @@
         <span class="message-time">{{ formatTime(message.payload.timestamp) }}</span>
         <span v-if="isOwnMessage" class="message-status">
           <v-icon
-            :icon="statusIcon"
             :color="statusColor"
+            :icon="statusIcon"
             size="16"
           />
         </span>
@@ -60,11 +60,11 @@
 
     <div v-if="isOwnMessage" class="message-avatar-container">
       <Avatar
-        :url="currentUserAvatar"
+        avatar-class="custom-avatar"
+        :clickable="true"
         :name="'我'"
         :size="40"
-        :clickable="true"
-        avatar-class="custom-avatar"
+        :url="currentUserAvatar"
         @click="handleMyAvatarClick"
       />
     </div>
@@ -72,153 +72,162 @@
     <!-- 联系人卡片弹窗 -->
     <ContactCardModal
       v-if="showContactCard && selectedContactInfo"
-      :contact="selectedContactInfo"
       v-model="showContactCard"
+      :contact="selectedContactInfo"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { ContentType, MessageType } from '../../../service/messageTypes'
-import type { MessageBubbleProps } from '../../../types/componentProps'
+  import type { MessageBubbleProps } from '../../../types/componentProps'
+  import { computed, ref } from 'vue'
+  import { ContentType, MessageType } from '../../../service/messageTypes'
 
-const props = withDefaults(defineProps<MessageBubbleProps>(), {
-  currentUserId: 'current-user'
-})
-
-const emit = defineEmits<{
-  imagePreview: [imageUrl: string]
-}>()
-
-const showContactCard = ref(false)
-const selectedContactInfo = ref<any>(null)
-
-const isOwnMessage = computed(() =>
-  props.message.userIsSender || props.message.payload.senderId === props.currentUserId
-)
-
-const messageClasses = computed(() => ({
-  'own-message': isOwnMessage.value,
-  'other-message': !isOwnMessage.value
-}))
-
-const bubbleClasses = computed(() => ({
-  'own-bubble': isOwnMessage.value,
-  'other-bubble': !isOwnMessage.value,
-  'system-bubble': props.message.type === 'System'
-}))
-
-const senderName = computed(() => {
-  // 这里可以根据需要从用户服务中获取用户名
-  return props.message.payload.senderId || '未知用户'
-})
-
-const senderAvatar = computed(() => {
-  // 这里可以根据需要从用户服务中获取用户头像
-  return '/src/assets/default-avatar.png'
-})
-
-const currentUserAvatar = computed(() =>
-  '/src/assets/yxd.jpg' // This should come from user store
-)
-
-const statusIcon = computed(() => {
-  switch (props.message.sendStatus) {
-    case 'pending':
-      return 'mdi-clock-outline'
-    case 'sending':
-      return 'mdi-clock-outline'
-    case 'sent':
-      return 'mdi-check'
-    case 'failed':
-      return 'mdi-alert-circle'
-    default:
-      return 'mdi-check'
-  }
-})
-
-const statusColor = computed(() => {
-  switch (props.message.sendStatus) {
-    case 'pending':
-    case 'sending':
-      return 'grey'
-    case 'sent':
-      return 'grey'
-    case 'failed':
-      return 'error'
-    default:
-      return 'grey'
-  }
-})
-
-const formatTime = (timestamp?: number) => {
-  if (!timestamp) return ''
-  const date = new Date(timestamp)
-  return date.toLocaleTimeString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit'
+  const props = withDefaults(defineProps<MessageBubbleProps>(), {
+    currentUserId: 'current-user',
   })
-}
 
-const getFileName = (filePath: string) => {
-  return filePath.split('/').pop() || filePath
-}
+  const emit = defineEmits<{
+    imagePreview: [imageUrl: string]
+  }>()
 
-const isImageMessage = computed(() => {
-  return props.message.payload.contentType === ContentType.IMAGE ||
-         (props.message.type === MessageType.GROUP && props.message.payload.detail?.startsWith('http'))
-})
+  const showContactCard = ref(false)
+  const selectedContactInfo = ref<any>(null)
 
-const isTextMessage = computed(() => {
-  return props.message.payload.contentType === ContentType.TEXT
-})
+  const isOwnMessage = computed(() =>
+    props.message.userIsSender || props.message.payload.senderId === props.currentUserId,
+  )
 
-const isFileMessage = computed(() => {
-  return props.message.payload.contentType === ContentType.FILE
-})
+  const messageClasses = computed(() => ({
+    'own-message': isOwnMessage.value,
+    'other-message': !isOwnMessage.value,
+  }))
 
-const isSystemMessage = computed(() => {
-  return props.message.type === MessageType.SYSTEM || props.message.type === MessageType.NOTIFICATION
-})
+  const bubbleClasses = computed(() => ({
+    'own-bubble': isOwnMessage.value,
+    'other-bubble': !isOwnMessage.value,
+    'system-bubble': props.message.type === 'System',
+  }))
 
-const previewImage = () => {
-  if (isImageMessage.value && props.message.payload.detail) {
-    emit('imagePreview', props.message.payload.detail)
+  const senderName = computed(() => {
+    // 这里可以根据需要从用户服务中获取用户名
+    return props.message.payload.senderId || '未知用户'
+  })
+
+  const senderAvatar = computed(() => {
+    // 这里可以根据需要从用户服务中获取用户头像
+    return '/src/assets/default-avatar.png'
+  })
+
+  const currentUserAvatar = computed(() =>
+    '/src/assets/yxd.jpg', // This should come from user store
+  )
+
+  const statusIcon = computed(() => {
+    switch (props.message.sendStatus) {
+      case 'pending': {
+        return 'mdi-clock-outline'
+      }
+      case 'sending': {
+        return 'mdi-clock-outline'
+      }
+      case 'sent': {
+        return 'mdi-check'
+      }
+      case 'failed': {
+        return 'mdi-alert-circle'
+      }
+      default: {
+        return 'mdi-check'
+      }
+    }
+  })
+
+  const statusColor = computed(() => {
+    switch (props.message.sendStatus) {
+      case 'pending':
+      case 'sending': {
+        return 'grey'
+      }
+      case 'sent': {
+        return 'grey'
+      }
+      case 'failed': {
+        return 'error'
+      }
+      default: {
+        return 'grey'
+      }
+    }
+  })
+
+  function formatTime (timestamp?: number) {
+    if (!timestamp) return ''
+    const date = new Date(timestamp)
+    return date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
   }
-}
 
-// 处理头像点击事件
-const handleAvatarClick = () => {
-  selectedContactInfo.value = {
-    uid: senderName.value,
-    username: senderName.value,
-    account: senderName.value,
-    gender: 'other',
-    region: '',
-    email: `${senderName.value.toLowerCase()}@example.com`,
-    create_time: new Date().toISOString(),
-    avatar: senderAvatar.value,
-    bio: '用户信息'
+  function getFileName (filePath: string) {
+    return filePath.split('/').pop() || filePath
   }
-  showContactCard.value = true
-}
 
-// 处理自己头像点击事件
-const handleMyAvatarClick = () => {
-  selectedContactInfo.value = {
-    uid: 'current-user',
-    username: '我',
-    account: 'me',
-    gender: 'other',
-    region: '',
-    email: 'me@example.com',
-    create_time: new Date().toISOString(),
-    avatar: currentUserAvatar.value,
-    bio: '这是我的个人信息'
+  const isImageMessage = computed(() => {
+    return props.message.payload.contentType === ContentType.IMAGE
+      || (props.message.type === MessageType.GROUP && props.message.payload.detail?.startsWith('http'))
+  })
+
+  const isTextMessage = computed(() => {
+    return props.message.payload.contentType === ContentType.TEXT
+  })
+
+  const isFileMessage = computed(() => {
+    return props.message.payload.contentType === ContentType.FILE
+  })
+
+  const isSystemMessage = computed(() => {
+    return props.message.type === MessageType.SYSTEM || props.message.type === MessageType.NOTIFICATION
+  })
+
+  function previewImage () {
+    if (isImageMessage.value && props.message.payload.detail) {
+      emit('imagePreview', props.message.payload.detail)
+    }
   }
-  showContactCard.value = true
-}
+
+  // 处理头像点击事件
+  function handleAvatarClick () {
+    selectedContactInfo.value = {
+      uid: senderName.value,
+      username: senderName.value,
+      account: senderName.value,
+      gender: 'other',
+      region: '',
+      email: `${senderName.value.toLowerCase()}@example.com`,
+      create_time: new Date().toISOString(),
+      avatar: senderAvatar.value,
+      bio: '用户信息',
+    }
+    showContactCard.value = true
+  }
+
+  // 处理自己头像点击事件
+  function handleMyAvatarClick () {
+    selectedContactInfo.value = {
+      uid: 'current-user',
+      username: '我',
+      account: 'me',
+      gender: 'other',
+      region: '',
+      email: 'me@example.com',
+      create_time: new Date().toISOString(),
+      avatar: currentUserAvatar.value,
+      bio: '这是我的个人信息',
+    }
+    showContactCard.value = true
+  }
 </script>
 
 <style lang="scss" scoped>

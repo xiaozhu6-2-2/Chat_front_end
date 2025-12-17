@@ -1,23 +1,23 @@
 <template>
   <v-card class="chat-container" elevation="0">
     <!-- 顶部聊天信息栏 -->
-    <v-toolbar density="compact" class="chat-header">
+    <v-toolbar class="chat-header" density="compact">
       <Avatar
-        :url="currentChat?.avatar"
+        avatar-class="custom-avatar ml-6"
+        :clickable="false"
         :name="currentChat?.name"
         :size="40"
-        :clickable="false"
-        avatar-class="custom-avatar ml-6"
+        :url="currentChat?.avatar"
         v-bind="props"
       />
       <v-toolbar-title>{{ currentChat?.name }}</v-toolbar-title>
-      <v-spacer></v-spacer>
+      <v-spacer />
 
       <v-btn icon @click="toggleOnlineBoard">
         <v-icon>mdi-dots-horizontal</v-icon>
       </v-btn>
     </v-toolbar>
-    <v-divider></v-divider>
+    <v-divider />
 
     <!-- 聊天内容区域 -->
     <div class="messages-container">
@@ -28,13 +28,13 @@
       <!-- 虚拟滚动消息列表 -->
       <VirtualMessageList
         v-else
-        :messages="messages"
-        :current-user-id="currentUserId"
+        ref="virtualMessageList"
         :auto-scroll="autoScroll"
         :container-height="containerHeight"
+        :current-user-id="currentUserId"
+        :messages="messages"
         @image-preview="handleImagePreview"
         @scroll-near-bottom="handleScrollNearBottom"
-        ref="virtualMessageList"
       />
 
       <!-- Typing Indicator -->
@@ -48,7 +48,7 @@
         <span class="typing-text">对方正在输入...</span>
       </div> -->
     </div>
-    <v-divider></v-divider>
+    <v-divider />
 
     <!-- 底部输入区域 -->
     <div class="input-container">
@@ -66,7 +66,7 @@
         <v-btn icon variant="text" @click="handleVoiceRecord">
           <v-icon>mdi-microphone</v-icon>
         </v-btn>
-        <v-spacer></v-spacer>
+        <v-spacer />
         <v-btn icon variant="text">
           <v-icon>mdi-dots-horizontal</v-icon>
         </v-btn>
@@ -87,23 +87,23 @@
       <!-- 输入框 -->
       <v-textarea
         v-model="message"
-        variant="plain"
-        placeholder="输入消息..."
         auto-grow
-        rows="1"
-        hide-details
         class="message-input"
-        @keydown.enter.exact.prevent="handleSendMessage"
+        hide-details
+        placeholder="输入消息..."
+        rows="1"
+        variant="plain"
         @input="handleTyping"
+        @keydown.enter.exact.prevent="handleSendMessage"
       />
 
       <!-- 发送按钮 -->
       <div class="send-button-container">
         <v-btn
           color="primary"
-          variant="flat"
           :disabled="!message.trim()"
           :loading="isSending"
+          variant="flat"
           @click="handleSendMessage"
         >
           发送
@@ -117,127 +117,127 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from "vue";
-import { useChat } from "@/composables/useChat";
-import { useMessageInput } from "@/composables/useMessageInput";
-import { useChatStore } from "@/stores/chatStore";
-import { messageService } from "../../service/message";
-import { ChatType } from "../../service/messageTypes";
-import Avatar from "../../components/global/Avatar.vue";
-import ContactCardModal from "../../components/global/ContactCardModal.vue";
-import OnlineBoard from "./onlineBoard.vue";
-import VirtualMessageList from "./VirtualMessageList.vue";
-import type { Chat } from "../../service/messageTypes";
-import type { LocalMessage } from "../../service/messageTypes";
-import type { ChatAreaProps } from "@/types/componentProps";
+  import type { Chat, LocalMessage } from '../../service/messageTypes'
+  import type { ChatAreaProps } from '@/types/componentProps'
+  import { computed, onMounted, ref, watch } from 'vue'
+  import { useChat } from '@/composables/useChat'
+  import { useMessageInput } from '@/composables/useMessageInput'
+  import { useChatStore } from '@/stores/chatStore'
+  import Avatar from '../../components/global/Avatar.vue'
+  import ContactCardModal from '../../components/global/ContactCardModal.vue'
+  import { messageService } from '../../service/message'
+  import { ChatType } from '../../service/messageTypes'
+  import OnlineBoard from './onlineBoard.vue'
 
-const props = defineProps<ChatAreaProps>();
+  import VirtualMessageList from './VirtualMessageList.vue'
 
-const emit = defineEmits<{
-  imagePreview: [imageUrl: string];
-}>();
+  const props = defineProps<ChatAreaProps>()
 
-// Store and composables
-const chatStore = useChatStore();
-const { currentChat, messages, sendMessage, selectChat } = useChat();
-const {
-  message,
-  showEmojiPicker,
-  emojis,
-  insertEmoji,
-  toggleEmojiPicker,
-  scrollToBottom,
-} = useMessageInput();
+  const emit = defineEmits<{
+    imagePreview: [imageUrl: string]
+  }>()
 
-// Local state
-const showOnlineBoard = ref(false);
-const showContactCard = ref(false);
-// const isTyping = ref(false)
-const isSending = ref(false);
-const typingTimeout = ref<number>();
-const virtualMessageList = ref();
+  // Store and composables
+  const chatStore = useChatStore()
+  const { currentChat, messages, sendMessage, selectChat } = useChat()
+  const {
+    message,
+    showEmojiPicker,
+    emojis,
+    insertEmoji,
+    toggleEmojiPicker,
+    scrollToBottom,
+  } = useMessageInput()
 
-// 当前聊天联系人信息
-const currentChatContact = computed(() => {
-  if (!props.chat) return null;
-  return {
-    uid: props.chat.id,
-    username: props.chat.name,
-    account: props.chat.name.toLowerCase().replace(/\s+/g, "_"),
-    gender: "other" as const,
-    region: "",
-    email: `${props.chat.name.toLowerCase()}@example.com`,
-    create_time: new Date().toISOString(),
-    avatar: props.chat.avatar,
-    bio: `${props.chat.name}的聊天`,
-  };
-});
+  // Local state
+  const showOnlineBoard = ref(false)
+  const showContactCard = ref(false)
+  // const isTyping = ref(false)
+  const isSending = ref(false)
+  const typingTimeout = ref<number>()
+  const virtualMessageList = ref()
 
-// 虚拟滚动配置
-const currentUserId = ref("current-user");
-const autoScroll = ref(true);
-const containerHeight = computed(() => {
-  // 计算容器高度，减去头部、输入框等高度
-  const headerHeight = 64; // v-toolbar 高度
-  const inputHeight = 120; // 输入区域估计高度
-  const padding = 32; // 上下边距
-  return window.innerHeight - headerHeight - inputHeight - padding - 60; // 侧边栏宽度
-});
-
-// Computed
-const isLoading = computed(() => chatStore.isLoading);
-
-// Watch for chat changes
-watch(
-  () => props.chat,
-  (newChat) => {
-    if (newChat) {
-      // The useChat composable will handle setting the current chat
-      // Call selectChat to load history messages
-      selectChat(newChat);
+  // 当前聊天联系人信息
+  const currentChatContact = computed(() => {
+    if (!props.chat) return null
+    return {
+      uid: props.chat.id,
+      username: props.chat.name,
+      account: props.chat.name.toLowerCase().replace(/\s+/g, '_'),
+      gender: 'other' as const,
+      region: '',
+      email: `${props.chat.name.toLowerCase()}@example.com`,
+      create_time: new Date().toISOString(),
+      avatar: props.chat.avatar,
+      bio: `${props.chat.name}的聊天`,
     }
-  },
-  { immediate: true }
-);
+  })
 
-// Watch for messages to scroll to bottom
-watch(
-  messages,
-  () => {
-    if (autoScroll.value) {
-      virtualMessageList.value?.scrollToBottom();
-    }
-  },
-  { deep: true }
-);
+  // 虚拟滚动配置
+  const currentUserId = ref('current-user')
+  const autoScroll = ref(true)
+  const containerHeight = computed(() => {
+    // 计算容器高度，减去头部、输入框等高度
+    const headerHeight = 64 // v-toolbar 高度
+    const inputHeight = 120 // 输入区域估计高度
+    const padding = 32 // 上下边距
+    return window.innerHeight - headerHeight - inputHeight - padding - 60 // 侧边栏宽度
+  })
 
-// 处理虚拟滚动接近底部事件
-const handleScrollNearBottom = (isNearBottom: boolean) => {
-  autoScroll.value = isNearBottom;
-};
+  // Computed
+  const isLoading = computed(() => chatStore.isLoading)
 
-// Methods
-const handleSendMessage = async () => {
-  if (!message.value.trim() || isSending.value) return;
+  // Watch for chat changes
+  watch(
+    () => props.chat,
+    newChat => {
+      if (newChat) {
+        // The useChat composable will handle setting the current chat
+        // Call selectChat to load history messages
+        selectChat(newChat)
+      }
+    },
+    { immediate: true },
+  )
 
-  isSending.value = true;
-  try {
-    await sendMessage(message.value);
-    message.value = "";
-  } catch (error) {
-    console.error("Failed to send message:", error);
-  } finally {
-    isSending.value = false;
-  }
-};
+  // Watch for messages to scroll to bottom
+  watch(
+    messages,
+    () => {
+      if (autoScroll.value) {
+        virtualMessageList.value?.scrollToBottom()
+      }
+    },
+    { deep: true },
+  )
 
-const handleTyping = () => {
-  // Clear existing timeout
-  if (typingTimeout.value) {
-    clearTimeout(typingTimeout.value);
+  // 处理虚拟滚动接近底部事件
+  function handleScrollNearBottom (isNearBottom: boolean) {
+    autoScroll.value = isNearBottom
   }
 
-  //todo：检测对方正在输入
+  // Methods
+  async function handleSendMessage () {
+    if (!message.value.trim() || isSending.value) return
+
+    isSending.value = true
+    try {
+      await sendMessage(message.value)
+      message.value = ''
+    } catch (error) {
+      console.error('Failed to send message:', error)
+    } finally {
+      isSending.value = false
+    }
+  }
+
+  function handleTyping () {
+    // Clear existing timeout
+    if (typingTimeout.value) {
+      clearTimeout(typingTimeout.value)
+    }
+
+  // todo：检测对方正在输入
   // Show typing indicator
   // isTyping.value = true;
 
@@ -245,40 +245,40 @@ const handleTyping = () => {
   // typingTimeout.value = window.setTimeout(() => {
   //   isTyping.value = false;
   // }, 3000) as unknown as number;
-};
-
-const toggleOnlineBoard = () => {
-  showOnlineBoard.value = !showOnlineBoard.value;
-  chatStore.setOnlineBoardVisible(showOnlineBoard.value);
-};
-
-const handleImagePreview = (imageUrl: string) => {
-  emit("imagePreview", imageUrl);
-};
-
-const handleFileUpload = () => {
-  // TODO: Implement file upload
-  console.log("File upload clicked");
-};
-
-const handleVoiceRecord = () => {
-  // TODO: Implement voice recording
-  console.log("Voice record clicked");
-};
-
-// Lifecycle
-onMounted(() => {
-  // 初始化消息服务（如果需要）
-  if (!messageService.isInitialized) {
-    // 这里可以添加初始化逻辑，比如传入 token 和 userId
-    console.log("Message service not initialized yet");
   }
 
-  // 延迟滚动到底部，确保组件已渲染
-  setTimeout(() => {
-    virtualMessageList.value?.scrollToBottom();
-  }, 100);
-});
+  function toggleOnlineBoard () {
+    showOnlineBoard.value = !showOnlineBoard.value
+    chatStore.setOnlineBoardVisible(showOnlineBoard.value)
+  }
+
+  function handleImagePreview (imageUrl: string) {
+    emit('imagePreview', imageUrl)
+  }
+
+  function handleFileUpload () {
+    // TODO: Implement file upload
+    console.log('File upload clicked')
+  }
+
+  function handleVoiceRecord () {
+    // TODO: Implement voice recording
+    console.log('Voice record clicked')
+  }
+
+  // Lifecycle
+  onMounted(() => {
+    // 初始化消息服务（如果需要）
+    if (!messageService.isInitialized) {
+      // 这里可以添加初始化逻辑，比如传入 token 和 userId
+      console.log('Message service not initialized yet')
+    }
+
+    // 延迟滚动到底部，确保组件已渲染
+    setTimeout(() => {
+      virtualMessageList.value?.scrollToBottom()
+    }, 100)
+  })
 </script>
 
 <style lang="scss" scoped>

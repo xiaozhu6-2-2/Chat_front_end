@@ -3,9 +3,8 @@
  * 用于开发环境提供测试数据，避免依赖真实后端API
  */
 
+import type { ContentType, FriendRequest, FriendWithUserInfo, type LocalMessage, MessageStatus, MessageText, MessageType, UserSearchResult } from './messageTypes'
 import { reactive } from 'vue'
-import { MessageText, type LocalMessage, ContentType, MessageType, MessageStatus } from './messageTypes'
-import type { UserSearchResult, FriendWithUserInfo, FriendRequest } from './messageTypes'
 import { devLog } from '@/utils/env'
 
 /**
@@ -20,7 +19,7 @@ class MockDataService {
     { id: 'user-001', name: '张三', avatar: '/src/assets/user1.jpg' },
     { id: 'user-002', name: '李四', avatar: '/src/assets/user2.jpg' },
     { id: 'user-003', name: '王五', avatar: '/src/assets/user3.jpg' },
-    { id: 'test-user-001', name: '测试用户', avatar: '/src/assets/yxd.jpg' }
+    { id: 'test-user-001', name: '测试用户', avatar: '/src/assets/yxd.jpg' },
   ]
 
   // 模拟聊天列表
@@ -31,7 +30,7 @@ class MockDataService {
       type: 'Group',
       avatar: '/src/assets/group1.jpg',
       lastMessage: '大家好！',
-      unreadCount: 3
+      unreadCount: 3,
     },
     {
       id: 'private-001',
@@ -39,7 +38,7 @@ class MockDataService {
       type: 'Private',
       avatar: 'https://cdn.vuetifyjs.com/images/john.jpg',
       lastMessage: '明天见！',
-      unreadCount: 0
+      unreadCount: 0,
     },
     {
       id: 'private-002',
@@ -47,7 +46,7 @@ class MockDataService {
       type: 'Private',
       avatar: 'https://cdn.vuetifyjs.com/images/lists/1.jpg',
       lastMessage: '收到，谢谢！',
-      unreadCount: 1
+      unreadCount: 1,
     },
     {
       id: 'private-003',
@@ -55,7 +54,7 @@ class MockDataService {
       type: 'Private',
       avatar: 'https://cdn.vuetifyjs.com/images/lists/2.jpg',
       lastMessage: '周末有空吗？',
-      unreadCount: 0
+      unreadCount: 0,
     },
     {
       id: 'private-004',
@@ -63,11 +62,11 @@ class MockDataService {
       type: 'Private',
       avatar: 'https://cdn.vuetifyjs.com/images/lists/5.jpg',
       lastMessage: '（已拉黑）',
-      unreadCount: 0
-    }
+      unreadCount: 0,
+    },
   ]
 
-  constructor() {
+  constructor () {
     this.initializeMockData()
     devLog('MockDataService initialized')
   }
@@ -75,7 +74,7 @@ class MockDataService {
   /**
    * 初始化模拟数据
    */
-  private initializeMockData(): void {
+  private initializeMockData (): void {
     // 为群聊生成测试消息
     this.generateMockMessages('group-001', MessageType.GROUP, 15)
 
@@ -89,19 +88,19 @@ class MockDataService {
    * @param messageType 消息类型
    * @param count 消息数量
    */
-  private generateMockMessages(chatId: string, messageType: MessageType.GROUP | MessageType.PRIVATE, count: number): void {
+  private generateMockMessages (chatId: string, messageType: MessageType.GROUP | MessageType.PRIVATE, count: number): void {
     const messages: LocalMessage[] = []
     const now = Date.now()
 
     for (let i = 0; i < count; i++) {
-      const timestamp = now - (count - i) * 60000 // 每条消息间隔1分钟
+      const timestamp = now - (count - i) * 60_000 // 每条消息间隔1分钟
       const senderIndex = i % this.mockUsers.length
 
       const mockMessage = new MessageText(messageType, {
         senderId: this.mockUsers[senderIndex]?.id || 'user-001',
         receiverId: chatId,
         contentType: ContentType.TEXT,
-        detail: this.getRandomMessageText(i)
+        detail: this.getRandomMessageText(i),
       })
 
       // 设置时间戳
@@ -113,7 +112,7 @@ class MockDataService {
       const statusOptions: MessageStatus[] = [
         MessageStatus.SENT,
         MessageStatus.DELIVERED,
-        MessageStatus.READ
+        MessageStatus.READ,
       ]
       mockMessage.sendStatus = statusOptions[Math.floor(Math.random() * statusOptions.length)]
 
@@ -132,7 +131,7 @@ class MockDataService {
    * @param index 消息索引
    * @returns 随机消息文本
    */
-  private getRandomMessageText(index: number): string {
+  private getRandomMessageText (index: number): string {
     const messageTemplates = [
       '你好！最近怎么样？',
       '明天一起吃饭吧！',
@@ -148,7 +147,7 @@ class MockDataService {
       '谢谢你的分享！',
       '我觉得这个方案可行',
       '让我想想...',
-      '同意你的观点'
+      '同意你的观点',
     ]
 
     return messageTemplates[index % messageTemplates.length] || '默认消息'
@@ -159,7 +158,7 @@ class MockDataService {
    * @param chatId 聊天ID
    * @returns 消息列表
    */
-  public getMockMessages(chatId: string): LocalMessage[] {
+  public getMockMessages (chatId: string): LocalMessage[] {
     const messages = this.mockMessages.get(chatId)
 
     if (!messages) {
@@ -178,7 +177,7 @@ class MockDataService {
    * @param chatId 聊天ID
    * @param message 新消息
    */
-  public addMockMessage(chatId: string, message: LocalMessage): void {
+  public addMockMessage (chatId: string, message: LocalMessage): void {
     if (!this.mockMessages.has(chatId)) {
       this.mockMessages.set(chatId, [])
     }
@@ -197,7 +196,7 @@ class MockDataService {
    * @param userId 用户ID
    * @returns 用户信息
    */
-  public getMockUser(userId: string) {
+  public getMockUser (userId: string) {
     return this.mockUsers.find(user => user.id === userId)
   }
 
@@ -205,7 +204,7 @@ class MockDataService {
    * 获取模拟聊天列表
    * @returns 聊天列表
    */
-  public getMockChats() {
+  public getMockChats () {
     return this.mockChats
   }
 
@@ -214,7 +213,7 @@ class MockDataService {
    * @param callback 回调函数
    * @param delay 延迟时间（毫秒）
    */
-  public simulateSendDelay(callback: () => void, delay: number = 1000): void {
+  public simulateSendDelay (callback: () => void, delay = 1000): void {
     setTimeout(() => {
       callback()
       devLog(`Mock message sent after ${delay}ms`)
@@ -226,7 +225,7 @@ class MockDataService {
    * @param errorRate 错误率（0-1）
    * @returns 是否触发错误
    */
-  public shouldSimulateError(errorRate: number = 0.1): boolean {
+  public shouldSimulateError (errorRate = 0.1): boolean {
     return Math.random() < errorRate
   }
 
@@ -237,7 +236,7 @@ class MockDataService {
    * @param query 搜索关键词
    * @returns 搜索结果
    */
-  public async mockSearchUsers(query: string): Promise<UserSearchResult[]> {
+  public async mockSearchUsers (query: string): Promise<UserSearchResult[]> {
     // 模拟搜索延迟
     await new Promise(resolve => setTimeout(resolve, 500))
 
@@ -254,7 +253,7 @@ class MockDataService {
         bio: '这是张三的个人简介',
         is_friend: false,
         request_sent: false,
-        request_received: false
+        request_received: false,
       },
       {
         uid: 'user002',
@@ -268,7 +267,7 @@ class MockDataService {
         bio: '这是李四的个人简介',
         is_friend: false,
         request_sent: false,
-        request_received: false
+        request_received: false,
       },
       {
         uid: 'user003',
@@ -282,7 +281,7 @@ class MockDataService {
         bio: '这是王五的个人简介',
         is_friend: false,
         request_sent: false,
-        request_received: false
+        request_received: false,
       },
       {
         uid: 'user004',
@@ -296,7 +295,7 @@ class MockDataService {
         bio: '这是赵六的个人简介',
         is_friend: false,
         request_sent: false,
-        request_received: false
+        request_received: false,
       },
       {
         uid: 'user005',
@@ -310,12 +309,12 @@ class MockDataService {
         bio: '这是孙七的个人简介',
         is_friend: false,
         request_sent: false,
-        request_received: false
-      }
+        request_received: false,
+      },
     ].filter(user =>
-      user.username.includes(query) ||
-      user.account.includes(query) ||
-      user.email?.includes(query)
+      user.username.includes(query)
+      || user.account.includes(query)
+      || user.email?.includes(query),
     )
 
     devLog(`Mock search users for query: ${query}, found ${mockUsers.length} results`)
@@ -329,7 +328,7 @@ class MockDataService {
    * @param tags 标签数组
    * @returns 好友请求数据
    */
-  public async mockSendFriendRequest(receiver_uid: string, apply_text?: string, tags?: string[]): Promise<FriendRequest> {
+  public async mockSendFriendRequest (receiver_uid: string, apply_text?: string, tags?: string[]): Promise<FriendRequest> {
     await new Promise(resolve => setTimeout(resolve, 300))
 
     const request: FriendRequest = {
@@ -338,7 +337,7 @@ class MockDataService {
       receiver_uid,
       status: 'pending',
       apply_text,
-      create_time: new Date().toISOString()
+      create_time: new Date().toISOString(),
     }
 
     // 如果有标签，在控制台输出用于调试
@@ -358,7 +357,7 @@ class MockDataService {
    * @param req_id 请求ID
    * @param status 响应状态
    */
-  public async mockRespondToRequest(req_id: string, status: 'accepted' | 'rejected'): Promise<void> {
+  public async mockRespondToRequest (req_id: string, status: 'accepted' | 'rejected'): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 300))
     devLog('Mock respond to friend request', { req_id, status })
   }
@@ -368,7 +367,7 @@ class MockDataService {
    * @param uid 好友用户ID
    * @returns 好友信息
    */
-  public async mockCreateFriend(uid: string): Promise<FriendWithUserInfo> {
+  public async mockCreateFriend (uid: string): Promise<FriendWithUserInfo> {
     await new Promise(resolve => setTimeout(resolve, 200))
 
     const mockUsers = [
@@ -381,7 +380,7 @@ class MockDataService {
         email: 'zhangsan@example.com',
         create_time: '2024-01-01T00:00:00Z',
         avatar: 'https://cdn.vuetifyjs.com/images/john.jpg',
-        bio: '这是张三的个人简介'
+        bio: '这是张三的个人简介',
       },
       {
         uid: 'user002',
@@ -392,7 +391,7 @@ class MockDataService {
         email: 'lisi@example.com',
         create_time: '2024-01-02T00:00:00Z',
         avatar: 'https://cdn.vuetifyjs.com/images/lists/1.jpg',
-        bio: '这是李四的个人简介'
+        bio: '这是李四的个人简介',
       },
       {
         uid: 'user003',
@@ -403,7 +402,7 @@ class MockDataService {
         email: 'wangwu@example.com',
         create_time: '2024-01-03T00:00:00Z',
         avatar: 'https://cdn.vuetifyjs.com/images/lists/2.jpg',
-        bio: '这是王五的个人简介'
+        bio: '这是王五的个人简介',
       },
       {
         uid: 'user004',
@@ -414,7 +413,7 @@ class MockDataService {
         email: 'zhaoliu@example.com',
         create_time: '2024-01-04T00:00:00Z',
         avatar: 'https://cdn.vuetifyjs.com/images/lists/3.jpg',
-        bio: '这是赵六的个人简介'
+        bio: '这是赵六的个人简介',
       },
       {
         uid: 'user005',
@@ -425,8 +424,8 @@ class MockDataService {
         email: 'sunqi@example.com',
         create_time: '2024-01-05T00:00:00Z',
         avatar: 'https://cdn.vuetifyjs.com/images/lists/4.jpg',
-        bio: '这是孙七的个人简介'
-      }
+        bio: '这是孙七的个人简介',
+      },
     ]
 
     const userInfo = mockUsers.find(user => user.uid === uid)
@@ -440,7 +439,7 @@ class MockDataService {
       to_uid: 'test-user-001', // TODO: 替换为当前用户ID
       create_time: new Date().toISOString(),
       is_blacklist: false,
-      user_info: userInfo
+      user_info: userInfo,
     }
 
     devLog('Mock create friend', { fid: friend.fid, uid })
@@ -451,7 +450,7 @@ class MockDataService {
    * 模拟获取好友列表
    * @returns 好友列表
    */
-  public async mockGetFriends(): Promise<FriendWithUserInfo[]> {
+  public async mockGetFriends (): Promise<FriendWithUserInfo[]> {
     await new Promise(resolve => setTimeout(resolve, 400))
 
     const friends: FriendWithUserInfo[] = [
@@ -472,8 +471,8 @@ class MockDataService {
           email: 'zhangsan@example.com',
           create_time: '2024-01-01T00:00:00Z',
           avatar: 'https://cdn.vuetifyjs.com/images/john.jpg',
-          bio: '这是张三的个人简介'
-        }
+          bio: '这是张三的个人简介',
+        },
       },
       {
         fid: 'friend002',
@@ -492,8 +491,8 @@ class MockDataService {
           email: 'lisi@example.com',
           create_time: '2024-01-02T00:00:00Z',
           avatar: 'https://cdn.vuetifyjs.com/images/lists/1.jpg',
-          bio: '这是李四的个人简介'
-        }
+          bio: '这是李四的个人简介',
+        },
       },
       {
         fid: 'friend003',
@@ -512,8 +511,8 @@ class MockDataService {
           email: 'wangwu@example.com',
           create_time: '2024-01-03T00:00:00Z',
           avatar: 'https://cdn.vuetifyjs.com/images/lists/2.jpg',
-          bio: '这是王五的个人简介'
-        }
+          bio: '这是王五的个人简介',
+        },
       },
       {
         fid: 'friend004',
@@ -531,8 +530,8 @@ class MockDataService {
           email: 'zhaoliu@example.com',
           create_time: '2024-01-04T00:00:00Z',
           avatar: 'https://cdn.vuetifyjs.com/images/lists/3.jpg',
-          bio: '这是赵六的个人简介'
-        }
+          bio: '这是赵六的个人简介',
+        },
       },
       {
         fid: 'friend005',
@@ -550,8 +549,8 @@ class MockDataService {
           email: 'qianqi@example.com',
           create_time: '2024-01-05T00:00:00Z',
           avatar: 'https://cdn.vuetifyjs.com/images/lists/4.jpg',
-          bio: '这是钱七的个人简介'
-        }
+          bio: '这是钱七的个人简介',
+        },
       },
       // 添加一个黑名单好友用于测试
       {
@@ -571,9 +570,9 @@ class MockDataService {
           email: 'zhouba@example.com',
           create_time: '2024-01-06T00:00:00Z',
           avatar: 'https://cdn.vuetifyjs.com/images/lists/5.jpg',
-          bio: '这是一个被拉黑的用户'
-        }
-      }
+          bio: '这是一个被拉黑的用户',
+        },
+      },
     ]
 
     devLog('Mock get friends', { count: friends.length })
@@ -585,7 +584,7 @@ class MockDataService {
    * @param friendId 好友ID
    * @param tag 新标签
    */
-  public async mockUpdateFriendTag(friendId: string, tag: string | null): Promise<void> {
+  public async mockUpdateFriendTag (friendId: string, tag: string | null): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 200))
     devLog('Mock update friend tag', { friendId, tag })
     // 这里只是模拟，实际应用中会调用真实API
@@ -595,7 +594,7 @@ class MockDataService {
    * 模拟获取待处理的好友请求
    * @returns 请求列表
    */
-  public async mockGetPendingRequests(): Promise<{
+  public async mockGetPendingRequests (): Promise<{
     receivedRequests: FriendRequest[]
     sentRequests: FriendRequest[]
   }> {
@@ -618,8 +617,8 @@ class MockDataService {
           email: 'wangwu@example.com',
           create_time: '2024-01-03T00:00:00Z',
           avatar: 'https://cdn.vuetifyjs.com/images/lists/2.jpg',
-          bio: '这是王五的个人简介'
-        }
+          bio: '这是王五的个人简介',
+        },
       },
       {
         req_id: 'req_received_002',
@@ -637,9 +636,9 @@ class MockDataService {
           email: 'zhaoliu@example.com',
           create_time: '2024-01-04T00:00:00Z',
           avatar: 'https://cdn.vuetifyjs.com/images/lists/3.jpg',
-          bio: '这是赵六的个人简介'
-        }
-      }
+          bio: '这是赵六的个人简介',
+        },
+      },
     ]
 
     const sentRequests: FriendRequest[] = [
@@ -649,7 +648,7 @@ class MockDataService {
         receiver_uid: 'user005',
         status: 'pending',
         apply_text: '你好，想和你交个朋友',
-        create_time: '2024-01-14T15:30:00Z'
+        create_time: '2024-01-14T15:30:00Z',
       },
       {
         req_id: 'req_sent_002',
@@ -658,13 +657,13 @@ class MockDataService {
         status: 'accepted',
         apply_text: '请添加我为好友',
         create_time: '2024-01-13T09:15:00Z',
-        handle_time: '2024-01-13T10:00:00Z'
-      }
+        handle_time: '2024-01-13T10:00:00Z',
+      },
     ]
 
     devLog('Mock get pending requests', {
       received: receivedRequests.length,
-      sent: sentRequests.length
+      sent: sentRequests.length,
     })
 
     return { receivedRequests, sentRequests }
@@ -674,7 +673,7 @@ class MockDataService {
    * 模拟删除好友
    * @param friendId 好友ID
    */
-  public async mockRemoveFriend(friendId: string): Promise<void> {
+  public async mockRemoveFriend (friendId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 300))
     devLog('Mock remove friend', { friendId })
   }
@@ -684,7 +683,7 @@ class MockDataService {
    * @param friendId 好友ID
    * @param remark 备注内容
    */
-  public async mockUpdateFriendRemark(friendId: string, remark: string): Promise<void> {
+  public async mockUpdateFriendRemark (friendId: string, remark: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 200))
     devLog('Mock update friend remark', { friendId, remark })
   }
@@ -694,7 +693,7 @@ class MockDataService {
    * @param friendId 好友ID
    * @param is_blacklist 是否黑名单
    */
-  public async mockSetFriendBlacklist(friendId: string, is_blacklist: boolean): Promise<void> {
+  public async mockSetFriendBlacklist (friendId: string, is_blacklist: boolean): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 200))
     devLog('Mock set friend blacklist', { friendId, is_blacklist })
   }
@@ -702,8 +701,8 @@ class MockDataService {
   /**
    * 获取当前用户信息（Mock）
    */
-  public async mockGetCurrentUserInfo(): Promise<any> {
-    await new Promise(resolve => setTimeout(resolve, 100));
+  public async mockGetCurrentUserInfo (): Promise<any> {
+    await new Promise(resolve => setTimeout(resolve, 100))
 
     return {
       uid: 'test-user-001',
@@ -714,31 +713,31 @@ class MockDataService {
       email: 'test@example.com',
       create_time: '2024-01-01T00:00:00Z',
       avatar: 'https://via.placeholder.com/40',
-      bio: 'Mock user for development'
-    };
+      bio: 'Mock user for development',
+    }
   }
 
   /**
    * 模拟接收好友通知（用于测试）
    */
-  public async mockReceiveFriendNotification(senderId: string, notificationDetail: any): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 500));
+  public async mockReceiveFriendNotification (senderId: string, notificationDetail: any): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 500))
 
     // 动态导入messageService以避免循环依赖
-    const { messageService } = await import('./message');
+    const { messageService } = await import('./message')
 
     // 模拟创建通知消息
     const notificationMessage = new MessageText(MessageType.NOTIFICATION, {
       senderId,
       receiverId: 'test-user-001',
       contentType: ContentType.FRIEND,
-      detail: JSON.stringify(notificationDetail)
-    });
+      detail: JSON.stringify(notificationDetail),
+    })
 
     // 添加到消息队列，模拟接收
-    messageService.updateMessage(notificationMessage);
+    messageService.updateMessage(notificationMessage)
 
-    devLog('Mock friend notification received', notificationDetail);
+    devLog('Mock friend notification received', notificationDetail)
   }
 }
 

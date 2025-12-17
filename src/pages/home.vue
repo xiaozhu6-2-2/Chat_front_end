@@ -1,11 +1,11 @@
 <template>
   <div class="d-flex justify-center align-center opacity-20" style="height: 100%;">
     <v-img
-      :width="100"
       aspect-ratio="1/1"
-      src="@/assets/echatlogo.png"
       class="fixed-size-image"
-    ></v-img>
+      src="@/assets/echatlogo.png"
+      :width="100"
+    />
   </div>
 </template>
 

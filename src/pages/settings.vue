@@ -6,8 +6,7 @@
 </template>
 
 <script setup>
-import maincontent from '@/layouts/maincontent.vue';
-
+  import maincontent from '@/layouts/maincontent.vue'
 
 </script>
 

@@ -1,4 +1,4 @@
-import type { AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios'
+import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/authStore'
 
 // 标准化的API响应格式
@@ -12,55 +12,55 @@ export interface ApiResponse<T = any> {
 
 // 后端错误响应格式（完全匹配后端ErrorResponse）
 export interface ErrorResponse {
-  code: number  // HTTP状态码
-  message: string  // 错误消息
-  details?: string  // 可选的详细信息
+  code: number // HTTP状态码
+  message: string // 错误消息
+  details?: string // 可选的详细信息
 }
 
 // 业务错误类型（帮助前端识别具体错误）
 export const BusinessErrorType = {
   // 认证相关
-  INVALID_PASSWORD: 401,  // 密码错误
+  INVALID_PASSWORD: 401, // 密码错误
 
   // 权限相关
-  FORBIDDEN: 403,  // 权限验证失败
+  FORBIDDEN: 403, // 权限验证失败
 
   // 资源相关
-  USER_NOT_FOUND: 404,  // 用户不存在
-  NOT_FOUND: 404,  // 资源未找到
+  USER_NOT_FOUND: 404, // 用户不存在
+  NOT_FOUND: 404, // 资源未找到
 
   // 请求参数相关
-  DECRYPTION_FAILURE: 400,  // 解密失败
-  RECIPIENT_NOT_FOUND: 400,  // 消息未指定接收者
-  PAGE_OUT_OF_RANGE: 400,  // 分页参数超出范围
-  BAD_REQUEST: 400,  // 请求参数错误
+  DECRYPTION_FAILURE: 400, // 解密失败
+  RECIPIENT_NOT_FOUND: 400, // 消息未指定接收者
+  PAGE_OUT_OF_RANGE: 400, // 分页参数超出范围
+  BAD_REQUEST: 400, // 请求参数错误
 
   // 资源冲突
-  DUPLICATE_USER: 409,  // 用户已存在
+  DUPLICATE_USER: 409, // 用户已存在
 
   // 服务器错误
-  DATABASE_FAILURE: 500,  // 数据库操作失败
-  STATE_GENERATION_FAILURE: 500,  // 应用状态实例创建失败
-  HASH_FAILURE: 500,  // 密码哈希解析失败
-  TOKEN_GENERATION_FAILURE: 500,  // JWT令牌生成失败
-  MPCS_SENDER_FAILURE: 500,  // mpcs sender发送失败
-  SERIALIZE_FAILURE: 500,  // 序列化错误
-  BROADCAST_SENDER_FAILURE: 500,  // broadcast发送失败
-  DATABASE_CONNECTION_FAILURE: 500,  // 数据库连接失败
-  SERVER_START_FAILURE: 500,  // 服务器启动失败
-  PUB_KEY_TRANSITION_FAILURE: 500,  // 公钥转换失败
-  REDIS_GET_CONN_FAILURE: 500,  // Redis连接池获取失败
-  REDIS_OPERATION_FAILURE: 500,  // Redis操作失败
-  SNOWFLAKE_FAILURE: 500,  // 雪花算法生成失败
-  TASK_MANAGER_ERROR: 500,  // 群聊任务管理发生错误
+  DATABASE_FAILURE: 500, // 数据库操作失败
+  STATE_GENERATION_FAILURE: 500, // 应用状态实例创建失败
+  HASH_FAILURE: 500, // 密码哈希解析失败
+  TOKEN_GENERATION_FAILURE: 500, // JWT令牌生成失败
+  MPCS_SENDER_FAILURE: 500, // mpcs sender发送失败
+  SERIALIZE_FAILURE: 500, // 序列化错误
+  BROADCAST_SENDER_FAILURE: 500, // broadcast发送失败
+  DATABASE_CONNECTION_FAILURE: 500, // 数据库连接失败
+  SERVER_START_FAILURE: 500, // 服务器启动失败
+  PUB_KEY_TRANSITION_FAILURE: 500, // 公钥转换失败
+  REDIS_GET_CONN_FAILURE: 500, // Redis连接池获取失败
+  REDIS_OPERATION_FAILURE: 500, // Redis操作失败
+  SNOWFLAKE_FAILURE: 500, // 雪花算法生成失败
+  TASK_MANAGER_ERROR: 500, // 群聊任务管理发生错误
 } as const
 
 // 自定义错误类
 export class ApiError extends Error {
-  constructor(
+  constructor (
     public code: number,
     message: string,
-    public data?: any
+    public data?: any,
   ) {
     super(message)
     this.name = 'ApiError'
@@ -101,13 +101,12 @@ const errorMessages: Record<number, string> = {
 }
 
 // 生成请求ID
-function generateRequestId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+function generateRequestId (): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
 }
 
-
 // 设置请求拦截器
-export function setupRequestInterceptor(axiosInstance: any) {
+export function setupRequestInterceptor (axiosInstance: any) {
   axiosInstance.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
       // 添加请求ID
@@ -121,12 +120,12 @@ export function setupRequestInterceptor(axiosInstance: any) {
     },
     (error: AxiosError) => {
       return Promise.reject(error)
-    }
+    },
   )
 }
 
 // 设置响应拦截器
-export function setupResponseInterceptor(axiosInstance: any) {
+export function setupResponseInterceptor (axiosInstance: any) {
   axiosInstance.interceptors.response.use(
     (response: AxiosResponse<ApiResponse>) => {
       // 处理业务响应
@@ -141,7 +140,7 @@ export function setupResponseInterceptor(axiosInstance: any) {
           const error = new ApiError(
             data.code || 500,
             data.message || '请求失败',
-            data.data
+            data.data,
           )
           return Promise.reject(error)
         }
@@ -170,8 +169,8 @@ export function setupResponseInterceptor(axiosInstance: any) {
 
       // 401 未授权 - 清除登录信息
       if (status === 401 || errorData?.code === 401) {
-        const authStore = useAuthStore();
-        authStore.clearAuthState();
+        const authStore = useAuthStore()
+        authStore.clearAuthState()
         const message = errorData?.message || '登录已过期，请重新登录'
         console.warn(`[HTTP拦截器] ${message}`)
 
@@ -204,12 +203,12 @@ export function setupResponseInterceptor(axiosInstance: any) {
       ;(httpError as any).details = errorData?.details
 
       return Promise.reject(httpError)
-    }
+    },
   )
 }
 
 // 便捷的设置函数
-export function setupInterceptors(axiosInstance: any) {
+export function setupInterceptors (axiosInstance: any) {
   setupRequestInterceptor(axiosInstance)
   setupResponseInterceptor(axiosInstance)
   return axiosInstance

@@ -1,5 +1,5 @@
-import { defineStore } from 'pinia'
 import type { AuthStorage } from '@/types/auth'
+import { defineStore } from 'pinia'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -8,12 +8,12 @@ export const useAuthStore = defineStore('auth', {
     username: '',
     isAuthenticated: false,
     isLoading: false,
-    rememberMe: false
+    rememberMe: false,
   }),
 
   actions: {
     // 设置认证信息
-    setAuth(authInfo: AuthStorage) {
+    setAuth (authInfo: AuthStorage) {
       this.token = authInfo.token
       this.userId = authInfo.userId
       this.username = authInfo.username
@@ -22,17 +22,17 @@ export const useAuthStore = defineStore('auth', {
     },
 
     // 设置加载状态
-    setLoading(loading: boolean) {
+    setLoading (loading: boolean) {
       this.isLoading = loading
     },
 
     // 设置记住我状态
-    setRememberMe(rememberMe: boolean) {
+    setRememberMe (rememberMe: boolean) {
       this.rememberMe = rememberMe
     },
 
     // 登出 - 仅清理状态
-    clearAuthState() {
+    clearAuthState () {
       // 重置状态
       this.token = ''
       this.userId = ''
@@ -40,6 +40,6 @@ export const useAuthStore = defineStore('auth', {
       this.isAuthenticated = false
       this.rememberMe = false
       this.isLoading = false
-    }
-  }
+    },
+  },
 })

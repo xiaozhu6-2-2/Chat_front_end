@@ -1,18 +1,31 @@
 <template>
   <v-app>
     <v-main class="main-layout">
-      <v-container fluid class="pa-0 fill-height">
-        <v-row no-gutters class="fill-height">
+      <v-container class="pa-0 fill-height" fluid>
+        <v-row class="fill-height" no-gutters>
           <!-- 侧边栏 -->
           <!--使用栅格布局-->
-          <v-col cols="12" md="4" lg="2" sm="1" class="detailbar-container">
+          <v-col
+            class="detailbar-container"
+            cols="12"
+            lg="2"
+            md="4"
+            sm="1"
+          >
             <div class="search-section">
               <!-- 所有的 Vuetify 输入组件都有一个 details 部分，在搜索框的下方，用来显示提示 -->
-              <v-text-field class="searchInput" prepend-inner-icon="mdi-magnify" label="搜索" variant="solo" clearable
-                density="comfortable" hint="搜索用户、群组、群组"></v-text-field>
+              <v-text-field
+                class="searchInput"
+                clearable
+                density="comfortable"
+                hint="搜索用户、群组、群组"
+                label="搜索"
+                prepend-inner-icon="mdi-magnify"
+                variant="solo"
+              />
               <v-menu location="bottom">
-                <template v-slot:activator="{ props }">
-                  <v-btn variant="elevated" class="ma-3 search-plus" v-bind="props">
+                <template #activator="{ props }">
+                  <v-btn class="ma-3 search-plus" variant="elevated" v-bind="props">
                     <v-icon>mdi-plus</v-icon>
                   </v-btn>
                 </template>
@@ -25,15 +38,21 @@
 
             </div>
             <transition name="list-expand">
-              <div class="detail-list" v-if="showList">
-                <slot name="detailbar"></slot>
+              <div v-if="showList" class="detail-list">
+                <slot name="detailbar" />
               </div>
             </transition>
           </v-col>
 
           <!-- 主内容区域 -->
-          <v-col cols="12" md="8" lg="10" sm="11" class="main-content">
-            <slot name="main"></slot>
+          <v-col
+            class="main-content"
+            cols="12"
+            lg="10"
+            md="8"
+            sm="11"
+          >
+            <slot name="main" />
           </v-col>
         </v-row>
       </v-container>
@@ -42,21 +61,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-const showList = ref(false)
+  import { computed, onMounted, ref } from 'vue'
+  const showList = ref(false)
 
-onMounted(() => {
-  // 组件挂载后显示列表，触发动画
-  setTimeout(() => {
-    showList.value = true
-  }, 100)
-})
+  onMounted(() => {
+    // 组件挂载后显示列表，触发动画
+    setTimeout(() => {
+      showList.value = true
+    }, 100)
+  })
 
-
-const menuItems = ref([
-  { title: '创建群聊', action: 'createGroup' },
-  { title: '添加朋友', action: 'addFriend' },
-]);
+  const menuItems = ref([
+    { title: '创建群聊', action: 'createGroup' },
+    { title: '添加朋友', action: 'addFriend' },
+  ])
 </script>
 
 <style scoped>
@@ -117,7 +135,6 @@ const menuItems = ref([
 .detail-list::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.5);
 }
-
 
 .main-content {
   height: 100%;

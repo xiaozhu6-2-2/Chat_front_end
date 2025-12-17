@@ -2,7 +2,7 @@
   <v-dialog v-model="modelValue" max-width="400">
     <v-card>
       <v-card-title class="d-flex align-center">
-        <v-icon icon="mdi-tag" class="mr-2"></v-icon>
+        <v-icon class="mr-2" icon="mdi-tag" />
         设置好友标签
       </v-card-title>
 
@@ -13,23 +13,23 @@
 
         <v-text-field
           v-model="currentTag"
+          clearable
+          counter="10"
           label="标签名称"
           placeholder="输入标签名称"
-          variant="outlined"
-          counter="10"
           :rules="tagRules"
-          clearable
+          variant="outlined"
         />
 
         <v-btn
           v-if="currentTag && !recentTags.includes(currentTag)"
-          color="primary"
-          variant="text"
-          size="small"
-          @click="saveTag"
           class="mb-3"
+          color="primary"
+          size="small"
+          variant="text"
+          @click="saveTag"
         >
-          <v-icon icon="mdi-plus" class="mr-1"></v-icon>
+          <v-icon class="mr-1" icon="mdi-plus" />
           保存为新标签
         </v-btn>
 
@@ -39,11 +39,11 @@
             <v-chip
               v-for="tag in recentTags"
               :key="tag"
-              :color="getTagColor(tag)"
               clickable
-              @click="selectTag(tag)"
-              variant="tonal"
+              :color="getTagColor(tag)"
               size="small"
+              variant="tonal"
+              @click="selectTag(tag)"
             >
               {{ tag }}
             </v-chip>
@@ -52,14 +52,14 @@
       </v-card-text>
 
       <v-card-actions>
-        <v-spacer></v-spacer>
+        <v-spacer />
         <v-btn @click="closeDialog">
           取消
         </v-btn>
         <v-btn
           color="primary"
-          @click="confirmTag"
           :disabled="!selectedTag && !currentTag"
+          @click="confirmTag"
         >
           确定
         </v-btn>
@@ -69,81 +69,81 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import type { FriendWithUserInfo } from '@/service/messageTypes'
+  import type { FriendWithUserInfo } from '@/service/messageTypes'
+  import { computed, ref, watch } from 'vue'
 
-// Props & Emits
-interface Props {
-  modelValue: boolean
-  friend: FriendWithUserInfo
-}
+  // Props & Emits
+  interface Props {
+    modelValue: boolean
+    friend: FriendWithUserInfo
+  }
 
-const props = defineProps<Props>()
-const emit = defineEmits<{
-  (e: 'update:modelValue', value: boolean): void
-  (e: 'tag-updated', friendId: string, tag: string | null): void
-}>()
+  const props = defineProps<Props>()
+  const emit = defineEmits<{
+    (e: 'update:modelValue', value: boolean): void
+    (e: 'tag-updated', friendId: string, tag: string | null): void
+  }>()
 
-// Data
-const currentTag = ref('')
-const selectedTag = ref('')
-const recentTags = ref<string[]>(['同事', '家人', '同学', '朋友'])
+  // Data
+  const currentTag = ref('')
+  const selectedTag = ref('')
+  const recentTags = ref<string[]>(['同事', '家人', '同学', '朋友'])
 
-// Tag validation rules
-const tagRules = [
-  (v: string) => !v || v.length <= 10 || '标签长度不能超过10个字符',
-  (v: string) => !v || /^[\u4e00-\u9fa5a-zA-Z0-9\s]+$/.test(v) || '标签只能包含中文、英文、数字和空格'
-]
+  // Tag validation rules
+  const tagRules = [
+    (v: string) => !v || v.length <= 10 || '标签长度不能超过10个字符',
+    (v: string) => !v || /^[\u4E00-\u9FA5a-zA-Z0-9\s]+$/.test(v) || '标签只能包含中文、英文、数字和空格',
+  ]
 
-// Computed
-const modelValue = computed({
-  get: () => props.modelValue,
-  set: (value: boolean) => emit('update:modelValue', value)
-})
+  // Computed
+  const modelValue = computed({
+    get: () => props.modelValue,
+    set: (value: boolean) => emit('update:modelValue', value),
+  })
 
-// Methods
-const getTagColor = (tag: string): string => {
-  const colors = ['primary', 'secondary', 'success', 'warning', 'error', 'info', 'purple', 'indigo', 'teal']
-  const hash = tag.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-  return colors[hash % colors.length]
-}
+  // Methods
+  function getTagColor (tag: string): string {
+    const colors = ['primary', 'secondary', 'success', 'warning', 'error', 'info', 'purple', 'indigo', 'teal']
+    const hash = tag.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    return colors[hash % colors.length]
+  }
 
-const selectTag = (tag: string) => {
-  selectedTag.value = tag
-  currentTag.value = tag
-}
+  function selectTag (tag: string) {
+    selectedTag.value = tag
+    currentTag.value = tag
+  }
 
-const saveTag = () => {
-  if (currentTag.value && !recentTags.value.includes(currentTag.value)) {
-    recentTags.value.unshift(currentTag.value)
-    // 最多保存10个最近标签
-    if (recentTags.value.length > 10) {
-      recentTags.value = recentTags.value.slice(0, 10)
+  function saveTag () {
+    if (currentTag.value && !recentTags.value.includes(currentTag.value)) {
+      recentTags.value.unshift(currentTag.value)
+      // 最多保存10个最近标签
+      if (recentTags.value.length > 10) {
+        recentTags.value = recentTags.value.slice(0, 10)
+      }
+      selectedTag.value = currentTag.value
     }
-    selectedTag.value = currentTag.value
   }
-}
 
-const confirmTag = () => {
-  const finalTag = selectedTag.value || currentTag.value
-  emit('tag-updated', props.friend.fid, finalTag || null)
-  closeDialog()
-}
-
-const closeDialog = () => {
-  modelValue.value = false
-  // 重置状态
-  currentTag.value = ''
-  selectedTag.value = ''
-}
-
-// Watch dialog opening to set initial tag
-watch(() => props.modelValue, (newValue) => {
-  if (newValue) {
-    currentTag.value = props.friend.tag || ''
-    selectedTag.value = props.friend.tag || ''
+  function confirmTag () {
+    const finalTag = selectedTag.value || currentTag.value
+    emit('tag-updated', props.friend.fid, finalTag || null)
+    closeDialog()
   }
-})
+
+  function closeDialog () {
+    modelValue.value = false
+    // 重置状态
+    currentTag.value = ''
+    selectedTag.value = ''
+  }
+
+  // Watch dialog opening to set initial tag
+  watch(() => props.modelValue, newValue => {
+    if (newValue) {
+      currentTag.value = props.friend.tag || ''
+      selectedTag.value = props.friend.tag || ''
+    }
+  })
 </script>
 
 <style scoped>

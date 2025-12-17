@@ -3,134 +3,141 @@
  * 负责好友相关的CRUD操作，不包括实时通知功能
  */
 
-import type { FriendWithUserInfo, UpdateFriendProfileParams } from '@/types/friend';
-import { FriendApiToFriendWithUserInfo } from '@/types/friend';
-import { authApi } from './api';
-import { useSnackbar } from '@/composables/useSnackbar';
-const {showError} = useSnackbar();
+import type { FriendUpdateOptions, FriendWithUserInfo } from '@/types/friend'
+import { useSnackbar } from '@/composables/useSnackbar'
+import { FriendApiToFriendWithUserInfo } from '@/types/friend'
+import { authApi } from './api'
+const { showError } = useSnackbar()
 
 export const friendService = {
   /**
    * 获取好友列表
    * @returns 合并的好友列表（包括普通好友和黑名单用户）
    */
-  async getFriendsFromApi(): Promise<FriendWithUserInfo[]> {
+  async getFriendsFromApi (): Promise<FriendWithUserInfo[]> {
     try {
-      const response = await authApi.get('/friends/friendlist');
+      const response = await authApi.get('/friends/friendlist')
 
       // 处理响应
       if (response.status === 200) {
-        return this.transformFriendsResponse(response.data);
+        return this.transformFriendsResponse(response.data)
       } else {
-        throw new Error(`获取好友列表失败：${response.status}`);
+        throw new Error(`获取好友列表失败：${response.status}`)
       }
     } catch (error) {
       // 错误处理
       showError('获取好友列表失败')
-      throw error;
+      throw error
     }
   },
 
-  //将response转为合并的好友列表
-  transformFriendsResponse(apiResponse: {
-    friends: any[];
+  // 将response转为合并的好友列表
+  transformFriendsResponse (apiResponse: {
+    friends: any[]
     blacklist: any[]
   }): FriendWithUserInfo[] {
     // 处理普通好友（已排除黑名单）
     const friends = apiResponse.friends.map(friend => ({
       fid: friend.fid,
-      uid: friend.uid,
-      username: friend.username,
+      // BaseProfile 字段
+      id: friend.uid,
+      name: friend.username,
+      avatar: friend.avatar || '',
+      // FriendWithUserInfo 特有字段
       remark: friend.remark || friend.username,
+      bio: friend.bio || '',
       tag: friend.groupBy || friend.group_by || 'default',
       isBlacklisted: false, // friends 列表中的都是非黑名单用户
       createdAt: friend.createdAt || friend.created_at || new Date().toISOString(),
-      avatar: friend.avatar || '',
-      bio: friend.bio || '',
-    }));
+    }))
 
     // 处理黑名单用户
     const blacklist = apiResponse.blacklist.map(friend => ({
       fid: friend.fid,
-      uid: friend.uid,
-      username: friend.username,
+      // BaseProfile 字段
+      id: friend.uid,
+      name: friend.username,
+      avatar: friend.avatar || '',
+      // FriendWithUserInfo 特有字段
       remark: friend.remark || friend.username,
+      bio: friend.bio || '',
       tag: friend.groupBy || friend.group_by || 'default',
       isBlacklisted: true, // 黑名单用户
       createdAt: friend.createdAt || friend.created_at || new Date().toISOString(),
-      avatar: friend.avatar || '',
-      bio: friend.bio || '',
-    }));
+    }))
 
     // 合并所有好友（包括黑名单）
-    return [...friends, ...blacklist];
+    return [...friends, ...blacklist]
   },
 
   /**
    * 删除好友
    * @param friendId 好友ID
    */
-  async removeFriend(friendId: string): Promise<void> {
+  async removeFriend (friendId: string): Promise<void> {
     try {
       const response = await authApi.post('/friends/remove', {
-        "fid": friendId
+        fid: friendId,
       })
 
-      if(response.status != 200){
-        console.error("friendService: 删除好友失败")
+      if (response.status != 200) {
+        console.error('friendService: 删除好友失败')
       }
-
     } catch (error) {
-      console.error('删除好友失败:', error);
+      console.error('删除好友失败:', error)
     }
   },
 
-  async getFriendProfile(friendId:string, userId:string): Promise<FriendWithUserInfo>{
+  async getFriendProfile (friendId: string, userId: string): Promise<FriendWithUserInfo> {
     const response = await authApi.post('/friends/profile', {
-      "uid": userId,
-      "fid": friendId
+      uid: userId,
+      fid: friendId,
     })
-    if(response.status === 200){
+    if (response.status === 200) {
       const apiData = response.data
       return FriendApiToFriendWithUserInfo(apiData)
-    }else{
-      console.error("useFriend: 获取好友资料失败")
-      return Promise.reject();
+    } else {
+      console.error('useFriend: 获取好友资料失败')
+      throw undefined
     }
   },
 
   /**
-   * 更新好友资料
+   * 更新好友资料（备注、黑名单状态、分组）
    * @param friendId 好友ID
-   * @param remark 备注
-   * @param isBlacklisted 是否加入黑名单
-   * @param tag 分组标签
+   * @param options 更新选项对象
    * @returns Promise<void>
    */
-  async updateFriendProfile(
+  async updateFriendProfile (
     friendId: string,
-    remark: string,
-    isBlacklisted: boolean,
-    tag: string
+    options: FriendUpdateOptions,
   ): Promise<void> {
     try {
-      const updateFriendProfileParams: UpdateFriendProfileParams = {
+      // 检查是否至少传入了一个更新项
+      if (!options || (options.remark === undefined
+        && options.isBlacklisted === undefined
+        && options.tag === undefined)) {
+        console.warn('更新好友资料必须要有一项更改')
+        throw new Error('更新好友资料必须要有一项更改')
+      }
+
+      // 从 options 中解构参数
+      const { remark, isBlacklisted, tag } = options
+
+      const response = await authApi.post('/friends/update', {
         fid: friendId,
-        remark: remark,
-        is_blacklisted: isBlacklisted,
-        group_by: tag
-      };
+        remark: remark ?? null,
+        is_blacklisted: isBlacklisted ?? null,
+        group_by: tag ?? null,
+      })
 
-      const response = await authApi.post('/friends/update', updateFriendProfileParams);
-
-      if(response.status === 200) {
-        return Promise.resolve();
+      if (response.status === 200) {
+        return
       }
     } catch (error) {
-      console.error('Service更新好友资料失败:', error);
-      return Promise.reject(error);
+      console.error('Service更新好友资料失败:', error)
+      return Promise.reject(error)
     }
-  }
-
+  },
 
 }

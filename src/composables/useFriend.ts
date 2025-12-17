@@ -1,38 +1,37 @@
+import type { FriendUpdateOptions, FriendWithUserInfo } from '@/types/friend'
 import { computed } from 'vue'
-import { useFriendStore } from '@/stores/friendStore'
 import { friendService } from '@/service/friendService'
-import type { FriendWithUserInfo } from '@/types/friend'
+import { useFriendStore } from '@/stores/friendStore'
 import { useSnackbar } from './useSnackbar'
 
-export function useFriend() {
+export function useFriend () {
   const friendStore = useFriendStore()
 
-  const {showSuccess, showError} = useSnackbar();
+  const { showSuccess, showError } = useSnackbar()
 
-  //State
-  
+  // State
 
   // Computed properties
-  //获取非黑名单好友列表
+  // 获取非黑名单好友列表
   const activeFriends = computed(() => friendStore.activeFriends)
   const isLoading = computed(() => friendStore.isLoading)
   // 获取黑名单列表
   const blacklistedFriends = computed(() => friendStore.blacklistedFriends)
 
-  //删除好友
+  // 删除好友
   const removeFriend = async (friendId: string) => {
     try {
-      //通知后端
+      // 通知后端
       await friendService.removeFriend(friendId)
-      //前端列表删除
+      // 前端列表删除
       friendStore.removeFriend(friendId)
       console.log('useFriend: 删除好友')
-    } catch (error) {
+    } catch {
       console.error('删除好友失败')
     }
   }
 
-  //contactCard渲染时获取好友资料
+  // contactCard渲染时获取好友资料
   const getFriendProfile = async (friendId: string, userId: string): Promise<FriendWithUserInfo> => {
     // 先从store中查找
     const friendInStore = friendStore.getFriendByUid(userId)
@@ -53,31 +52,29 @@ export function useFriend() {
     }
   }
 
-  //更新好友设置，包括备注、黑名单、标签
+  // 更新好友设置，包括备注、黑名单、标签
   const updateFriendProfile = async (
     friendId: string,
-    remark: string,
-    isBlacklisted: boolean,
-    tag: string
+    options: FriendUpdateOptions,
   ) => {
-    try{
-      //service通知修改
-      await friendService.updateFriendProfile(friendId, remark, isBlacklisted, tag)
-      //store更新资料
-      friendStore.updateFriendProfile(friendId, remark, isBlacklisted, tag)
+    try {
+      // service通知修改
+      await friendService.updateFriendProfile(friendId, options)
+      // store更新资料
+      friendStore.updateFriendProfile(friendId, options)
       showSuccess('更新好友资料成功')
-    }catch(err){
+    } catch (error) {
       // 错误已经在 service 层处理和显示了
-      console.error('useFriend: 更新好友资料失败', err)
+      console.error('useFriend: 更新好友资料失败', error)
       // 重新抛出错误，让调用者可以进一步处理
-      throw err
+      throw error
     }
   }
-  
+
   // 检查用户关系的辅助函数
   const checkUserRelation = (uid: string) => {
     return {
-      isFriend: friendStore.isFriend(uid)
+      isFriend: friendStore.isFriend(uid),
     }
   }
 
@@ -106,7 +103,7 @@ export function useFriend() {
     }
   }
 
-  //获取所有好友分组标签
+  // 获取所有好友分组标签
   const getAllFriendTags = () => {
     console.log('useFriend: 获取所有好友分组标签')
     try {
@@ -119,7 +116,7 @@ export function useFriend() {
     }
   }
 
-  //根据分组标签获取好友
+  // 根据分组标签获取好友
   const getFriendsByTag = (tag: string) => {
     console.log('useFriend: 根据标签获取好友', { tag })
     try {
@@ -131,8 +128,6 @@ export function useFriend() {
       return []
     }
   }
-
-
 
   return {
     // State

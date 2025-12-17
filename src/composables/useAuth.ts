@@ -1,16 +1,19 @@
+import type { AuthStorage, LoginResult } from '@/types/auth'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/authStore'
 import { useSnackbar } from '@/composables/useSnackbar'
-import { websocketService } from '@/service/websocket'
-import { friendService, messageService } from '@/service/message'
-import { noauthApi, authApi } from '@/service/api'
+import { authApi, noauthApi } from '@/service/api'
 import { generateSecureCredentials } from '@/service/crypto'
-import type { AuthStorage, LoginResult } from '@/types/auth'
-import { useFriendStore } from '@/stores/friendStore'
+import { messageService } from '@/service/message'
+import { websocketService } from '@/service/websocket'
+import { useAuthStore } from '@/stores/authStore'
 import { useChatStore } from '@/stores/chatStore'
+import { useFriendRequestStore } from '@/stores/friendRequestStore'
+import { useFriendStore } from '@/stores/friendStore'
+import { useGroupRequestStore } from '@/stores/groupRequestStore'
+import { useUserStore } from '@/stores/userStore'
 
-export function useAuth() {
+export function useAuth () {
   const authStore = useAuthStore()
   const router = useRouter()
   const { showSuccess, showError } = useSnackbar()
@@ -40,12 +43,14 @@ export function useAuth() {
 
   // 验证 token
   const validateToken = async (): Promise<boolean> => {
-    if (!token.value) return false
+    if (!token.value) {
+      return false
+    }
 
     try {
       const response = await authApi.get('/user/validate')
       return response.data.valid
-    } catch(error) {
+    } catch (error) {
       throw error
     }
   }
@@ -57,28 +62,41 @@ export function useAuth() {
       await messageService.init(token.value, userId.value)
 
       console.log('useAuth: 初始化服务')
-    } catch (err) {
-      showError(`服务初始化失败: ${err}`)
-      throw err
+    } catch (error) {
+      showError(`服务初始化失败: ${error}`)
+      throw error
     }
 
-    //初始化store，提前拉取数据
-    try{
-      
-      const chatStore = useChatStore();
-      await chatStore.fetchChatList();
+    // 初始化store，提前拉取数据
+    try {
+      const chatStore = useChatStore()
+      await chatStore.fetchChatList()
 
-      const friendStore = useFriendStore();
-      await friendStore.fetchFriends();
+      const friendStore = useFriendStore()
+      await friendStore.fetchFriends()
+
+      const friendRequestStore = useFriendRequestStore()
+      await friendRequestStore.fetchFriendRequests()
+
+      // 初始化群聊申请记录
+      const groupRequestStore = useGroupRequestStore()
+      await groupRequestStore.fetchUserRequests()
+
+      // 初始化用户信息
+      const userStore = useUserStore()
+      await userStore.fetchCurrentUser()
+
       console.log('useAuth: 初始化store')
-    }catch(err){
-      showError(`store初始化失败: ${err}`)
+    } catch (error) {
+      showError(`store初始化失败: ${error}`)
     }
   }
 
   // 从存储加载认证信息
   const loadAuthFromStorage = async (storedAuth: AuthStorage | null) => {
-    if (!storedAuth) return false
+    if (!storedAuth) {
+      return false
+    }
 
     authStore.setAuth(storedAuth)
 
@@ -114,7 +132,7 @@ export function useAuth() {
   const login = async (
     account: string,
     password: string,
-    rememberMe: boolean = false
+    rememberMe = false,
   ): Promise<LoginResult> => {
     authStore.setLoading(true)
 
@@ -124,13 +142,13 @@ export function useAuth() {
       if (!encryptedAccount || !encryptedPassword) {
         return {
           success: false,
-          error: '加密失败'
+          error: '加密失败',
         }
       }
 
       const response = await noauthApi.post('/auth/login', {
         account: encryptedAccount,
-        password: encryptedPassword
+        password: encryptedPassword,
       })
 
       const { token, uid, username } = response.data
@@ -138,7 +156,7 @@ export function useAuth() {
       if (!token || !uid || !username) {
         return {
           success: false,
-          error: '服务器返回数据异常'
+          error: '服务器返回数据异常',
         }
       }
 
@@ -146,7 +164,7 @@ export function useAuth() {
         token,
         userId: uid,
         username,
-        rememberMe
+        rememberMe,
       }
 
       // 设置认证信息
@@ -163,10 +181,10 @@ export function useAuth() {
 
       showSuccess('登录成功')
       return { success: true }
-    } catch (err: any) {
+    } catch {
       return {
         success: false,
-        error: '网络错误，请重试'
+        error: '网络错误，请重试',
       }
     } finally {
       authStore.setLoading(false)
@@ -185,6 +203,14 @@ export function useAuth() {
     // 重置状态
     authStore.clearAuthState()
 
+    // 清除用户相关信息
+    const userStore = useUserStore()
+    userStore.reset()
+
+    // 重置群聊申请状态
+    const groupRequestStore = useGroupRequestStore()
+    groupRequestStore.reset()
+
     router.push('/login')
 
     showSuccess('已退出登录')
@@ -192,7 +218,9 @@ export function useAuth() {
 
   // 更新记住我状态
   const updateRememberMe = async (rememberMe: boolean) => {
-    if (authStore.rememberMe === rememberMe) return
+    if (authStore.rememberMe === rememberMe) {
+      return
+    }
 
     const currentStorage = getStorage(authStore.rememberMe)
     const newStorage = getStorage(rememberMe)
@@ -208,7 +236,7 @@ export function useAuth() {
       token: token.value,
       userId: userId.value,
       username: username.value,
-      rememberMe
+      rememberMe,
     }
     newStorage.setItem('auth', JSON.stringify(authInfo))
   }
@@ -227,6 +255,6 @@ export function useAuth() {
     logout,
     init,
     validateToken,
-    updateRememberMe
+    updateRememberMe,
   }
 }

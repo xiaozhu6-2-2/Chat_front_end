@@ -1,26 +1,26 @@
 <template>
-  <v-container fluid class="pa-4">
+  <v-container class="pa-4" fluid>
     <v-card flat style="background-color: #1A1A25">
       <v-card-title class="d-flex align-center">
-        <v-icon icon="mdi-account-plus" class="mr-2"></v-icon>
+        <v-icon class="mr-2" icon="mdi-account-plus" />
         添加好友
       </v-card-title>
 
       <v-card-text>
         <!-- 标签页导航 -->
-        <v-tabs v-model="selectedTab" color="primary" class="mb-4">
+        <v-tabs v-model="selectedTab" class="mb-4" color="primary">
           <v-tab value="search">
-            <v-icon icon="mdi-magnify" class="mr-2"></v-icon>
+            <v-icon class="mr-2" icon="mdi-magnify" />
             搜索用户
           </v-tab>
           <v-tab value="requests">
-            <v-icon icon="mdi-bell-ring" class="mr-2"></v-icon>
+            <v-icon class="mr-2" icon="mdi-bell-ring" />
             好友请求
             <v-badge
               v-if="pendingRequestCount > 0"
-              :content="pendingRequestCount"
-              color="error"
               class="ml-2"
+              color="error"
+              :content="pendingRequestCount"
             />
           </v-tab>
         </v-tabs>
@@ -42,25 +42,25 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useFriend } from '@/composables/useFriend'
-import UserSearchPanel from '@/components/friend/UserSearchPanel.vue'
-import FriendRequestPanel from '@/components/friend/FriendRequestPanel.vue'
+  import { onMounted } from 'vue'
+  import FriendRequestPanel from '@/components/friend/FriendRequestPanel.vue'
+  import UserSearchPanel from '@/components/friend/UserSearchPanel.vue'
+  import { useFriend } from '@/composables/useFriend'
 
-const {
-  selectedTab,
-  pendingRequestCount,
-  initializeFriendFeature
-} = useFriend()
+  const {
+    selectedTab,
+    pendingRequestCount,
+    initializeFriendFeature,
+  } = useFriend()
 
-// 页面初始化时加载好友数据
-onMounted(async () => {
-  try {
-    await initializeFriendFeature()
-  } catch (error) {
-    console.error('初始化好友功能失败:', error)
-  }
-})
+  // 页面初始化时加载好友数据
+  onMounted(async () => {
+    try {
+      await initializeFriendFeature()
+    } catch (error) {
+      console.error('初始化好友功能失败:', error)
+    }
+  })
 </script>
 
 <style scoped>

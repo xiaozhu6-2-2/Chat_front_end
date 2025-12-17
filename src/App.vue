@@ -4,18 +4,18 @@
 
     <!-- 全局 Snackbar -->
     <v-snackbar
-      :model-value="!!snackbarStore.current?.show"
       :color="snackbarStore.current?.color || 'info'"
-      :timeout="snackbarStore.current?.timeout || 3000"
       location="top"
+      :model-value="!!snackbarStore.current?.show"
+      :timeout="snackbarStore.current?.timeout || 3000"
       @update:model-value="handleSnackbarUpdate"
     >
       {{ snackbarStore.current?.text }}
 
-      <template v-slot:actions>
+      <template #actions>
         <v-btn
-          variant="text"
           icon="mdi-close"
+          variant="text"
           @click="snackbarStore.close()"
         />
       </template>
@@ -24,16 +24,16 @@
 </template>
 
 <script lang="ts" setup>
-import { useSnackbarStore } from '@/stores/snackbarStore'
+  import { useSnackbarStore } from '@/stores/snackbarStore'
 
-const snackbarStore = useSnackbarStore()
+  const snackbarStore = useSnackbarStore()
 
-const handleSnackbarUpdate = (show: boolean) => {
-  if (!show) {
-    // 立即处理关闭，不需要延迟
-    snackbarStore.onClosed()
+  function handleSnackbarUpdate (show: boolean) {
+    if (!show) {
+      // 立即处理关闭，不需要延迟
+      snackbarStore.onClosed()
+    }
   }
-}
 </script>
 
 <style>
@@ -59,4 +59,4 @@ body::-webkit-scrollbar {
 body::-webkit-scrollbar {
   display: none;
 }
-</style> 
+</style>
