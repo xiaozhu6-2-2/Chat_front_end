@@ -16,12 +16,12 @@
  */
 
 import type {
-  SendGroupRequestParams,
+  GroupApprovalListResponse,
   RespondGroupRequestParams,
+  RespondGroupRequestResponse,
+  SendGroupRequestParams,
   SendGroupRequestResponse,
   UserGroupRequestListResponse,
-  GroupApprovalListResponse,
-  RespondGroupRequestResponse
 } from '@/types/groupRequest'
 import { authApi } from './api'
 
@@ -50,14 +50,14 @@ export const groupRequestService = {
    * @returns {Promise<SendGroupRequestResponse>} 申请创建成功的响应数据
    * @throws {Error} 当API调用失败时抛出错误
    */
-  async sendGroupRequest(gid: string, apply_text: string): Promise<SendGroupRequestResponse> {
+  async sendGroupRequest (gid: string, apply_text: string): Promise<SendGroupRequestResponse> {
     console.log('groupRequestService: 开始发送群聊申请', { gid, apply_text })
 
     try {
       // 构建请求参数，确保所有字段都存在
       const params: SendGroupRequestParams = {
         gid,
-        apply_text: apply_text || null // undefined 转为 null
+        apply_text: apply_text || null, // undefined 转为 null
       }
 
       // 调用 API
@@ -98,7 +98,7 @@ export const groupRequestService = {
    * @returns {Promise<UserGroupRequestListResponse>} 用户申请列表响应
    * @throws {Error} 当API调用失败时抛出错误
    */
-  async getUserGroupRequests(): Promise<UserGroupRequestListResponse> {
+  async getUserGroupRequests (): Promise<UserGroupRequestListResponse> {
     console.log('groupRequestService: 开始获取用户群聊申请记录')
 
     try {
@@ -109,7 +109,7 @@ export const groupRequestService = {
       if (response.status === 200 && response.data) {
         console.log('groupRequestService: 获取用户群聊申请记录成功', {
           total: response.data.total,
-          count: response.data.requests?.length || 0
+          count: response.data.requests?.length || 0,
         })
         return response.data
       } else {
@@ -144,7 +144,7 @@ export const groupRequestService = {
    * @returns {Promise<GroupApprovalListResponse>} 所有群聊的申请列表响应
    * @throws {Error} 当API调用失败时抛出错误
    */
-  async getAllPendingRequests(): Promise<GroupApprovalListResponse> {
+  async getAllPendingRequests (): Promise<GroupApprovalListResponse> {
     console.log('groupRequestService: 开始获取所有待审核的群聊申请列表')
 
     try {
@@ -155,7 +155,7 @@ export const groupRequestService = {
       if (response.status === 200 && response.data) {
         console.log('groupRequestService: 获取所有待审核的群聊申请列表成功', {
           total: response.data.total,
-          count: response.data.requests?.length || 0
+          count: response.data.requests?.length || 0,
         })
         return response.data
       } else {
@@ -195,9 +195,9 @@ export const groupRequestService = {
    * @returns {Promise<RespondGroupRequestResponse>} 处理申请的响应
    * @throws {Error} 当API调用失败时抛出错误
    */
-  async respondGroupRequest(
+  async respondGroupRequest (
     req_id: string,
-    action: 'accept' | 'reject'
+    action: 'accept' | 'reject',
   ): Promise<RespondGroupRequestResponse> {
     console.log('groupRequestService: 开始处理群聊申请', { req_id, action })
 
@@ -214,7 +214,7 @@ export const groupRequestService = {
       // 构建请求参数
       const params: RespondGroupRequestParams = {
         req_id,
-        action
+        action,
       }
 
       // 调用 API
@@ -225,7 +225,7 @@ export const groupRequestService = {
         console.log('groupRequestService: 处理群聊申请成功', {
           req_id,
           action,
-          success: response.data.success
+          success: response.data.success,
         })
         return response.data
       } else {
@@ -235,5 +235,5 @@ export const groupRequestService = {
       console.error('groupRequestService: 处理群聊申请失败', { req_id, action, error })
       throw error
     }
-  }
+  },
 }

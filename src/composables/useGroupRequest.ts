@@ -22,9 +22,9 @@ import { groupRequestService } from '@/service/groupRequestService'
 import { useAuthStore } from '@/stores/authStore'
 import { useGroupRequestStore } from '@/stores/groupRequestStore'
 import { useGroupStore } from '@/stores/groupStore'
-import { transformUserGroupRequestFromApi, transformGroupApprovalFromApi, transformGroupRequestFromApi } from '@/types/groupRequest'
+import { transformGroupApprovalFromApi, transformGroupRequestFromApi, transformUserGroupRequestFromApi } from '@/types/groupRequest'
 
-export function useGroupRequest() {
+export function useGroupRequest () {
   // ========== 依赖注入 ==========
 
   const groupRequestStore = useGroupRequestStore()
@@ -107,7 +107,7 @@ export function useGroupRequest() {
   const respondGroupRequest = async (
     req_id: string,
     action: 'accept' | 'reject',
-    gid: string
+    gid: string,
   ): Promise<any> => {
     console.log('useGroupRequest: 开始响应群聊申请', { req_id, action, gid })
 
@@ -159,7 +159,7 @@ export function useGroupRequest() {
    * 使用场景：
    * - WebSocket 收到新申请通知
    * - 实时更新申请列表
-   * 
+   *
    * 注意：目前假设WS推送的新申请结构体与API一致
    *
    * @param {any} request - WebSocket 推送的申请数据
@@ -226,7 +226,7 @@ export function useGroupRequest() {
 
       // 3. 根据状态执行相应操作
       switch (status) {
-        case 'accepted':
+        case 'accepted': {
           if (isUserRequest) {
             // 发送的申请被通过，强制刷新群聊列表
             console.log('useGroupRequest: 用户发送的申请被接受，刷新群聊列表')
@@ -239,19 +239,23 @@ export function useGroupRequest() {
             }
           }
           break
-        case 'rejected':
+        }
+        case 'rejected': {
           if (isUserRequest) {
             showSuccess('群聊申请已被拒绝')
           }
           break
-        case 'expired':
+        }
+        case 'expired': {
           if (isUserRequest) {
             showSuccess('群聊申请已过期')
           }
           break
-        default:
+        }
+        default: {
           console.log('useGroupRequest: 未知的申请状态', { req_id, status })
           break
+        }
       }
 
       // 4. 记录更新日志
@@ -261,13 +265,13 @@ export function useGroupRequest() {
         isUserRequest,
         isApprovalRequest,
         gid: userRequest?.gid || approvalRequest?.gid,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       })
     } catch (error) {
       console.error('useGroupRequest: 处理群聊申请状态更新失败', {
         req_id,
         status,
-        error
+        error,
       })
     }
   }
@@ -281,6 +285,6 @@ export function useGroupRequest() {
 
     // ========== WebSocket 事件处理 ==========
     handleNewGroupRequest,
-    handleGroupRequestUpdate
+    handleGroupRequestUpdate,
   }
 }

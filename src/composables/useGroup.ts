@@ -1,7 +1,7 @@
 import type {
   CreateGroupParams,
   Group,
-  GroupProfile
+  GroupProfile,
 } from '@/types/group'
 import { computed } from 'vue'
 import { useSnackbar } from '@/composables/useSnackbar'
@@ -153,7 +153,6 @@ export function useGroup () {
     }
   }
 
-
   /**
    * 退出群聊前的检查和确认
    *
@@ -220,8 +219,7 @@ export function useGroup () {
     const groupIds = Array.isArray(gids) ? gids : [gids]
 
     try {
-
-      //检查权限
+      // 检查权限
       for (const gid of groupIds) {
         const permissions = checkPermissions(gid)
         const group = groupStore.getGroupById(gid)
@@ -287,7 +285,7 @@ export function useGroup () {
 
       // 4. 处理原群主角色
       if (currentUserId.value) {
-        //更新为普通成员
+        // 更新为普通成员
         groupStore.updateGroupMember(gid, currentUserId.value, {
           role: GroupRole.MEMBER,
         })
@@ -306,7 +304,6 @@ export function useGroup () {
       throw error
     }
   }
-
 
   // ==================== 权限检查方法 ====================
 
@@ -404,7 +401,6 @@ export function useGroup () {
     }
   }
 
-
   // ==================== 导出的方法和属性 ====================
 
   return {
@@ -431,6 +427,6 @@ export function useGroup () {
     getGroupFullStatus,
 
     // 权限检查
-    checkPermissions
+    checkPermissions,
   }
 }

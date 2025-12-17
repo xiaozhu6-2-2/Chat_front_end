@@ -17,12 +17,11 @@
  */
 
 import type { GroupRequest } from '@/types/groupRequest'
-import { GroupRequestStatus } from '@/types/groupRequest'
 import { defineStore } from 'pinia'
 import { computed, readonly, ref } from 'vue'
 import { groupRequestService } from '@/service/groupRequestService'
 import { useAuthStore } from '@/stores/authStore'
-import { transformUserGroupRequestFromApi, transformGroupApprovalFromApi } from '@/types/groupRequest'
+import { GroupRequestStatus, transformGroupApprovalFromApi, transformUserGroupRequestFromApi } from '@/types/groupRequest'
 
 export const useGroupRequestStore = defineStore('groupRequest', () => {
   // ========== 状态定义 ==========
@@ -74,7 +73,7 @@ export const useGroupRequestStore = defineStore('groupRequest', () => {
    * @returns {ComputedRef<GroupRequest[]>} 待处理的用户申请列表
    */
   const pendingUserRequests = computed(() =>
-    userRequests.value.filter(request => request.status === GroupRequestStatus.PENDING)
+    userRequests.value.filter(request => request.status === GroupRequestStatus.PENDING),
   )
 
   /**
@@ -86,7 +85,7 @@ export const useGroupRequestStore = defineStore('groupRequest', () => {
   const pendingApprovalRequests = computed(() =>
     approvalRequests.value
       .filter(r => r.status === GroupRequestStatus.PENDING)
-      .sort((a, b) => b.create_time - a.create_time)
+      .sort((a, b) => b.create_time - a.create_time),
   )
 
   /**
@@ -136,7 +135,7 @@ export const useGroupRequestStore = defineStore('groupRequest', () => {
    * - 用户登录后初始化申请数据
    * - 刷新申请状态
    */
-  async function fetchUserRequests(): Promise<void> {
+  async function fetchUserRequests (): Promise<void> {
     console.log('groupRequestStore: 开始获取用户群聊申请记录')
 
     isLoading.value = true
@@ -147,18 +146,18 @@ export const useGroupRequestStore = defineStore('groupRequest', () => {
 
       // 转换并存储数据
       userRequests.value = response.requests.map(request =>
-        transformUserGroupRequestFromApi(request)
+        transformUserGroupRequestFromApi(request),
       ).sort((a, b) => b.create_time - a.create_time) // 最新的在前面
 
       console.log('groupRequestStore: 获取用户群聊申请记录成功', {
         total: response.total,
-        loaded: userRequests.value.length
+        loaded: userRequests.value.length,
       })
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '获取用户群聊申请记录失败'
+    } catch (error_) {
+      const errorMessage = error_ instanceof Error ? error_.message : '获取用户群聊申请记录失败'
       error.value = errorMessage
-      console.error('groupRequestStore: 获取用户群聊申请记录失败', err)
-      throw err
+      console.error('groupRequestStore: 获取用户群聊申请记录失败', error_)
+      throw error_
     } finally {
       isLoading.value = false
     }
@@ -184,7 +183,7 @@ export const useGroupRequestStore = defineStore('groupRequest', () => {
    * - 初始化审核申请数据
    * - 刷新所有审核申请列表
    */
-  async function fetchAllApprovalRequests(): Promise<void> {
+  async function fetchAllApprovalRequests (): Promise<void> {
     console.log('groupRequestStore: 开始获取所有待审核的群聊申请列表')
 
     isLoadingApprovals.value = true
@@ -200,13 +199,13 @@ export const useGroupRequestStore = defineStore('groupRequest', () => {
 
       console.log('groupRequestStore: 获取所有待审核的群聊申请列表成功', {
         total: response.total,
-        loaded: response.requests.length
+        loaded: response.requests.length,
       })
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '获取所有待审核的群聊申请列表失败'
+    } catch (error_) {
+      const errorMessage = error_ instanceof Error ? error_.message : '获取所有待审核的群聊申请列表失败'
       error.value = errorMessage
-      console.error('groupRequestStore: 获取所有待审核的群聊申请列表失败', err)
-      throw err
+      console.error('groupRequestStore: 获取所有待审核的群聊申请列表失败', error_)
+      throw error_
     } finally {
       isLoadingApprovals.value = false
     }
@@ -231,7 +230,7 @@ export const useGroupRequestStore = defineStore('groupRequest', () => {
    *
    * @param {GroupRequest} request - 申请对象
    */
-  function addUserRequest(request: GroupRequest): void {
+  function addUserRequest (request: GroupRequest): void {
     const existingIndex = userRequests.value.findIndex(r => r.req_id === request.req_id)
 
     if (existingIndex === -1) {
@@ -264,7 +263,7 @@ export const useGroupRequestStore = defineStore('groupRequest', () => {
    *
    * @param {GroupRequest} request - 申请对象
    */
-  function addApprovalRequest(request: GroupRequest): void {
+  function addApprovalRequest (request: GroupRequest): void {
     const existingIndex = approvalRequests.value.findIndex(r => r.req_id === request.req_id)
 
     if (existingIndex === -1) {
@@ -272,14 +271,14 @@ export const useGroupRequestStore = defineStore('groupRequest', () => {
       approvalRequests.value.unshift(request)
       console.log('groupRequestStore: 添加新的审核申请', {
         req_id: request.req_id,
-        gid: request.gid
+        gid: request.gid,
       })
     } else {
       // 更新现有申请
       approvalRequests.value[existingIndex] = request
       console.log('groupRequestStore: 更新审核申请', {
         req_id: request.req_id,
-        gid: request.gid
+        gid: request.gid,
       })
     }
   }
@@ -304,17 +303,17 @@ export const useGroupRequestStore = defineStore('groupRequest', () => {
    * @param {string} req_id - 申请ID
    * @param {GroupRequestStatus} status - 新状态
    */
-  function updateRequestStatus(req_id: string, status: GroupRequestStatus): void {
+  function updateRequestStatus (req_id: string, status: GroupRequestStatus): void {
     // 更新用户申请记录
     const userIndex = userRequests.value.findIndex(r => r.req_id === req_id)
-    if (userIndex > -1 && userRequests.value[userIndex]) {
+    if (userIndex !== -1 && userRequests.value[userIndex]) {
       userRequests.value[userIndex].status = status
       console.log('groupRequestStore: 更新用户申请状态', { req_id, status })
     }
 
     // 更新审核申请记录
     const approvalIndex = approvalRequests.value.findIndex(r => r.req_id === req_id)
-    if (approvalIndex > -1) {
+    if (approvalIndex !== -1) {
       const request = approvalRequests.value[approvalIndex]
       if (request) {
         request.status = status
@@ -341,7 +340,7 @@ export const useGroupRequestStore = defineStore('groupRequest', () => {
    *
    * @param {string} req_id - 申请ID
    */
-  function removeApprovalRequest(req_id: string): void {
+  function removeApprovalRequest (req_id: string): void {
     const originalLength = approvalRequests.value.length
     approvalRequests.value = approvalRequests.value.filter(r => r.req_id !== req_id)
 
@@ -370,7 +369,7 @@ export const useGroupRequestStore = defineStore('groupRequest', () => {
    * - 用户登出时清理数据
    * - 调试时重置状态
    */
-  function reset(): void {
+  function reset (): void {
     userRequests.value = []
     approvalRequests.value = []
     isLoading.value = false
@@ -404,6 +403,6 @@ export const useGroupRequestStore = defineStore('groupRequest', () => {
     updateRequestStatus,
     removeApprovalRequest,
     getPendingRequestsByGroup,
-    reset
+    reset,
   }
 })

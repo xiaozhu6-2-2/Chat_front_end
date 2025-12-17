@@ -12,6 +12,7 @@
 | [👥 GroupRequest](#8-grouprequest-群聊申请模块) | 群聊申请处理 |
 | [🔍 Search](#9-search-搜索模块) | 用户搜索功能 |
 | [📂 file](#10-file-文件模块) | 文件上传下载 |
+| [🔎 LocalSearch](#11-localsearch-本地搜索模块) | 本地数据搜索功能 |
 
 ## 🏗 架构概览与调用关系
 
@@ -698,21 +699,139 @@ auth登录后，store初始化获取群聊列表；
 
 ### 9. 🔍 `Search` 搜索模块 <a id="9-search-搜索模块"></a>
 
+#### 整体概述：
+提供用户和群组的搜索功能，支持按关键词搜索，采用防抖机制优化性能。搜索模块作为独立功能模块，不需要在登录时初始化。
+
 #### Service 职责
 
-* 负责搜索相关的 API 交互。
+负责所有搜索相关的 API 交互：
+- `searchUsers(params)`: 搜索用户，API 端点 `GET /search/users`
+- `searchGroups(params)`: 搜索群组，API 端点 `GET /search/groups`
+- 自动携带 Authorization Bearer token（通过 authApi）
+- 处理 API 响应和错误（使用 console.log 标记执行位置）
+- 返回原始 API 响应数据，不做数据转换
+- 注：不在此层添加 snackbar（因为不是直接由组件调用）
 
 #### Store 职责
 
-* 负责搜索结果的状态管理。
+管理搜索结果的状态：
+- **数据存储**：
+  - `userQuery`: 用户搜索关键词
+  - `groupQuery`: 群组搜索关键词
+  - `userSearchResults`: 用户搜索结果数组
+  - `groupSearchResults`: 群组搜索结果数组
+  - `userSearchPagination`: 用户搜索分页信息
+  - `groupSearchPagination`: 群组搜索分页信息
+- **操作方法**：
+  - `setUserSearchResults(results, pagination)`: 设置用户搜索结果
+  - `appendUserSearchResults(results, pagination)`: 追加用户搜索结果
+  - `setGroupSearchResults(results, pagination)`: 设置群组搜索结果
+  - `appendGroupSearchResults(results, pagination)`: 追加群组搜索结果
+  - `clearUserResults()`: 清空用户搜索结果
+  - `clearGroupResults()`: 清空群组搜索结果
+  - `clearAllResults()`: 清空所有搜索结果
+  - `reset()`: 重置所有状态
+- **计算属性**：
+  - `hasUserResults`: 是否有用户搜索结果
+  - `hasGroupResults`: 是否有群组搜索结果
+  - `userTotalCount`: 用户搜索总数
+  - `groupTotalCount`: 群组搜索总数
+- **状态保护**：使用 readonly 防止外部直接修改状态
 
 #### Composable 职责
 
-* 封装搜索的业务逻辑。
+作为搜索功能的统一门面，封装所有搜索相关的业务逻辑：
+- **核心搜索功能**：
+  - `searchUsers(query, options)`: 搜索用户（含防抖处理）
+  - `searchGroups(query, options)`: 搜索群组（含防抖处理）
+  - `loadMoreUsers()`: 加载更多用户结果
+  - `loadMoreGroups()`: 加载更多群组结果
+- **状态管理**：
+  - `reset()`: 重置搜索状态（用于 logout）
+  - 注：不需要 init 方法（搜索模块无需在 login 时初始化）
+- **防抖处理**：
+  - 默认 500ms 防抖延迟，避免频繁 API 调用
+  - 可配置的防抖延迟时间
+- **错误处理**：
+  - 捕获 Service 层错误，显示用户友好的错误信息
+  - 使用 snackbar 提供用户反馈
+- **数据转换**：
+  - 调用 transformUserSearchResult 和 transformGroupSearchResult
+  - 将 API 响应转换为标准内部数据格式
+- **状态暴露**：
+  - 搜索结果列表、分页信息、加载状态等
+  - 暴露 SearchType 枚举供模板使用
 
 #### Types
 
-* 搜索相关的数据结构体。
+搜索相关的数据结构体：
+- `SearchType`: 搜索类型枚举
+  ```typescript
+  enum SearchType {
+    USER = 'user',    // 搜索用户
+    GROUP = 'group'   // 搜索群组
+  }
+  ```
+- `SearchUsersParams`: 搜索用户参数
+  ```typescript
+  interface SearchUsersParams {
+    query: string;    // 搜索关键词
+    page?: number;    // 页码（默认1）
+    limit?: number;   // 每页数量（默认20）
+  }
+  ```
+- `SearchGroupsParams`: 搜索群组参数
+  ```typescript
+  interface SearchGroupsParams {
+    query: string;    // 搜索关键词
+    page?: number;    // 页码（默认1）
+    limit?: number;   // 每页数量（默认20）
+  }
+  ```
+- `UserSearchResult`: 用户搜索结果
+  ```typescript
+  interface UserSearchResult {
+    uid: string;           // 用户ID
+    username: string;      // 用户名
+    avatar?: string;       // 头像URL
+    bio?: string;          // 个人简介
+    isFriend?: boolean;    // 是否为好友
+  }
+  ```
+- `GroupSearchResult`: 群组搜索结果
+  ```typescript
+  interface GroupSearchResult {
+    gid: string;           // 群组ID
+    group_name: string;    // 群组名称
+    avatar?: string;       // 群组头像
+    group_intro?: string;  // 群组简介
+    member_count?: number; // 成员数量
+    isInGroup?: boolean;   // 是否已加入群组
+  }
+  ```
+- `SearchUsersResponse`: 用户搜索API响应
+  ```typescript
+  interface SearchUsersResponse {
+    results: UserSearchResult[];
+    total: number;
+    page: number;
+    limit: number;
+    hasMore: boolean;
+  }
+  ```
+- `SearchGroupsResponse`: 群组搜索API响应
+  ```typescript
+  interface SearchGroupsResponse {
+    results: GroupSearchResult[];
+    total: number;
+    page: number;
+    limit: number;
+    hasMore: boolean;
+  }
+  ```
+- 数据转换函数：
+  - `transformUserSearchResult(data)`: 将用户搜索API响应转换为内部格式
+  - `transformGroupSearchResult(data)`: 将群组搜索API响应转换为内部格式
 
 ### 10. 📂 `file` 文件模块 <a id="10-file-文件模块"></a>
 
@@ -731,6 +850,167 @@ auth登录后，store初始化获取群聊列表；
 #### Types
 
 * 文件相关的数据结构体。
+
+### 11. 🔎 `LocalSearch` 本地搜索模块 <a id="11-localsearch-本地搜索模块"></a>
+
+#### 整体概述：
+本地搜索模块提供客户端搜索功能，无需API调用，直接在已加载的本地数据中搜索。与search模块（服务端搜索）不同，localSearch专门搜索本地缓存的好友、群组、会话和消息数据。支持多种搜索类型、过滤条件、分页加载，并具备防抖、缓存和历史记录等性能优化功能。该模块作为独立功能模块，不需要在登录时初始化。
+
+#### Service 职责
+
+负责所有本地搜索相关的逻辑实现：
+- `searchLocal()`: 主搜索入口，根据类型分发到具体搜索方法
+- `searchFriends()`: 搜索好友列表（支持黑名单过滤、标签过滤、备注/用户名/简介匹配）
+- `searchGroups()`: 搜索群组列表（群名称和群简介搜索）
+- `searchChats()`: 搜索会话列表（会话名称和最后消息搜索）
+- `searchMessages()`: 搜索消息内容，支持：
+  - 消息类型过滤
+  - 日期范围过滤
+  - 特定会话过滤
+  - 内容高亮生成
+  - 分页支持
+- `generateHighlights()`: 生成搜索内容的高亮片段（带上下文）
+- `getChatName/getSenderName()`: 获取会话名称和发送者名称的辅助方法
+
+**数据源**：
+- 从 friendStore、groupStore、chatStore 等读取本地数据
+- 从 messageService 的消息缓存中搜索历史消息
+- 实现相关性排序（如好友搜索中备注优先于用户名）
+
+#### Store 职责
+
+管理本地搜索的响应式状态：
+- **数据存储**：
+  - `state.query`: 当前搜索关键词
+  - `state.type`: 当前搜索类型
+  - `state.results`: 各类型搜索结果
+  - `state.stats`: 搜索结果统计
+  - `state.pagination`: 各类型的分页信息
+- **搜索历史管理**：
+  - `searchHistory`: 存储最近10条搜索记录
+  - `addToHistory/removeFromHistory/clearHistory`: 历史记录管理方法
+- **计算属性**：
+  - `currentTypeResults`: 根据当前类型返回对应结果
+  - `hasResults`: 是否有搜索结果
+  - `currentPagination`: 当前类型的分页信息
+  - `loading`: 综合加载状态
+- **状态管理方法**：
+  - `setSearchType/setQuery`: 设置搜索参数
+  - `setResults/appendResults`: 设置或追加搜索结果
+  - `setLoading/setLoadingMore`: 管理加载状态
+  - `updatePagination/resetPagination`: 分页管理
+  - `clearResults/reset`: 清除结果或重置状态
+
+#### Composable 职责
+
+作为本地搜索功能的统一门面，封装所有搜索相关的业务逻辑：
+- **核心搜索功能**：
+  - `search(query, immediate)`: 执行搜索（带300ms防抖）
+  - `switchSearchType(type)`: 切换搜索类型（自动重新搜索）
+  - `loadMore()`: 加载更多结果（支持无限滚动）
+  - `clearSearch()`: 清除搜索结果
+  - `reset()`: 重置整个搜索状态
+- **搜索历史管理**：
+  - `searchFromHistory(query)`: 从历史记录执行搜索
+  - `removeFromHistory(query)`: 删除特定历史记录
+  - `clearHistory()`: 清空所有历史记录
+- **性能优化**：
+  - **防抖处理**：默认300ms延迟，避免频繁搜索
+  - **结果缓存**：LRU缓存策略，最多100条缓存
+  - **智能加载**：根据结果数量判断是否还有更多数据
+- **错误处理**：
+  - 捕获搜索过程中的错误
+  - 使用snackbar显示用户友好的错误提示
+- **状态暴露**：
+  - 响应式的搜索状态、结果、加载状态
+  - 搜索类型枚举供组件使用
+
+#### Types
+
+本地搜索相关的数据结构体：
+- `LocalSearchType`: 本地搜索类型枚举
+  ```typescript
+  enum LocalSearchType {
+    FRIEND = 'friend',   // 好友搜索
+    GROUP = 'group',     // 群聊搜索
+    CHAT = 'chat',       // 会话搜索
+    MESSAGE = 'message', // 消息内容搜索
+    ALL = 'all',         // 全局搜索
+  }
+  ```
+- `LocalSearchParams`: 本地搜索参数
+  ```typescript
+  interface LocalSearchParams {
+    query: string;                 // 搜索关键词
+    type: LocalSearchType;         // 搜索类型
+    limit?: number;               // 结果数量限制，默认20
+    offset?: number;              // 结果偏移量，用于分页
+    filters?: {                   // 过滤条件
+      includeBlacklisted?: boolean; // 好友搜索：是否包含黑名单
+      tags?: string[];            // 好友搜索：按标签过滤
+      messageTypes?: MessageType[]; // 消息搜索：按消息类型过滤
+      dateRange?: {               // 消息搜索：按日期范围过滤
+        start: Date;
+        end: Date;
+      };
+      chatIds?: string[];         // 消息搜索：限制在特定会话中
+    };
+  }
+  ```
+- `LocalSearchResult`: 综合搜索结果
+  ```typescript
+  interface LocalSearchResult {
+    friends: UserSearchResult[];   // 好友搜索结果
+    groups: GroupSearchResult[];   // 群聊搜索结果
+    chats: ChatSearchResult[];     // 会话搜索结果
+    messages: MessageSearchResult[]; // 消息搜索结果
+  }
+  ```
+- `MessageSearchResult`: 消息搜索结果
+  ```typescript
+  interface MessageSearchResult {
+    messageId: string;       // 消息ID
+    chatId: string;         // 所属会话ID
+    chatName: string;       // 会话名称
+    chatType: 'private' | 'group'; // 会话类型
+    senderId: string;       // 发送者ID
+    senderName: string;     // 发送者名称
+    content: string;        // 消息内容
+    contentType: ContentType; // 消息内容类型
+    timestamp: number;      // 消息时间戳
+    highlights: string[];   // 高亮片段列表
+  }
+  ```
+- `ChatSearchResult`: 会话搜索结果
+  ```typescript
+  interface ChatSearchResult {
+    chatId: string;              // 会话ID
+    name: string;                // 会话名称
+    type: 'private' | 'group';   // 会话类型
+    lastMessage?: string;        // 最后消息内容
+    unreadCount?: number;        // 未读消息数量
+    isPinned?: boolean;          // 是否置顶
+    participantNames?: string[]; // 参与者名称列表（群聊）
+  }
+  ```
+- `LocalSearchStats`: 搜索结果统计
+  ```typescript
+  interface LocalSearchStats {
+    totalFriends: number;    // 好友结果数量
+    totalGroups: number;     // 群聊结果数量
+    totalChats: number;      // 会话结果数量
+    totalMessages: number;   // 消息结果数量
+    totalResults: number;    // 总结果数量
+  }
+  ```
+- `SearchHistoryItem`: 搜索历史记录
+  ```typescript
+  interface SearchHistoryItem {
+    query: string;              // 搜索关键词
+    timestamp: number;          // 搜索时间
+    type: LocalSearchType;      // 搜索类型
+  }
+  ```
 
 ---
 

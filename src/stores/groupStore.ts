@@ -272,7 +272,9 @@ export const useGroupStore = defineStore('group', () => {
    */
   const getUserRoleInGroup = (gid: string, uid?: string): GroupRole | null => {
     const userId = uid || useUserStore().currentUserId
-    if (!userId) return null
+    if (!userId) {
+      return null
+    }
 
     const member = getGroupMembers.value(gid).find(m => m.id === userId)
     return member?.role || null
@@ -297,7 +299,9 @@ export const useGroupStore = defineStore('group', () => {
    */
   const getManagedGroups = (uid?: string): Group[] => {
     const userId = uid || useUserStore().currentUserId
-    if (!userId) return []
+    if (!userId) {
+      return []
+    }
 
     return allGroups.value.filter(group => {
       const role = getUserRoleInGroup(group.id, userId)
