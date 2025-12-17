@@ -8,18 +8,18 @@
         :class="{ 'active-chat': isActiveChat(chat.id) }"
         @click="handleChatClick(chat)"
       >
-        <template v-slot:prepend>
+        <template #prepend>
           <div class="avatar-container mr-4">
             <Avatar
-              :url="chat.avatar"
-              :name="chat.name"
-              :size="40"
-              :clickable="false"
               avatar-class="custom-avatar"
-              :show-badge="chat.unreadCount > 0"
-              :badge-content="formatUnreadCount(chat.unreadCount)"
               badge-color="error"
+              :badge-content="formatUnreadCount(chat.unreadCount)"
               :badge-dot="false"
+              :clickable="false"
+              :name="chat.name"
+              :show-badge="chat.unreadCount > 0"
+              :size="40"
+              :url="chat.avatar"
             />
           </div>
         </template>
@@ -32,9 +32,9 @@
           {{ chat.lastMessage || '暂无消息' }}
         </v-list-item-subtitle>
 
-        <template v-slot:append>
+        <template #append>
           <div class="chat-meta">
-            <span class="chat-time" v-if="chat.updatedAt">
+            <span v-if="chat.updatedAt" class="chat-time">
               {{ formatTime(chat.updatedAt) }}
             </span>
           </div>
@@ -60,7 +60,7 @@ const { activeChatId } = useChat()
 //   chatSelected: [chat: Chat]
 // }>()
 
-const { chatList, selectChat } = useChat()
+  const { chatList, selectChat } = useChat()
 
 const isActiveChat = (chatId: string) => {
   return activeChatId.value === chatId

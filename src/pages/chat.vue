@@ -31,10 +31,10 @@ const { fetchChatList } = useChatStore()
 // const activeChatId = computed(() => currentChat.value?.id)
 
 
-const handleImagePreview = (imageUrl: string) => {
-  // TODO: Implement image preview dialog
-  console.log('Image preview:', imageUrl)
-}
+  function handleImagePreview (imageUrl: string) {
+    // TODO: Implement image preview dialog
+    console.log('Image preview:', imageUrl)
+  }
 
 // Initialize chat list on mount
 onMounted(() => {

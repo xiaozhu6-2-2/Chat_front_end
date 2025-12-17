@@ -1,21 +1,21 @@
 <template>
   <div class="virtual-message-container">
     <v-virtual-scroll
-      :items="messages"
+      ref="virtualScrollRef"
+      class="virtual-scroll"
       :height="containerHeight"
       item-height="80"
-      class="virtual-scroll"
-      ref="virtualScrollRef"
+      :items="messages"
       @scroll="handleScroll"
     >
-      <template v-slot:default="{ item, index }">
+      <template #default="{ item, index }">
         <div
           :key="item.payload.messageId"
           class="virtual-message-item"
         >
           <MessageBubble
-            :message="item"
             :current-user-id="currentUserId"
+            :message="item"
             @image-preview="handleImagePreview"
           />
         </div>
@@ -27,8 +27,8 @@
       v-if="showScrollToBottom"
       class="scroll-to-bottom-btn"
       color="primary"
-      size="small"
       icon
+      size="small"
       @click="scrollToBottom"
     >
       <v-icon>mdi-chevron-down</v-icon>
@@ -42,81 +42,80 @@ import type { LocalMessage } from '../../service/messageTypes'
 import MessageBubble from './Message/MessageBubble.vue'
 import type { VirtualMessageListProps } from '../../types/chat'
 
-const props = withDefaults(defineProps<VirtualMessageListProps>(), {
-  currentUserId: 'current-user',
-  autoScroll: true,
-  containerHeight: 500
-})
+  const props = withDefaults(defineProps<VirtualMessageListProps>(), {
+    currentUserId: 'current-user',
+    autoScroll: true,
+    containerHeight: 500,
+  })
 
-const emit = defineEmits<{
-  imagePreview: [imageUrl: string]
-  scrollNearBottom: [isNearBottom: boolean]
-}>()
-//组件的实例ref
-const virtualScrollRef = ref()
-const showScrollToBottom = ref(false)
-const isNearBottom = ref(true)
+  const emit = defineEmits<{
+    imagePreview: [imageUrl: string]
+    scrollNearBottom: [isNearBottom: boolean]
+  }>()
+  // 组件的实例ref
+  const virtualScrollRef = ref()
+  const showScrollToBottom = ref(false)
+  const isNearBottom = ref(true)
 
-// 检查是否接近底部
-const checkIsNearBottom = () => {
-  if (!virtualScrollRef.value) return
+  // 检查是否接近底部
+  function checkIsNearBottom () {
+    if (!virtualScrollRef.value) return
 
-  const scrollElement = virtualScrollRef.value.$el?.querySelector('.v-virtual-scroll__container')
-  if (!scrollElement) return
+    const scrollElement = virtualScrollRef.value.$el?.querySelector('.v-virtual-scroll__container')
+    if (!scrollElement) return
 
-  const { scrollTop, scrollHeight, clientHeight } = scrollElement
-  const threshold = 100 // 距离底部100px认为接近底部
+    const { scrollTop, scrollHeight, clientHeight } = scrollElement
+    const threshold = 100 // 距离底部100px认为接近底部
 
-  isNearBottom.value = scrollTop + clientHeight >= scrollHeight - threshold
-  showScrollToBottom.value = !isNearBottom.value
+    isNearBottom.value = scrollTop + clientHeight >= scrollHeight - threshold
+    showScrollToBottom.value = !isNearBottom.value
 
-  emit('scrollNearBottom', isNearBottom.value)
-}
-
-// 滚动处理
-const handleScroll = () => {
-  checkIsNearBottom()
-}
-
-// 滚动到底部
-const scrollToBottom = async () => {
-  await nextTick()
-  if (virtualScrollRef.value && props.messages.length > 0) {
-    //找到滚动容器
-    const scrollContainer = virtualScrollRef.value.$el?.querySelector('.v-virtual-scroll__container')
-    if (scrollContainer) {
-      //scrolltop:当前滚动的位置，距离顶部的像素
-      //scrollHeight:整个内容的总高度
-      scrollContainer.scrollTop = scrollContainer.scrollHeight
-    }
-    //隐藏按钮
-    showScrollToBottom.value = false
+    emit('scrollNearBottom', isNearBottom.value)
   }
-}
 
-// 监听消息变化，自动滚动到底部
-watch(() => props.messages.length, async (newLength, oldLength) => {
-  if (props.autoScroll && newLength > oldLength && isNearBottom.value) {
+  // 滚动处理
+  function handleScroll () {
+    checkIsNearBottom()
+  }
+
+  // 滚动到底部
+  async function scrollToBottom () {
     await nextTick()
-    scrollToBottom()
+    if (virtualScrollRef.value && props.messages.length > 0) {
+      // 找到滚动容器
+      const scrollContainer = virtualScrollRef.value.$el?.querySelector('.v-virtual-scroll__container')
+      if (scrollContainer) {
+        // scrolltop:当前滚动的位置，距离顶部的像素
+        // scrollHeight:整个内容的总高度
+        scrollContainer.scrollTop = scrollContainer.scrollHeight
+      }
+      // 隐藏按钮
+      showScrollToBottom.value = false
+    }
   }
-}, { flush: 'post' })
 
-// 处理图片预览
-const handleImagePreview = (imageUrl: string) => {
-  emit('imagePreview', imageUrl)
-}
+  // 监听消息变化，自动滚动到底部
+  watch(() => props.messages.length, async (newLength, oldLength) => {
+    if (props.autoScroll && newLength > oldLength && isNearBottom.value) {
+      await nextTick()
+      scrollToBottom()
+    }
+  }, { flush: 'post' })
 
+  // 处理图片预览
+  function handleImagePreview (imageUrl: string) {
+    emit('imagePreview', imageUrl)
+  }
 
-onMounted(() => {
-  scrollToBottom()
-})
+  onMounted(() => {
+    scrollToBottom()
+  })
 
-// 暴露方法给父组件
-defineExpose({
-  scrollToBottom,
-  checkIsNearBottom
-})
+  // 暴露方法给父组件
+  defineExpose({
+    scrollToBottom,
+    checkIsNearBottom,
+  })
 </script>
 
 <style lang="scss" scoped>

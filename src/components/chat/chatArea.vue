@@ -1,7 +1,7 @@
 <template>
   <v-card class="chat-container" elevation="0">
     <!-- 顶部聊天信息栏 -->
-    <v-toolbar density="compact" class="chat-header">
+    <v-toolbar class="chat-header" density="compact">
       <Avatar
         :url="activeChat?.avatar"
         :name="activeChat?.name"
@@ -19,7 +19,7 @@
         <v-icon>mdi-dots-horizontal</v-icon>
       </v-btn>
     </v-toolbar>
-    <v-divider></v-divider>
+    <v-divider />
 
     <!-- 聊天内容区域 -->
     <div class="messages-container">
@@ -30,13 +30,13 @@
       <!-- 虚拟滚动消息列表 -->
       <VirtualMessageList
         v-else
-        :messages="messages"
-        :current-user-id="currentUserId"
+        ref="virtualMessageList"
         :auto-scroll="autoScroll"
         :container-height="containerHeight"
+        :current-user-id="currentUserId"
+        :messages="messages"
         @image-preview="handleImagePreview"
         @scroll-near-bottom="handleScrollNearBottom"
-        ref="virtualMessageList"
       />
     </div>
 
@@ -58,12 +58,13 @@
       <!-- 输入框 -->
       <!-- <v-textarea
         v-model="message"
-        variant="plain"
-        placeholder="输入消息..."
         auto-grow
-        rows="1"
-        hide-details
         class="message-input"
+        hide-details
+        placeholder="输入消息..."
+        rows="1"
+        variant="plain"
+        @input="handleTyping"
         @keydown.enter.exact.prevent="handleSendMessage"
         @input="handleTyping"
       /> -->
@@ -97,9 +98,9 @@ import type { LocalMessage } from "../../service/messageTypes";
 
 const props = defineProps<ChatAreaProps>();
 
-const emit = defineEmits<{
-  imagePreview: [imageUrl: string];
-}>();
+  const emit = defineEmits<{
+    imagePreview: [imageUrl: string]
+  }>()
 
 // Store and composables
 const chatStore = useChatStore();
@@ -113,13 +114,13 @@ const {
   scrollToBottom,
 } = useMessageInput();
 
-// Local state
-const showOnlineBoard = ref(false);
-const showContactCard = ref(false);
-// const isTyping = ref(false)
-const isSending = ref(false);
-const typingTimeout = ref<number>();
-const virtualMessageList = ref();
+  // Local state
+  const showOnlineBoard = ref(false)
+  const showContactCard = ref(false)
+  // const isTyping = ref(false)
+  const isSending = ref(false)
+  const typingTimeout = ref<number>()
+  const virtualMessageList = ref()
 
 // 当前聊天联系人信息
 const currentChatContact = computed(() => {
@@ -150,8 +151,8 @@ const containerHeight = computed(() => {
   return window.innerHeight - headerHeight - inputHeight - padding - 60; // 侧边栏宽度
 });
 
-// Computed
-const isLoading = computed(() => chatStore.isLoading);
+  // Computed
+  const isLoading = computed(() => chatStore.isLoading)
 
 // Watch for chat changes
 watch(
@@ -166,34 +167,35 @@ watch(
   { immediate: true }
 );
 
-// Watch for messages to scroll to bottom
-watch(
-  messages,
-  () => {
-    if (autoScroll.value) {
-      virtualMessageList.value?.scrollToBottom();
+  // Watch for messages to scroll to bottom
+  watch(
+    messages,
+    () => {
+      if (autoScroll.value) {
+        virtualMessageList.value?.scrollToBottom()
+      }
+    },
+    { deep: true },
+  )
+
+  // 处理虚拟滚动接近底部事件
+  function handleScrollNearBottom (isNearBottom: boolean) {
+    autoScroll.value = isNearBottom
+  }
+
+  // Methods
+  async function handleSendMessage () {
+    if (!message.value.trim() || isSending.value) return
+
+    isSending.value = true
+    try {
+      await sendMessage(message.value)
+      message.value = ''
+    } catch (error) {
+      console.error('Failed to send message:', error)
+    } finally {
+      isSending.value = false
     }
-  },
-  { deep: true }
-);
-
-// 处理虚拟滚动接近底部事件
-const handleScrollNearBottom = (isNearBottom: boolean) => {
-  autoScroll.value = isNearBottom;
-};
-
-// Methods
-const handleSendMessage = async () => {
-  if (!message.value.trim() || isSending.value) return;
-
-  isSending.value = true;
-  try {
-    await sendMessage(message.value);
-    message.value = "";
-  } catch (error) {
-    console.error("Failed to send message:", error);
-  } finally {
-    isSending.value = false;
   }
 };
 
@@ -215,24 +217,24 @@ const handleFileUpload = () => {
   console.log("File upload clicked");
 };
 
-const handleVoiceRecord = () => {
-  // TODO: Implement voice recording
-  console.log("Voice record clicked");
-};
-
-// Lifecycle
-onMounted(() => {
-  // 初始化消息服务（如果需要）
-  if (!messageService.isInitialized) {
-    // 这里可以添加初始化逻辑，比如传入 token 和 userId
-    console.log("Message service not initialized yet");
+  function handleVoiceRecord () {
+    // TODO: Implement voice recording
+    console.log('Voice record clicked')
   }
 
-  // 延迟滚动到底部，确保组件已渲染
-  setTimeout(() => {
-    virtualMessageList.value?.scrollToBottom();
-  }, 100);
-});
+  // Lifecycle
+  onMounted(() => {
+    // 初始化消息服务（如果需要）
+    if (!messageService.isInitialized) {
+      // 这里可以添加初始化逻辑，比如传入 token 和 userId
+      console.log('Message service not initialized yet')
+    }
+
+    // 延迟滚动到底部，确保组件已渲染
+    setTimeout(() => {
+      virtualMessageList.value?.scrollToBottom()
+    }, 100)
+  })
 </script>
 
 <style lang="scss" scoped>

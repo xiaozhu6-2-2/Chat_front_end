@@ -2,11 +2,11 @@
   <div class="message-bubble" :class="messageClasses">
     <div v-if="!isOwnMessage" class="message-avatar-container">
       <Avatar
-        :url="senderAvatar"
+        avatar-class="custom-avatar"
+        :clickable="true"
         :name="senderName"
         :size="40"
-        :clickable="true"
-        avatar-class="custom-avatar"
+        :url="senderAvatar"
         @click="handleAvatarClick"
       />
     </div>
@@ -25,11 +25,11 @@
         <!-- Image Message -->
         <div v-else-if="isImageMessage" class="message-image">
           <v-img
-            :src="message.payload.detail"
             :alt="'图片'"
-            max-width="200"
-            max-height="200"
             cover
+            max-height="200"
+            max-width="200"
+            :src="message.payload.detail"
             @click="previewImage"
           />
         </div>
@@ -50,8 +50,8 @@
         <span class="message-time">{{ formatTime(message.payload.timestamp) }}</span>
         <span v-if="isOwnMessage" class="message-status">
           <v-icon
-            :icon="statusIcon"
             :color="statusColor"
+            :icon="statusIcon"
             size="16"
           />
         </span>
@@ -60,11 +60,11 @@
 
     <div v-if="isOwnMessage" class="message-avatar-container">
       <Avatar
-        :url="currentUserAvatar"
+        avatar-class="custom-avatar"
+        :clickable="true"
         :name="'我'"
         :size="40"
-        :clickable="true"
-        avatar-class="custom-avatar"
+        :url="currentUserAvatar"
         @click="handleMyAvatarClick"
       />
     </div>
@@ -72,6 +72,7 @@
     <!-- 联系人卡片弹窗 -->
     <ContactCardModal
       v-if="showContactCard && selectedContactInfo"
+      v-model="showContactCard"
       :contact="selectedContactInfo"
       v-model="showContactCard"
       @update-friend-profile="(fid, remark, isBlacklisted, tag) => friendStore.updateFriendProfile(fid,  remark, isBlacklisted, tag )"
@@ -87,9 +88,9 @@ import { useFriendStore } from '../../../stores/friendStore'
 import type { FriendWithUserInfo } from '../../../types/friend'
 import { useFriend } from '../../../composables/useFriend'
 
-const props = withDefaults(defineProps<MessageBubbleProps>(), {
-  currentUserId: 'current-user'
-})
+  const props = withDefaults(defineProps<MessageBubbleProps>(), {
+    currentUserId: 'current-user',
+  })
 
 const friendStore = useFriendStore()
 const { updateFriendProfile } = useFriend()
@@ -100,99 +101,108 @@ const emit = defineEmits<{
 const showContactCard = ref(false)
 const selectedContactInfo = ref<FriendWithUserInfo>()
 
-const isOwnMessage = computed(() =>
-  props.message.userIsSender || props.message.payload.senderId === props.currentUserId
-)
+  const isOwnMessage = computed(() =>
+    props.message.userIsSender || props.message.payload.senderId === props.currentUserId,
+  )
 
-const messageClasses = computed(() => ({
-  'own-message': isOwnMessage.value,
-  'other-message': !isOwnMessage.value
-}))
+  const messageClasses = computed(() => ({
+    'own-message': isOwnMessage.value,
+    'other-message': !isOwnMessage.value,
+  }))
 
-const bubbleClasses = computed(() => ({
-  'own-bubble': isOwnMessage.value,
-  'other-bubble': !isOwnMessage.value,
-  'system-bubble': props.message.type === 'System'
-}))
+  const bubbleClasses = computed(() => ({
+    'own-bubble': isOwnMessage.value,
+    'other-bubble': !isOwnMessage.value,
+    'system-bubble': props.message.type === 'System',
+  }))
 
-const senderName = computed(() => {
-  // 这里可以根据需要从用户服务中获取用户名
-  return props.message.payload.senderId || '未知用户'
-})
-
-const senderAvatar = computed(() => {
-  // 这里可以根据需要从用户服务中获取用户头像
-  return '/src/assets/default-avatar.png'
-})
-
-const currentUserAvatar = computed(() =>
-  '/src/assets/yxd.jpg' // This should come from user store
-)
-
-const statusIcon = computed(() => {
-  switch (props.message.sendStatus) {
-    case 'pending':
-      return 'mdi-clock-outline'
-    case 'sending':
-      return 'mdi-clock-outline'
-    case 'sent':
-      return 'mdi-check'
-    case 'failed':
-      return 'mdi-alert-circle'
-    default:
-      return 'mdi-check'
-  }
-})
-
-const statusColor = computed(() => {
-  switch (props.message.sendStatus) {
-    case 'pending':
-    case 'sending':
-      return 'grey'
-    case 'sent':
-      return 'grey'
-    case 'failed':
-      return 'error'
-    default:
-      return 'grey'
-  }
-})
-
-const formatTime = (timestamp?: number) => {
-  if (!timestamp) return ''
-  const date = new Date(timestamp)
-  return date.toLocaleTimeString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit'
+  const senderName = computed(() => {
+    // 这里可以根据需要从用户服务中获取用户名
+    return props.message.payload.senderId || '未知用户'
   })
-}
 
-const getFileName = (filePath: string) => {
-  return filePath.split('/').pop() || filePath
-}
+  const senderAvatar = computed(() => {
+    // 这里可以根据需要从用户服务中获取用户头像
+    return '/src/assets/default-avatar.png'
+  })
 
-const isImageMessage = computed(() => {
-  return props.message.payload.contentType === ContentType.IMAGE ||
-         (props.message.type === MessageType.GROUP && props.message.payload.detail?.startsWith('http'))
-})
+  const currentUserAvatar = computed(() =>
+    '/src/assets/yxd.jpg', // This should come from user store
+  )
 
-const isTextMessage = computed(() => {
-  return props.message.payload.contentType === ContentType.TEXT
-})
+  const statusIcon = computed(() => {
+    switch (props.message.sendStatus) {
+      case 'pending': {
+        return 'mdi-clock-outline'
+      }
+      case 'sending': {
+        return 'mdi-clock-outline'
+      }
+      case 'sent': {
+        return 'mdi-check'
+      }
+      case 'failed': {
+        return 'mdi-alert-circle'
+      }
+      default: {
+        return 'mdi-check'
+      }
+    }
+  })
 
-const isFileMessage = computed(() => {
-  return props.message.payload.contentType === ContentType.FILE
-})
+  const statusColor = computed(() => {
+    switch (props.message.sendStatus) {
+      case 'pending':
+      case 'sending': {
+        return 'grey'
+      }
+      case 'sent': {
+        return 'grey'
+      }
+      case 'failed': {
+        return 'error'
+      }
+      default: {
+        return 'grey'
+      }
+    }
+  })
 
-const isSystemMessage = computed(() => {
-  return props.message.type === MessageType.SYSTEM || props.message.type === MessageType.NOTIFICATION
-})
-
-const previewImage = () => {
-  if (isImageMessage.value && props.message.payload.detail) {
-    emit('imagePreview', props.message.payload.detail)
+  function formatTime (timestamp?: number) {
+    if (!timestamp) return ''
+    const date = new Date(timestamp)
+    return date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
   }
-}
+
+  function getFileName (filePath: string) {
+    return filePath.split('/').pop() || filePath
+  }
+
+  const isImageMessage = computed(() => {
+    return props.message.payload.contentType === ContentType.IMAGE
+      || (props.message.type === MessageType.GROUP && props.message.payload.detail?.startsWith('http'))
+  })
+
+  const isTextMessage = computed(() => {
+    return props.message.payload.contentType === ContentType.TEXT
+  })
+
+  const isFileMessage = computed(() => {
+    return props.message.payload.contentType === ContentType.FILE
+  })
+
+  const isSystemMessage = computed(() => {
+    return props.message.type === MessageType.SYSTEM || props.message.type === MessageType.NOTIFICATION
+  })
+
+  function previewImage () {
+    if (isImageMessage.value && props.message.payload.detail) {
+      emit('imagePreview', props.message.payload.detail)
+    }
+  }
 
 // 处理头像点击事件
 const handleAvatarClick = () => {

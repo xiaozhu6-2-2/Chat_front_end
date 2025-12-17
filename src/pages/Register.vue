@@ -1,17 +1,17 @@
 <template>
-    <!-- 主容器，使用全屏高度 -->
-  <v-container fluid class="fill-height container">
+  <!-- 主容器，使用全屏高度 -->
+  <v-container class="fill-height container" fluid>
     <!-- 行布局，垂直和水平居中 -->
-    <v-row align-content="center" justify="center" class="fill-height">
+    <v-row align-content="center" class="fill-height" justify="center">
       <!-- 注册卡片容器 -->
-      <v-col cols="12" md="10" lg="8" xl="6">
-        <v-card class="elevation-24 rounded-lg overflow-hidden card" >
-          <v-row no-gutters class="fill-height">
+      <v-col cols="12" lg="8" md="10" xl="6">
+        <v-card class="elevation-24 rounded-lg overflow-hidden card">
+          <v-row class="fill-height" no-gutters>
             <!-- 左侧文本信息区域 -->
             <v-col
+              class="pa-8 d-flex flex-column justify-center text-white"
               cols="12"
               md="6"
-              class="pa-8 d-flex flex-column justify-center text-white"
             >
               <!-- 品牌信息 -->
               <BrandInfo />
@@ -22,9 +22,9 @@
 
             <!-- 右侧注册表单区域 -->
             <v-col
+              class="pa-8 d-flex flex-column justify-center"
               cols="12"
               md="6"
-              class="pa-8 d-flex flex-column justify-center"
             >
               <!-- 步骤 1: 邮箱输入 -->
               <div v-if="currentStep === 1" class="step-content">
@@ -40,22 +40,22 @@
                 <v-form @submit.prevent="step1Click">
                   <v-text-field
                     v-model="registerForm.email"
-                    :rules="emailRules"
+                    autofocus
+                    class="mb-4"
+                    color="primary"
                     label="邮箱地址"
                     prepend-inner-icon="mdi-email"
-                    variant="outlined"
-                    color="primary"
-                    class="mb-4"
                     required
-                    autofocus
+                    :rules="emailRules"
+                    variant="outlined"
                   />
 
                   <div class="d-flex justify-end">
                     <v-btn
-                      type="submit"
                       color="primary"
-                      size="large"
                       :loading="loading"
+                      size="large"
+                      type="submit"
                     >
                       下一步
                       <v-icon end>mdi-arrow-right</v-icon>
@@ -78,48 +78,48 @@
                 <v-form @submit.prevent="step2Click">
                   <v-text-field
                     v-model="registerForm.password"
-                    :rules="passwordRules"
+                    :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                    autofocus
+                    class="mb-4"
+                    color="primary"
                     label="密码"
                     prepend-inner-icon="mdi-lock"
-                    variant="outlined"
-                    color="primary"
-                    :type="showPassword ? 'text' : 'password'"
-                    :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                    @click:append-inner="showPassword = !showPassword"
-                    class="mb-4"
                     required
-                    autofocus
+                    :rules="passwordRules"
+                    :type="showPassword ? 'text' : 'password'"
+                    variant="outlined"
+                    @click:append-inner="showPassword = !showPassword"
                   />
 
                   <v-text-field
                     v-model="registerForm.confirmPassword"
-                    :rules="confirmPasswordRules"
+                    :append-inner-icon="showConfirmPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                    class="mb-6"
+                    color="primary"
                     label="确认密码"
                     prepend-inner-icon="mdi-lock-check"
-                    variant="outlined"
-                    color="primary"
-                    :type="showConfirmPassword ? 'text' : 'password'"
-                    :append-inner-icon="showConfirmPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                    @click:append-inner="showConfirmPassword = !showConfirmPassword"
-                    class="mb-6"
                     required
+                    :rules="confirmPasswordRules"
+                    :type="showConfirmPassword ? 'text' : 'password'"
+                    variant="outlined"
+                    @click:append-inner="showConfirmPassword = !showConfirmPassword"
                   />
 
                   <div class="d-flex justify-space-between">
                     <v-btn
-                      variant="outlined"
                       color="grey"
                       size="large"
+                      variant="outlined"
                       @click="goBack"
                     >
                       <v-icon start>mdi-arrow-left</v-icon>
                       上一步
                     </v-btn>
                     <v-btn
-                      type="submit"
                       color="primary"
-                      size="large"
                       :loading="loading"
+                      size="large"
+                      type="submit"
                     >
                       下一步
                       <v-icon end>mdi-arrow-right</v-icon>
@@ -146,26 +146,26 @@
                       <!-- 隐藏的文件输入框 -->
                       <input
                         ref="avatarInput"
-                        type="file"
                         accept="image/*"
                         style="display: none"
+                        type="file"
                         @change="handleAvatarInputChange"
-                      />
+                      >
 
                       <!-- 可点击的预览区域 -->
                       <div
                         class="avatar-clickable-area"
                         @click="triggerAvatarInput"
                       >
-                        <v-avatar size="120" class="avatar-preview">
+                        <v-avatar class="avatar-preview" size="120">
                           <Avatar
                             v-if="registerForm.avatarPreview"
-                            :url="registerForm.avatarPreview"
-                            size="120"
                             :name="registerForm.username || '预览'"
+                            size="120"
+                            :url="registerForm.avatarPreview"
                           />
                           <div v-else class="d-flex flex-column align-center justify-center h-100">
-                            <v-icon size="60" color="grey-lighten-1" class="mb-2">
+                            <v-icon class="mb-2" color="grey-lighten-1" size="60">
                               mdi-camera-plus
                             </v-icon>
                           </div>
@@ -174,11 +174,11 @@
 
                       <v-btn
                         v-if="registerForm.avatarPreview"
-                        variant="text"
+                        class="mt-2"
                         color="error"
                         size="small"
+                        variant="text"
                         @click="clearAvatar"
-                        class="mt-2"
                       >
                         移除头像
                       </v-btn>
@@ -187,10 +187,10 @@
                     <!-- 显示文件信息的文本区域（只读） -->
                     <div v-if="registerForm.avatar" class="file-info mb-4">
                       <v-chip
-                        size="small"
                         color="primary"
-                        variant="outlined"
                         prepend-icon="mdi-image"
+                        size="small"
+                        variant="outlined"
                       >
                         {{ registerForm.avatar.name }}
                         <v-tooltip activator="parent" location="top">
@@ -202,31 +202,31 @@
 
                   <v-text-field
                     v-model="registerForm.username"
-                    :rules="usernameRules"
+                    autofocus
+                    class="mb-6"
+                    color="primary"
                     label="用户名"
                     prepend-inner-icon="mdi-account"
-                    variant="outlined"
-                    color="primary"
-                    class="mb-6"
                     required
-                    autofocus
+                    :rules="usernameRules"
+                    variant="outlined"
                   />
 
                   <div class="d-flex justify-space-between">
                     <v-btn
-                      variant="outlined"
                       color="grey"
                       size="large"
+                      variant="outlined"
                       @click="goBack"
                     >
                       <v-icon start>mdi-arrow-left</v-icon>
                       上一步
                     </v-btn>
                     <v-btn
-                      type="submit"
                       color="primary"
-                      size="large"
                       :loading="loading"
+                      size="large"
+                      type="submit"
                     >
                       下一步
                       <v-icon end>mdi-arrow-right</v-icon>
@@ -249,52 +249,52 @@
                 <v-form @submit.prevent="step4Click">
                   <v-select
                     v-model="registerForm.gender"
+                    class="mb-4"
+                    clearable
+                    color="primary"
                     :items="genderOptions"
                     label="性别"
                     prepend-inner-icon="mdi-gender-male-female"
                     variant="outlined"
-                    color="primary"
-                    class="mb-4"
-                    clearable
-                  ></v-select>
+                  />
 
                   <v-text-field
                     v-model="registerForm.region"
+                    class="mb-4"
+                    clearable
+                    color="primary"
                     label="地区"
                     prepend-inner-icon="mdi-map-marker"
                     variant="outlined"
-                    color="primary"
-                    class="mb-4"
-                    clearable
-                  ></v-text-field>
+                  />
 
                   <v-textarea
                     v-model="registerForm.bio"
-                    label="个人简介"
-                    prepend-inner-icon="mdi-text"
-                    variant="outlined"
-                    color="primary"
-                    rows="3"
                     class="mb-6"
+                    color="primary"
+                    label="个人简介"
                     no-resize
                     placeholder="简单介绍一下自己..."
-                  ></v-textarea>
+                    prepend-inner-icon="mdi-text"
+                    rows="3"
+                    variant="outlined"
+                  />
 
                   <div class="d-flex justify-space-between">
                     <v-btn
-                      variant="outlined"
                       color="grey"
                       size="large"
+                      variant="outlined"
                       @click="goBack"
                     >
                       <v-icon start>mdi-arrow-left</v-icon>
                       上一步
                     </v-btn>
                     <v-btn
-                      type="submit"
                       color="primary"
-                      size="large"
                       :loading="loading"
+                      size="large"
+                      type="submit"
                     >
                       完成注册
                       <v-icon end>mdi-check</v-icon>
@@ -306,7 +306,7 @@
               <!-- 步骤 5: 注册成功 -->
               <div v-if="currentStep === 5" class="step-content text-center">
                 <div class="mb-8">
-                  <v-icon color="success" size="80" class="mb-4">
+                  <v-icon class="mb-4" color="success" size="80">
                     mdi-check-circle
                   </v-icon>
                   <h2 class="text-h5 font-weight-bold text-white mb-4">
@@ -314,15 +314,15 @@
                   </h2>
                   <div class="d-flex align-center justify-center">
                     <v-avatar
-                      :size="40"
                       class="mr-3"
                       :color="registerForm.avatarPreview ? 'transparent' : 'primary'"
+                      :size="40"
                     >
                       <Avatar
                         v-if="registerForm.avatarPreview"
-                        :url="registerForm.avatarPreview"
-                        :size="40"
                         :name="registerForm.username"
+                        :size="40"
+                        :url="registerForm.avatarPreview"
                       />
                       <v-icon
                         v-else
@@ -339,61 +339,61 @@
                 </div>
 
                 <v-btn
+                  class="px-8"
                   color="primary"
                   size="large"
                   @click="goToLogin"
-                  class="px-8"
                 >
                   开始聊天
                   <v-icon end>mdi-message</v-icon>
                 </v-btn>
               </div>
 
-               <!-- 步骤指示器 -->
+              <!-- 步骤指示器 -->
               <div class="mt-8 step-map">
                 <v-stepper v-model="currentStep" alt-labels class="transparent-stepper">
                   <v-stepper-header>
                     <v-stepper-item
                       :complete="currentStep > 1"
-                      :value="1"
                       icon="mdi-email"
-                    ></v-stepper-item>
+                      :value="1"
+                    />
 
-                    <v-divider></v-divider>
+                    <v-divider />
 
                     <v-stepper-item
                       :complete="currentStep > 2"
-                      :value="2"
                       icon="mdi-lock"
-                    ></v-stepper-item>
+                      :value="2"
+                    />
 
-                    <v-divider></v-divider>
+                    <v-divider />
 
                     <v-stepper-item
                       :complete="currentStep > 3"
-                      :value="3"
                       icon="mdi-account"
-                    ></v-stepper-item>
+                      :value="3"
+                    />
 
-                    <v-divider></v-divider>
+                    <v-divider />
 
                     <v-stepper-item
                       :complete="currentStep > 4"
-                      :value="4"
                       icon="mdi-information"
-                    ></v-stepper-item>
+                      :value="4"
+                    />
 
-                    <v-divider></v-divider>
+                    <v-divider />
 
                     <v-stepper-item
-                      :value="5"
                       icon="mdi-check"
-                    ></v-stepper-item>
+                      :value="5"
+                    />
                   </v-stepper-header>
                 </v-stepper>
               </div>
 
-              </v-col>
+            </v-col>
           </v-row>
         </v-card>
       </v-col>
@@ -408,238 +408,236 @@ meta:
 </route>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
-import { useRouter } from 'vue-router';
-import { generateSecureCredentials } from '@/service/crypto';
-import { noauthApi } from '@/service/api';
-import { useSnackbar } from '@/composables/useSnackbar';
+  import { reactive, ref } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { useSnackbar } from '@/composables/useSnackbar'
+  import { noauthApi } from '@/service/api'
+  import { generateSecureCredentials } from '@/service/crypto'
 
-const router = useRouter();
-const { showError, showSuccess } = useSnackbar();
+  const router = useRouter()
+  const { showError, showSuccess } = useSnackbar()
 
-// 表单数据
-const registerForm = reactive({
-  email: '',
-  password: '',
-  confirmPassword: '',
-  username: '',
-  gender: '',
-  region: '',
-  //简介
-  bio: '',
-  // 头像相关
-  avatar: null as File | null,          // File object
-  avatarPreview: ''      // Blob URL for preview
-})
+  // 表单数据
+  const registerForm = reactive({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    username: '',
+    gender: '',
+    region: '',
+    // 简介
+    bio: '',
+    // 头像相关
+    avatar: null as File | null, // File object
+    avatarPreview: '', // Blob URL for preview
+  })
 
-// 状态管理
-const currentStep = ref(1)
-const loading = ref(false)
-const showPassword = ref(false)
-const showConfirmPassword = ref(false)
+  // 状态管理
+  const currentStep = ref(1)
+  const loading = ref(false)
+  const showPassword = ref(false)
+  const showConfirmPassword = ref(false)
 
-// 头像相关状态
-const avatarError = ref('')
-const avatarInput = ref<HTMLInputElement | null>(null)
-const avatarRules = [
-  (file: File) => {
-    if (!file) return true // Avatar is optional
-    if (!file.type.startsWith('image/')) {
-      return '请选择图片文件'
+  // 头像相关状态
+  const avatarError = ref('')
+  const avatarInput = ref<HTMLInputElement | null>(null)
+  const avatarRules = [
+    (file: File) => {
+      if (!file) return true // Avatar is optional
+      if (!file.type.startsWith('image/')) {
+        return '请选择图片文件'
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        return '图片大小不能超过5MB'
+      }
+      return true
+    },
+  ]
+
+  // 性别选项
+  const genderOptions = [
+    { title: '男', value: 'male' },
+    { title: '女', value: 'female' },
+    { title: '其他', value: 'other' },
+  ]
+
+  // 表单验证规则
+  const emailRules = [
+    (value: string) => !!value || '邮箱不能为空',
+    (value: string) => {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      return emailRegex.test(value) || '请输入有效的邮箱地址'
+    },
+  ]
+
+  const passwordRules = [
+    (value: string) => !!value || '密码不能为空',
+    (value: string) => (value && value.length >= 6) || '密码至少6个字符',
+  ]
+
+  const confirmPasswordRules = [
+    (value: string) => !!value || '请确认密码',
+    (value: string) => value === registerForm.password || '两次输入的密码不一致',
+  ]
+
+  const usernameRules = [
+    (value: string) => !!value || '用户名不能为空',
+    (value: string) => (value && value.length >= 2) || '用户名至少2个字符',
+  ]
+
+  // 步骤 1: 邮箱验证
+  async function step1Click () {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(registerForm.email)) {
+      showError('请输入有效的邮箱地址')
+      return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      return '图片大小不能超过5MB'
+
+    currentStep.value = 2
+  }
+
+  // 步骤 2: 密码验证
+  function step2Click () {
+    if (!registerForm.password) {
+      showError('请输入密码')
+      return
     }
-    return true
-  }
-]
 
-// 性别选项
-const genderOptions = [
-  { title: '男', value: 'male' },
-  { title: '女', value: 'female' },
-  { title: '其他', value: 'other' }
-]
+    if (registerForm.password.length < 6) {
+      showError('密码至少6个字符')
+      return
+    }
 
+    if (registerForm.password !== registerForm.confirmPassword) {
+      showError('两次输入的密码不一致')
+      return
+    }
 
-// 表单验证规则
-const emailRules = [
-  (value: string) => !!value || '邮箱不能为空',
-  (value: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(value) || '请输入有效的邮箱地址'
-  }
-]
-
-const passwordRules = [
-  (value: string) => !!value || '密码不能为空',
-  (value: string) => (value && value.length >= 6) || '密码至少6个字符'
-]
-
-const confirmPasswordRules = [
-  (value: string) => !!value || '请确认密码',
-  (value: string) => value === registerForm.password || '两次输入的密码不一致'
-]
-
-const usernameRules = [
-  (value: string) => !!value || '用户名不能为空',
-  (value: string) => (value && value.length >= 2) || '用户名至少2个字符'
-]
-
-
-// 步骤 1: 邮箱验证
-const step1Click = async () => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(registerForm.email)) {
-    showError('请输入有效的邮箱地址')
-    return
+    currentStep.value = 3
   }
 
-  currentStep.value = 2
-}
+  // 步骤 3: 用户名验证
+  function step3Click () {
+    if (!registerForm.username) {
+      showError('请输入用户名')
+      return
+    }
 
-// 步骤 2: 密码验证
-const step2Click = () => {
-  if (!registerForm.password) {
-    showError('请输入密码')
-    return
+    if (registerForm.username.length < 2) {
+      showError('用户名至少2个字符')
+      return
+    }
+
+    currentStep.value = 4
   }
 
-  if (registerForm.password.length < 6) {
-    showError('密码至少6个字符')
-    return
+  // 返回上一步
+  function goBack () {
+    if (currentStep.value > 1) {
+      currentStep.value--
+    }
   }
 
-  if (registerForm.password !== registerForm.confirmPassword) {
-    showError('两次输入的密码不一致')
-    return
+  // 注册成功后跳转到聊天页面
+  function goToLogin () {
+    router.push('/login')
   }
 
-  currentStep.value = 3
-}
-
-// 步骤 3: 用户名验证
-const step3Click = () => {
-  if (!registerForm.username) {
-    showError('请输入用户名')
-    return
+  // 清除头像
+  function clearAvatar () {
+    if (registerForm.avatarPreview) {
+      URL.revokeObjectURL(registerForm.avatarPreview)
+    }
+    registerForm.avatar = null
+    registerForm.avatarPreview = ''
+    avatarError.value = ''
   }
 
-  if (registerForm.username.length < 2) {
-    showError('用户名至少2个字符')
-    return
+  // 触发文件选择对话框
+  function triggerAvatarInput () {
+    avatarInput.value?.click()
   }
 
-  currentStep.value = 4
-}
+  // 处理文件输入变化
+  function handleAvatarInputChange (event: Event) {
+    const target = event.target as HTMLInputElement
+    const file = target.files?.[0] || null
 
-// 返回上一步
-const goBack = () => {
-  if (currentStep.value > 1) {
-    currentStep.value--
-  }
-}
+    // 重置输入框以允许重复选择同一文件
+    if (target) {
+      target.value = ''
+    }
 
-// 注册成功后跳转到聊天页面
-const goToLogin = () => {
-  router.push('/login')
-}
-
-// 清除头像
-const clearAvatar = () => {
-  if (registerForm.avatarPreview) {
-    URL.revokeObjectURL(registerForm.avatarPreview)
-  }
-  registerForm.avatar = null
-  registerForm.avatarPreview = ''
-  avatarError.value = ''
-}
-
-// 触发文件选择对话框
-const triggerAvatarInput = () => {
-  avatarInput.value?.click()
-}
-
-// 处理文件输入变化
-const handleAvatarInputChange = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0] || null
-
-  // 重置输入框以允许重复选择同一文件
-  if (target) {
-    target.value = ''
+    // 调用原来的处理函数
+    handleAvatarChange(file)
   }
 
-  // 调用原来的处理函数
-  handleAvatarChange(file)
-}
+  // 头像处理方法
+  function handleAvatarChange (file: File | null) {
+    avatarError.value = ''
 
-// 头像处理方法
-const handleAvatarChange = (file: File | null) => {
-  avatarError.value = ''
+    if (!file) {
+      clearAvatar()
+      return
+    }
 
-  if (!file) {
-    clearAvatar()
-    return
+    // 验证文件
+    const validation = avatarRules[0]!(file)
+    if (validation !== true) {
+      avatarError.value = validation as string
+      clearAvatar()
+      return
+    }
+
+    // 保存文件对象并创建预览
+    registerForm.avatar = file
+    registerForm.avatarPreview = URL.createObjectURL(file)
   }
 
-  // 验证文件
-  const validation = avatarRules[0]!(file)
-  if (validation !== true) {
-    avatarError.value = validation as string
-    clearAvatar()
-    return
+  // 格式化文件大小
+  function formatFileSize (bytes: number): string {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  // 保存文件对象并创建预览
-  registerForm.avatar = file
-  registerForm.avatarPreview = URL.createObjectURL(file)
-}
+  // 步骤 4: 执行注册
+  async function step4Click () {
+    if (registerForm.avatar && avatarError.value) {
+      showError('头像上传错误，请重试')
+      return
+    }
 
-// 格式化文件大小
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes'
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
+    loading.value = true
 
-// 步骤 4: 执行注册
-const step4Click = async () => {
-  if (registerForm.avatar && avatarError.value) {
-    showError('头像上传错误，请重试')
-    return
-  }
+    try {
+      // 前端加密
+      const { encryptedAccount, encryptedPassword } = await generateSecureCredentials(
+        registerForm.email,
+        registerForm.password,
+      )
 
-  loading.value = true
+      // 发送注册请求
+      const response = await noauthApi.post('/auth/register', {
+        account: encryptedAccount,
+        password: encryptedPassword,
+        username: registerForm.username,
+        gender: registerForm.gender,
+        region: registerForm.region,
+        bio: registerForm.bio,
+        avatar: registerForm.avatar,
+      })
 
-  try {
-    // 前端加密
-    const { encryptedAccount, encryptedPassword } = await generateSecureCredentials(
-      registerForm.email,
-      registerForm.password
-    )
-
-    // 发送注册请求
-    const response = await noauthApi.post('/auth/register', {
-      account: encryptedAccount,
-      password: encryptedPassword,
-      username: registerForm.username,
-      gender: registerForm.gender,
-      region: registerForm.region,
-      bio: registerForm.bio,
-      avatar: registerForm.avatar
-    })
-
-    if (response.status === 200) {
+      if (response.status === 200) {
         currentStep.value = 5 // 跳转到注册成功页面
         showSuccess('注册成功')
+      }
+    } finally {
+      loading.value = false
     }
-  } finally {
-    loading.value = false
   }
-}
 
 </script>
 
@@ -715,7 +713,6 @@ const step4Click = async () => {
     display: none;
   }
 }
-
 
 /* 表单输入框悬停效果 */
 .v-text-field:hover .v-field__outline,

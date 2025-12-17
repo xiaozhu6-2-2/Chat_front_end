@@ -4,14 +4,13 @@
     <!-- 分类列表 -->
     <v-list class="contactList" density="comfortable">
       <!-- 群聊分组 -->
-      <v-list-group value="群聊" v-model:opened="openGroups['群聊']">
+      <v-list-group v-model:opened="openGroups['群聊']" value="群聊">
         <template #activator="{ props }">
           <v-list-item
             v-bind="props"
             prepend-icon="mdi-account-group"
             title="群聊"
-          >
-          </v-list-item>
+          />
         </template>
 
         <v-list-item
@@ -23,7 +22,7 @@
         >
           <div class="contact_content">
             <div class="contact-avatar group-icon">
-              <v-icon icon="mdi-account-group" color="white"></v-icon>
+              <v-icon color="white" icon="mdi-account-group" />
             </div>
             <div class="contact-name">{{ group.name }}</div>
           </div>
@@ -31,23 +30,23 @@
       </v-list-group>
       
       <!-- 联系人分组 -->
-      <v-list-group value="联系人" v-model:opened="openGroups['联系人']">
+      <v-list-group v-model:opened="openGroups['联系人']" value="联系人">
         <template #activator="{ props }">
           <v-list-item v-bind="props" prepend-icon="mdi-account" title="联系人">
-            <template v-slot:append>
+            <template #append>
               <!-- 分组切换按钮 -->
               <v-btn-toggle
                 v-model="groupBy"
+                class="ml-2"
+                density="compact"
                 mandatory
                 variant="outlined"
-                density="compact"
-                class="ml-2"
               >
-                <v-btn value="initial" size="x-small">
-                  <v-icon icon="mdi-sort-alphabetical-descending-variant" size="12"></v-icon>
+                <v-btn size="x-small" value="initial">
+                  <v-icon icon="mdi-sort-alphabetical-descending-variant" size="12" />
                 </v-btn>
-                <v-btn value="tag" size="x-small">
-                  <v-icon icon="mdi-tag-multiple" size="12"></v-icon>
+                <v-btn size="x-small" value="tag">
+                  <v-icon icon="mdi-tag-multiple" size="12" />
                 </v-btn>
               </v-btn-toggle>
             </template>
@@ -57,7 +56,7 @@
         <template v-for="(contacts, groupName) in currentGroupedContacts" :key="groupName">
           <div class="letter-divider">
             <span v-if="groupBy === 'tag'">
-              <v-icon icon="mdi-tag" size="12" class="mr-1"></v-icon>
+              <v-icon class="mr-1" icon="mdi-tag" size="12" />
               {{ groupName }}
             </span>
             <span v-else>{{ groupName }}</span>
@@ -77,10 +76,10 @@
                 <div class="contact-name">{{ contact.name }}</div>
                 <v-chip
                   v-if="groupBy === 'tag' && contact.tag"
+                  class="mt-1"
                   :color="getTagColor(contact.tag)"
                   size="x-small"
                   variant="tonal"
-                  class="mt-1"
                 >
                   {{ contact.tag }}
                 </v-chip>
@@ -91,7 +90,7 @@
 
         <!-- 标签分组模式下显示空状态提示 -->
         <div v-if="groupBy === 'tag' && Object.keys(currentGroupedContacts).length === 0" class="no-results">
-          <v-icon icon="mdi-tag-off" size="24" class="mb-2"></v-icon>
+          <v-icon class="mb-2" icon="mdi-tag-off" size="24" />
           <p>暂无带标签的联系人</p>
           <p class="text-caption text-grey">为好友设置标签后，即可在此查看</p>
         </div>
@@ -104,7 +103,7 @@
       >
         <div class="contact_content">
           <div class="contact-avatar add-friend-avatar">
-            <v-icon icon="mdi-account-plus" color="white"></v-icon>
+            <v-icon color="white" icon="mdi-account-plus" />
           </div>
           <div class="contact-name">新的朋友</div>
         </div>
@@ -136,10 +135,10 @@ interface Contact {
   avatar?: string;
 }
 
-interface Group {
-  id: string;
-  name: string;
-}
+  interface Group {
+    id: string
+    name: string
+  }
 
 // 响应式状态
 const activeItemId = ref<string | null>(null);
@@ -152,15 +151,15 @@ const openGroups = ref({
 // 使用 useFriend composable
 const { activeFriends, getFriendByUid} = useFriend();
 
-// 静态群聊数据
-const groups: Group[] = [
-  { id: "g1", name: "前端开发交流群" },
-  { id: "g2", name: "Vue技术讨论组" },
-  { id: "g3", name: "全家桶学习小组" },
-  { id: "g4", name: "项目协作群" },
-  { id: "g5", name: "设计资源分享" },
-  { id: "g6", name: "产品经理交流" },
-];
+  // 静态群聊数据
+  const groups: Group[] = [
+    { id: 'g1', name: '前端开发交流群' },
+    { id: 'g2', name: 'Vue技术讨论组' },
+    { id: 'g3', name: '全家桶学习小组' },
+    { id: 'g4', name: '项目协作群' },
+    { id: 'g5', name: '设计资源分享' },
+    { id: 'g6', name: '产品经理交流' },
+  ]
 
 // 将好友数据转换为联系人格式
 const contacts = computed(() => {
@@ -174,22 +173,22 @@ const contacts = computed(() => {
   }))
 })
 
-// 提取首字母的辅助函数
-const getInitial = (name: string): string => {
-  // 对于中文，提取第一个字符作为首字母
-  // 对于英文，提取首字母的大写形式
-  return name.charAt(0).toUpperCase()
-}
+  // 提取首字母的辅助函数
+  function getInitial (name: string): string {
+    // 对于中文，提取第一个字符作为首字母
+    // 对于英文，提取首字母的大写形式
+    return name.charAt(0).toUpperCase()
+  }
 
-// 计算属性 - 排序后的群聊
-const sortedGroups = computed(() => {
-  return [...groups].sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
-});
+  // 计算属性 - 排序后的群聊
+  const sortedGroups = computed(() => {
+    return [...groups].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+  })
 
-// 计算属性 - 排序后的联系人
-const sortedContacts = computed(() => {
-  return [...contacts.value].sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
-});
+  // 计算属性 - 排序后的联系人
+  const sortedContacts = computed(() => {
+    return [...contacts.value].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+  })
 
 // 计算属性 - 按首字母分组的联系人
 const groupedContacts = computed(() => {
@@ -217,14 +216,13 @@ const groupedContactsByTag = computed(() => {
       //已经检查了tag非空，报错忽略
       groupsMap[contact.tag].push(contact);
     }
-  });
-  return groupsMap;
-});
+    return groupsMap
+  })
 
-// 根据分组模式返回对应的分组数据
-const currentGroupedContacts = computed(() => {
-  return groupBy.value === 'tag' ? groupedContactsByTag.value : groupedContacts.value;
-});
+  // 根据分组模式返回对应的分组数据
+  const currentGroupedContacts = computed(() => {
+    return groupBy.value === 'tag' ? groupedContactsByTag.value : groupedContacts.value
+  })
 
 // 获取标签颜色
 const getTagColor = (tag: string): string => {
@@ -233,10 +231,10 @@ const getTagColor = (tag: string): string => {
   return colors[hash % colors.length]
 }
 
-// 导航到添加好友页面
-const navigateToAddFriend = () => {
-  router.push('/AddFriend');
-};
+  // 导航到添加好友页面
+  function navigateToAddFriend () {
+    router.push('/AddFriend')
+  }
 
 // 修改 setActiveItem 方法
 const setActiveItem = (id: string) => {

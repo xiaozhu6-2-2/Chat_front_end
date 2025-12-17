@@ -2,31 +2,31 @@
   <v-app id="app">
     <!-- 顶部导航栏 -->
     <v-app-bar
-      elevation="2"
-      color="#1c1c1e"
-      height="64"
       class="auth-app-bar"
+      color="#1c1c1e"
+      elevation="2"
+      height="64"
     >
       <!-- 左侧 Logo 和品牌名称 -->
       <div class="d-flex align-center">
         <v-img
-          :width="40"
           aspect-ratio="1/1"
-          src="@/assets/echatlogo.png"
           class="mr-3"
-        ></v-img>
+          src="@/assets/echatlogo.png"
+          :width="40"
+        />
         <h1 class="text-h6 font-weight-bold text-white">易聊</h1>
       </div>
 
-      <v-spacer></v-spacer>
+      <v-spacer />
 
       <!-- 右侧登录按钮 -->
       <v-btn
-        variant="outlined"
-        color="primary"
-        class="mr-4"
-        @click="goToLogin"
         v-if="$route.path === '/register' || $route.path === '/index' || $route.path === '/forget'"
+        class="mr-4"
+        color="primary"
+        variant="outlined"
+        @click="goToLogin"
       >
         <v-icon start>mdi-login</v-icon>
         登录
@@ -34,11 +34,11 @@
 
       <!-- 如果在登录界面，显示注册按钮 -->
       <v-btn
-        variant="outlined"
-        color="primary"
-        class="mr-4"
-        @click="goToRegister"
         v-if="$route.path === '/login'"
+        class="mr-4"
+        color="primary"
+        variant="outlined"
+        @click="goToRegister"
       >
         <v-icon start>mdi-account-plus</v-icon>
         注册
@@ -53,19 +53,19 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router';
+  import { useRouter } from 'vue-router'
 
-const router = useRouter();
+  const router = useRouter()
 
-// 导航到登录页面
-const goToLogin = () => {
-  router.push('/login');
-}
+  // 导航到登录页面
+  function goToLogin () {
+    router.push('/login')
+  }
 
-//导航到注册页面
-const goToRegister= () => {
-  router.push('/register');
-}
+  // 导航到注册页面
+  function goToRegister () {
+    router.push('/register')
+  }
 </script>
 
 <style scoped>

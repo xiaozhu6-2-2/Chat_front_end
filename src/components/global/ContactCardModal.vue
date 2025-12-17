@@ -1,11 +1,11 @@
 <template>
   <v-dialog
     v-model="dialog"
-    width="400"
     persistent
     transition="dialog-bottom-transition"
+    width="400"
   >
-    <template v-slot:activator="{ props: activatorProps }">
+    <template #activator="{ props: activatorProps }">
       <slot name="activator" :props="activatorProps">
         <!-- 默认激活器插槽 -->
       </slot>
@@ -15,11 +15,11 @@
       <v-card-item>
         <div class="contact-header">
           <Avatar
-            :url="contactInfo.avatar"
+            avatar-class="contact-modal-avatar"
+            :clickable="false"
             :name="contactInfo.name"
             :size="60"
-            :clickable="false"
-            avatar-class="contact-modal-avatar"
+            :url="contactInfo.avatar"
           />
           <div class="contact-info">
             <v-card-title>{{ contactInfo.name }}</v-card-title>
@@ -35,14 +35,14 @@
           />
           <v-btn
             icon="mdi-close"
-            variant="text"
             size="small"
+            variant="text"
             @click="closeDialog"
           />
         </div>
       </v-card-item>
 
-      <v-divider></v-divider>
+      <v-divider />
 
       <v-card-text>
         <!-- 编辑模式表单 -->
@@ -102,42 +102,42 @@
           <v-list lines="two" density="compact">
             <!-- 邮箱 -->
             <v-list-item prepend-icon="mdi-email" title="邮箱">
-              <template v-slot:subtitle>
+              <template #subtitle>
                 {{ contactInfo.email || `${contactInfo.name.toLowerCase()}@example.com` }}
               </template>
             </v-list-item>
 
             <!-- 账号（如果是 UserProfile） -->
             <v-list-item v-if="contactInfo.account" prepend-icon="mdi-account-key" title="账号">
-              <template v-slot:subtitle>
+              <template #subtitle>
                 {{ contactInfo.account }}
               </template>
             </v-list-item>
 
             <!-- 性别（如果是 UserProfile） -->
             <v-list-item v-if="contactInfo.gender" prepend-icon="mdi-gender-male-female" title="性别">
-              <template v-slot:subtitle>
+              <template #subtitle>
                 {{ contactInfo.gender === 'male' ? '男' : contactInfo.gender === 'female' ? '女' : '其他' }}
               </template>
             </v-list-item>
 
             <!-- 地区（如果是 UserProfile） -->
             <v-list-item v-if="contactInfo.region" prepend-icon="mdi-map-marker" title="地区">
-              <template v-slot:subtitle>
+              <template #subtitle>
                 {{ contactInfo.region }}
               </template>
             </v-list-item>
 
             <!-- 简介（如果是 UserProfile） -->
             <v-list-item v-if="contactInfo.bio" prepend-icon="mdi-text" title="简介">
-              <template v-slot:subtitle>
+              <template #subtitle>
                 {{ contactInfo.bio }}
               </template>
             </v-list-item>
 
             <!-- 备注（如果是好友） -->
             <v-list-item v-if="isContactFriend" prepend-icon="mdi-account-edit" title="备注">
-              <template v-slot:subtitle>
+              <template #subtitle>
                 {{ contactInfo.remark || '未设置' }}
               </template>
             </v-list-item>
@@ -151,14 +151,14 @@
 
             <!-- 添加时间 -->
             <v-list-item prepend-icon="mdi-calendar" title="添加时间">
-              <template v-slot:subtitle>
+              <template #subtitle>
                 {{ formatDate(contactInfo.createTime) }}
               </template>
             </v-list-item>
 
             <!-- 黑名单状态（如果是好友） -->
             <v-list-item v-if="isContactFriend" prepend-icon="mdi-block-helper" title="黑名单">
-              <template v-slot:subtitle>
+              <template #subtitle>
                 <v-chip :color="contactInfo.isBlacklist ? 'error' : 'success'" size="small">
                   {{ contactInfo.isBlacklist ? '已拉黑' : '正常' }}
                 </v-chip>
@@ -168,7 +168,7 @@
         </div>
       </v-card-text>
 
-      <v-divider></v-divider>
+      <v-divider />
 
       <v-card-actions class="contact-actions">
         <v-spacer />
@@ -250,10 +250,10 @@ import { type FriendWithUserInfo } from '../../types/friend'
 
 import { useFriend } from '../../composables/useFriend'
 
-//作用是为这个 Vue 组件设置名称为 "ContactCardModal"
-defineOptions({
-  name: 'ContactCardModal'
-})
+  // 作用是为这个 Vue 组件设置名称为 "ContactCardModal"
+  defineOptions({
+    name: 'ContactCardModal',
+  })
 
 import type { ContactCardModalProps, ContactCardModalEmits } from '../../types/global'
 
@@ -307,9 +307,9 @@ const isFriendContact = computed(() => {
   return props.contact && checkUserRelation(props.contact.uid).isFriend
 })
 
-// 根据联系人类型获取显示信息
-const contactInfo = computed(() => {
-  if (!props.contact) return null
+  // 根据联系人类型获取显示信息
+  const contactInfo = computed(() => {
+    if (!props.contact) return null
 
   if (isFriendContact.value) {
     const friend = props.contact as FriendWithUserInfo
@@ -429,15 +429,15 @@ const closeDialog = () => {
   dialog.value = false
 }
 
-const sendMessage = () => {
-  emit('send-message', props.contact)
-  closeDialog()
-}
+  function sendMessage () {
+    emit('send-message', props.contact)
+    closeDialog()
+  }
 
-const addFriend = () => {
-  emit('add-friend', props.contact)
-  closeDialog()
-}
+  function addFriend () {
+    emit('add-friend', props.contact)
+    closeDialog()
+  }
 
 const removeFriend = () => {
   if (isContactFriend.value && props.contact) {

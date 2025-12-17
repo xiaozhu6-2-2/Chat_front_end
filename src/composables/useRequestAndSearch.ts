@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { useRequestAndSearchStore } from '@/stores/requestAndSearchStore'
 import { devLog, isDevelopment } from '@/utils/env'
 
-export function useRequestAndSearch() {
+export function useRequestAndSearch () {
   const store = useRequestAndSearchStore()
 
   // 搜索防抖
@@ -61,7 +61,7 @@ export function useRequestAndSearch() {
       await store.fetchPendingRequests(forceRefresh)
       devLog('Pending requests loaded', {
         received: store.pendingRequestCount,
-        sent: store.sentRequestCount
+        sent: store.sentRequestCount,
       })
     } catch (error) {
       console.error('加载好友请求失败:', error)
@@ -126,6 +126,6 @@ export function useRequestAndSearch() {
     clearRequests,
     clearSearchResults: store.clearSearchResults,
     debouncedSearch,
-    checkUserRelation: store.checkUserRelation
+    checkUserRelation: store.checkUserRelation,
   }
 }

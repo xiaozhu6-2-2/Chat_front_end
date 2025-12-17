@@ -63,22 +63,22 @@
           </div>
         </v-card-text>
 
-        <v-card-actions>
-          <v-btn color="primary" prepend-icon="mdi-message">
-            发送消息
-          </v-btn>
-        </v-card-actions>
-      </v-card>
+      <v-card-actions>
+        <v-btn color="primary" prepend-icon="mdi-message">
+          发送消息
+        </v-btn>
+      </v-card-actions>
+    </v-card>
 
-      <!-- 未加载时显示加载状态 -->
-      <v-card class="mx-auto" max-width="400" v-else>
-        <v-card-text class="text-center">
-          <v-progress-circular indeterminate color="primary"></v-progress-circular>
-          <div class="mt-4">正在加载联系人信息...</div>
-        </v-card-text>
-      </v-card>
-    </div>
-  </template>
+    <!-- 未加载时显示加载状态 -->
+    <v-card v-else class="mx-auto" max-width="400">
+      <v-card-text class="text-center">
+        <v-progress-circular color="primary" indeterminate />
+        <div class="mt-4">正在加载联系人信息...</div>
+      </v-card-text>
+    </v-card>
+  </div>
+</template>
 
   <script setup lang="ts">
 import { ref, onMounted } from 'vue'
@@ -87,13 +87,13 @@ import { useSnackbar } from '../../composables/useSnackbar'
 import type { ContactCardProps } from '../../types/friend'
 import type { FriendWithUserInfo } from '../../types/friend'
 
-const props = defineProps<ContactCardProps>()
-const { getFriendProfile } = useFriend()
-const { showError } = useSnackbar()
+  const props = defineProps<ContactCardProps>()
+  const { getFriendProfile } = useFriend()
+  const { showError } = useSnackbar()
 
-// 状态管理
-const isLoading = ref(false)
-const detailedProfile = ref<FriendWithUserInfo | null>(null)
+  // 状态管理
+  const isLoading = ref(false)
+  const detailedProfile = ref<FriendWithUserInfo | null>(null)
 
 // 获取详细资料
 const fetchDetailedProfile = async () => {

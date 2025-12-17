@@ -1,41 +1,40 @@
-// stores/friendStore.ts
-import { ref, computed } from 'vue'
-import { defineStore } from 'pinia'
 import type {
-  FriendWithUserInfo
+  FriendUpdateOptions,
+  FriendWithUserInfo,
 } from '@/types/friend'
+import { defineStore } from 'pinia'
+// stores/friendStore.ts
+import { computed, ref } from 'vue'
 import { friendService } from '@/service/friendService'
 
 export const useFriendStore = defineStore('friend', () => {
   // State
-  const friends = ref<Map<string, FriendWithUserInfo>>(new Map())  // fid -> friend info (包括所有好友，黑名单通过isBlacklisted字段区分)
+  const friends = ref<Map<string, FriendWithUserInfo>>(new Map()) // fid -> friend info (包括所有好友，黑名单通过isBlacklisted字段区分)
   const isLoading = ref(false)
 
   // Computed
-  //从好友列表中筛选非黑名单好友
+  // 从好友列表中筛选非黑名单好友
   const activeFriends = computed(() => {
     return Array.from(friends.value.values())
       .filter(friend => !friend.isBlacklisted)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   })
 
-  
-  //根据uid查找好友关系及好友信息
+  // 根据uid查找好友关系及好友信息
   const getFriendByUid = computed(() => {
     return (uid: string) => {
       return Array.from(friends.value.values())
-        .find(friend => friend.uid === uid)
+        .find(friend => friend.id === uid) // 使用 id 而非 uid
     }
   })
 
   const isFriend = computed(() => {
     return (uid: string) => {
       return Array.from(friends.value.values())
-        .some(friend => friend.uid === uid && !friend.isBlacklisted)
+        .some(friend => friend.id === uid && !friend.isBlacklisted) // 使用 id 而非 uid
     }
   })
 
-  
   // 标签相关计算属性
   const getFriendsByTag = computed(() => {
     return (tag: string) => {
@@ -46,19 +45,21 @@ export const useFriendStore = defineStore('friend', () => {
 
   const getAllTags = computed(() => {
     const tags = new Set<string>()
-    Array.from(friends.value.values()).forEach(friend => {
-      if (friend.tag) tags.add(friend.tag)
-    })
+    for (const friend of Array.from(friends.value.values())) {
+      if (friend.tag) {
+        tags.add(friend.tag)
+      }
+    }
     return Array.from(tags).sort()
   })
 
   const getTagStats = computed(() => {
     const stats: Record<string, number> = {}
-    Array.from(friends.value.values()).forEach(friend => {
+    for (const friend of Array.from(friends.value.values())) {
       if (friend.tag) {
         stats[friend.tag] = (stats[friend.tag] || 0) + 1
       }
-    })
+    }
     return stats
   })
 
@@ -67,7 +68,6 @@ export const useFriendStore = defineStore('friend', () => {
     isLoading.value = loading
   }
 
-  
   const addFriend = (friend: FriendWithUserInfo) => {
     friends.value.set(friend.fid, friend)
   }
@@ -83,16 +83,14 @@ export const useFriendStore = defineStore('friend', () => {
     }
   }
 
-  
   const setFriends = (friendList: FriendWithUserInfo[]) => {
     // 清空并设置所有好友（包括黑名单）
     friends.value.clear()
-    friendList.forEach(friend => {
+    for (const friend of friendList) {
       friends.value.set(friend.fid, friend)
-    })
+    }
   }
 
-  
   const reset = () => {
     friends.value.clear()
     isLoading.value = false
@@ -108,32 +106,24 @@ export const useFriendStore = defineStore('friend', () => {
   }
 
   const batchUpdateTags = (updates: { friendId: string, tag: string | null }[]) => {
-    updates.forEach(({ friendId, tag }) => {
+    for (const { friendId, tag } of updates) {
       updateFriendTag(friendId, tag)
-    })
+    }
   }
 
   /**
    * 更新好友资料（备注、黑名单状态、分组）
    * @param friendId 好友ID
-   * @param remark 备注
-   * @param isBlacklisted 是否加入黑名单
-   * @param tag 分组标签
+   * @param options 更新选项对象
    */
   const updateFriendProfile = (
     friendId: string,
-    remark: string,
-    isBlacklisted: boolean,
-    tag: string
+    options: FriendUpdateOptions,
   ) => {
     const friend = friends.value.get(friendId)
     if (friend) {
       // 使用现有的 updateFriend 方法更新
-      updateFriend(friendId, {
-        remark,
-        isBlacklisted,
-        tag
-      })
+      updateFriend(friendId, options)
     }
   }
 
@@ -196,6 +186,6 @@ export const useFriendStore = defineStore('friend', () => {
     updateFriendTag,
     removeFriendTag,
     batchUpdateTags,
-    fetchFriends
+    fetchFriends,
   }
 })

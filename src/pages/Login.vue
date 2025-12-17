@@ -1,17 +1,17 @@
 <template>
   <!-- 主容器，使用全屏高度 -->
-  <v-container fluid class="fill-height container">
+  <v-container class="fill-height container" fluid>
     <!-- 行布局，垂直和水平居中 -->
-    <v-row align-content="center" justify="center" class="fill-height">
+    <v-row align-content="center" class="fill-height" justify="center">
       <!-- 登录卡片容器 -->
-      <v-col cols="12" md="10" lg="8" xl="6">
-        <v-card class="elevation-24 rounded-lg overflow-hidden card" >
-          <v-row no-gutters class="fill-height">
+      <v-col cols="12" lg="8" md="10" xl="6">
+        <v-card class="elevation-24 rounded-lg overflow-hidden card">
+          <v-row class="fill-height" no-gutters>
             <!-- 左侧文本信息区域 -->
             <v-col
+              class="pa-8 d-flex flex-column justify-center text-white"
               cols="12"
               md="6"
-              class="pa-8 d-flex flex-column justify-center text-white"
             >
               <!-- 品牌信息 -->
               <BrandInfo />
@@ -22,9 +22,9 @@
 
             <!-- 右侧登录表单区域 -->
             <v-col
+              class="pa-8 d-flex flex-column justify-center"
               cols="12"
               md="6"
-              class="pa-8 d-flex flex-column justify-center"
             >
               <!-- 表单标题 -->
               <div class="text-center mb-8">
@@ -37,49 +37,49 @@
               </div>
 
               <!-- 登录表单 -->
-              <v-form @submit.prevent="handleLogin" ref="loginFormRef">
+              <v-form ref="loginFormRef" @submit.prevent="handleLogin">
                 <!-- 用户名/邮箱输入 -->
                 <v-text-field
                   v-model="loginForm.account"
-                  :rules="accountRules"
+                  class="mb-4"
+                  color="primary"
                   label="用户名或邮箱"
                   prepend-inner-icon="mdi-account"
-                  variant="outlined"
-                  color="primary"
-                  class="mb-4"
                   required
+                  :rules="accountRules"
+                  variant="outlined"
                 />
 
                 <!-- 密码输入 -->
                 <v-text-field
                   v-model="loginForm.password"
-                  :rules="passwordRules"
+                  :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                  class="mb-2"
+                  color="primary"
                   label="密码"
                   prepend-inner-icon="mdi-lock"
-                  variant="outlined"
-                  color="primary"
-                  :type="showPassword ? 'text' : 'password'"
-                  :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                  @click:append-inner="showPassword = !showPassword"
-                  class="mb-2"
                   required
+                  :rules="passwordRules"
+                  :type="showPassword ? 'text' : 'password'"
+                  variant="outlined"
+                  @click:append-inner="showPassword = !showPassword"
                 />
 
                 <!-- 记住我和忘记密码 -->
                 <div class="d-flex justify-space-between align-center mb-6">
                   <v-checkbox
                     v-model="loginForm.remember"
-                    label="记住我"
                     color="primary"
                     density="compact"
                     hide-details
+                    label="记住我"
                     style="font-size: 1rem;"
                   />
                   <v-btn
-                    variant="text"
                     color="primary"
                     size="default"
                     style="font-size: 1rem; min-width: auto; height: auto;"
+                    variant="text"
                     @click="handleForgotPassword"
                   >
                     忘记密码?
@@ -88,19 +88,19 @@
 
                 <!-- 错误提示 -->
                 <div v-if="loginError" class="error-message mb-4">
-                  <v-alert type="error" density="compact">
+                  <v-alert density="compact" type="error">
                     {{ loginError }}
                   </v-alert>
                 </div>
 
                 <!-- 登录按钮 -->
                 <v-btn
-                  type="submit"
-                  color="primary"
-                  size="large"
                   block
-                  :loading="loading"
                   class="mb-4"
+                  color="primary"
+                  :loading="loading"
+                  size="large"
+                  type="submit"
                 >
                   <v-icon start>mdi-login</v-icon>
                   登录
@@ -112,11 +112,11 @@
                     还没有账户?
                   </span>
                   <v-btn
-                    variant="text"
+                    class="pa-0 ma-0 text-body-2 ml-2"
                     color="primary"
                     size="default"
-                    class="pa-0 ma-0 text-body-2 ml-2"
                     style="min-width: auto; height: auto; font-size: 0.875rem;"
+                    variant="text"
                     @click="goToRegister"
                   >
                     立即注册
@@ -137,77 +137,76 @@ meta:
 </route>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import type { VForm } from 'vuetify/components'
-import { useRouter } from 'vue-router';
-import { useSnackbar } from '@/composables/useSnackbar'
-import { useAuth } from '@/composables/useAuth';
+  import type { VForm } from 'vuetify/components'
+  import { reactive, ref } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { useAuth } from '@/composables/useAuth'
+  import { useSnackbar } from '@/composables/useSnackbar'
 
-const router = useRouter();
+  const router = useRouter()
 
-const {login} = useAuth();
+  const { login } = useAuth()
 
-const {showSuccess} = useSnackbar();
+  const { showSuccess } = useSnackbar()
 
-// 响应式数据定义
-const loginForm = reactive({
-  account: '',
-  password: '',
-  remember: false
-})
+  // 响应式数据定义
+  const loginForm = reactive({
+    account: '',
+    password: '',
+    remember: false,
+  })
 
-const showPassword = ref(false)
-const loading = ref(false)
-//用于验证规则
-const loginFormRef = ref<VForm | null>(null)
-const loginError = ref('')
+  const showPassword = ref(false)
+  const loading = ref(false)
+  // 用于验证规则
+  const loginFormRef = ref<VForm | null>(null)
+  const loginError = ref('')
 
+  // 表单验证规则
+  const accountRules = [
+    (value: string) => !!value || '账号不能为空',
+    (value: string) => {
+      // 邮箱正则表达式
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      return emailRegex.test(value) || '请输入有效的邮箱地址'
+    },
+  ]
 
-// 表单验证规则
-const accountRules = [
-  (value: string) => !!value || '账号不能为空',
-  (value: string) => {
-    //邮箱正则表达式
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(value) || '请输入有效的邮箱地址'
-  }
-]
+  const passwordRules = [
+    (value: string) => !!value || '密码不能为空',
+    (value: string) => (value && value.length >= 6) || '密码至少6个字符',
+  ]
 
-const passwordRules = [
-  (value: string) => !!value || '密码不能为空',
-  (value: string) => (value && value.length >= 6) || '密码至少6个字符'
-]
+  // 登录处理方法
+  async function handleLogin () {
+    // 验证表单
+    if (!loginFormRef.value) return
+    const { valid } = await loginFormRef.value.validate()
+    if (!valid) return
 
-// 登录处理方法
-const handleLogin = async () => {
-  // 验证表单
-  if (!loginFormRef.value) return
-  const { valid } = await loginFormRef.value.validate()
-  if (!valid) return
+    loading.value = true
+    loginError.value = ''
 
-  loading.value = true
-  loginError.value = ''
-
-  try {
-    const resault = await login(loginForm.account,loginForm.password,loginForm.remember);
-    if(resault.success === true){
-      router.push('/home')
-      showSuccess('登录成功')
+    try {
+      const resault = await login(loginForm.account, loginForm.password, loginForm.remember)
+      if (resault.success === true) {
+        router.push('/home')
+        showSuccess('登录成功')
+      }
+    } finally {
+      loading.value = false
     }
-  }finally {
-    loading.value = false
   }
-}
 
-// 跳转到注册页面
-const goToRegister = () => {
-  router.push('/register')
-}
+  // 跳转到注册页面
+  function goToRegister () {
+    router.push('/register')
+  }
 
-// 处理忘记密码
-const handleForgotPassword = () => {
-  router.push('/forget')
-}
+  // 处理忘记密码
+  function handleForgotPassword () {
+    router.push('/forget')
+  }
 
 </script>
 

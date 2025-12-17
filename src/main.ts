@@ -4,15 +4,18 @@
  * Bootstraps Vuetify and other plugins then mounts the App`
  */
 
-// Plugins
-import { registerPlugins } from '@/plugins'
-
-// Components
-import App from './App.vue'
+import { createPinia } from 'pinia'
 
 // Composables
 import { createApp } from 'vue'
-import { createPinia } from 'pinia'
+
+// Plugins
+import { registerPlugins } from '@/plugins'
+// Components
+import App from './App.vue'
+
+// 拦截器依赖pinia，所以需要在pinia启动后，再手动开启拦截器
+import { setupApiInterceptors } from './service/api'
 
 // Styles
 import 'unfonts.css'
@@ -25,9 +28,6 @@ const pinia = createPinia()
 registerPlugins(app)
 
 app.use(pinia)
-
-//拦截器依赖pinia，所以需要在pinia启动后，再手动开启拦截器
-import { setupApiInterceptors } from './service/api'
 setupApiInterceptors()
 
 app.mount('#app')
