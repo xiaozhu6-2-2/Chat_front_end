@@ -1,7 +1,7 @@
 <template>
-    <div>
-        这里写索引页
-    </div>
+  <div>
+    这里写索引页
+  </div>
 </template>
 
 <route lang="yaml">

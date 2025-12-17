@@ -1,16 +1,16 @@
 <template>
   <!-- 搜索框 -->
-    <v-text-field
-      v-model="searchQuery"
-      label="搜索用户（用户名、账号、邮箱）"
-      prepend-inner-icon="mdi-magnify"
-      variant="outlined"
-      clearable
-      class="search-input mb-4 ma-2"
-      :loading="isLoading"
-      @input="handleSearchInput"
-      @keyup.enter="performSearch"
-    />
+  <v-text-field
+    v-model="searchQuery"
+    class="search-input mb-4 ma-2"
+    clearable
+    label="搜索用户（用户名、账号、邮箱）"
+    :loading="isLoading"
+    prepend-inner-icon="mdi-magnify"
+    variant="outlined"
+    @input="handleSearchInput"
+    @keyup.enter="performSearch"
+  />
   <div class="user-search-panel">
 
     <!-- 搜索结果 -->
@@ -20,8 +20,8 @@
           v-for="user in searchResults"
           :key="user.uid"
           cols="12"
-          sm="6"
           md="4"
+          sm="6"
         >
           <UserSearchResultCard
             :user="user"
@@ -33,7 +33,7 @@
 
     <!-- 空状态 -->
     <div v-else-if="searchQuery && !isLoading" class="text-center py-8">
-      <v-icon icon="mdi-account-search" size="64" color="grey-lighten-1"></v-icon>
+      <v-icon color="grey-lighten-1" icon="mdi-account-search" size="64" />
       <p class="text-grey mt-4">
         {{ searchQuery.length > 0 ? '未找到匹配的用户' : '请输入关键词搜索用户' }}
       </p>
@@ -41,60 +41,60 @@
 
     <!-- 加载状态 -->
     <div v-else-if="isLoading" class="text-center py-8">
-      <v-progress-circular indeterminate color="primary"></v-progress-circular>
+      <v-progress-circular color="primary" indeterminate />
       <p class="text-grey mt-4">搜索中...</p>
     </div>
 
     <!-- 初始状态 -->
     <div v-else class="text-center py-8">
-      <v-icon icon="mdi-account-search-outline" size="64" color="grey-lighten-1"></v-icon>
+      <v-icon color="grey-lighten-1" icon="mdi-account-search-outline" size="64" />
       <p class="text-grey mt-4">输入用户名、账号或邮箱来搜索用户</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useFriend } from '@/composables/useFriend'
-import UserSearchResultCard from './UserSearchResultCard.vue'
-import type { UserSearchResult } from '@/service/messageTypes'
+  import type { UserSearchResult } from '@/service/messageTypes'
+  import { ref } from 'vue'
+  import { useFriend } from '@/composables/useFriend'
+  import UserSearchResultCard from './UserSearchResultCard.vue'
 
-const {
-  searchQuery,
-  searchResults,
-  isLoading,
-  searchUsers,
-  debouncedSearch,
-  sendFriendRequest
-} = useFriend()
+  const {
+    searchQuery,
+    searchResults,
+    isLoading,
+    searchUsers,
+    debouncedSearch,
+    sendFriendRequest,
+  } = useFriend()
 
-// 搜索防抖
-const handleSearchInput = () => {
-  if (searchQuery.value) {
-    debouncedSearch(searchQuery.value)
-  } else {
-    searchUsers('')
+  // 搜索防抖
+  function handleSearchInput () {
+    if (searchQuery.value) {
+      debouncedSearch(searchQuery.value)
+    } else {
+      searchUsers('')
+    }
   }
-}
 
-// 执行搜索（回车时）
-const performSearch = () => {
-  if (searchQuery.value) {
-    searchUsers(searchQuery.value)
+  // 执行搜索（回车时）
+  function performSearch () {
+    if (searchQuery.value) {
+      searchUsers(searchQuery.value)
+    }
   }
-}
 
-// 发送好友请求
-const handleSendRequest = async (user: UserSearchResult, message?: string, tags?: string[]) => {
-  try {
-    await sendFriendRequest(user.uid, message, tags)
-    // 这里可以添加成功提示
-    console.log('好友请求发送成功', { tags })
-  } catch (error) {
-    console.error('发送好友请求失败:', error)
+  // 发送好友请求
+  async function handleSendRequest (user: UserSearchResult, message?: string, tags?: string[]) {
+    try {
+      await sendFriendRequest(user.uid, message, tags)
+      // 这里可以添加成功提示
+      console.log('好友请求发送成功', { tags })
+    } catch (error) {
+      console.error('发送好友请求失败:', error)
     // 这里可以添加错误提示
+    }
   }
-}
 </script>
 
 <style scoped>

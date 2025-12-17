@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialogVisible" scrollable transition="dialog-bottom-transition" max-width="600px">
+  <v-dialog v-model="dialogVisible" max-width="600px" scrollable transition="dialog-bottom-transition">
     <v-card>
       <v-toolbar>
         <v-toolbar-title>聊天设置</v-toolbar-title>
@@ -24,32 +24,32 @@
 </template>
 
 <script setup lang="ts">
-const dialogVisible = defineModel<boolean>("modelValue", { default: false });
-const settingItems = [
-  {
-    key: "theme",
-    title: "主题设置",
-    subtitle: "切换明暗主题",
-    icon: "mdi-palette",
-  },
-  {
-    key: "notifications",
-    title: "通知设置",
-    subtitle: "管理消息通知",
-    icon: "mdi-bell",
-  },
-  {
-    key: "privacy",
-    title: "隐私设置",
-    subtitle: "隐私保护选项",
-    icon: "mdi-shield-account",
-  },
-];
-const closeDialog = () => {
-  dialogVisible.value = false;
-};
+  const dialogVisible = defineModel<boolean>('modelValue', { default: false })
+  const settingItems = [
+    {
+      key: 'theme',
+      title: '主题设置',
+      subtitle: '切换明暗主题',
+      icon: 'mdi-palette',
+    },
+    {
+      key: 'notifications',
+      title: '通知设置',
+      subtitle: '管理消息通知',
+      icon: 'mdi-bell',
+    },
+    {
+      key: 'privacy',
+      title: '隐私设置',
+      subtitle: '隐私保护选项',
+      icon: 'mdi-shield-account',
+    },
+  ]
+  function closeDialog () {
+    dialogVisible.value = false
+  }
 
-const handleItemClick = () => {
-  closeDialog();
-};
+  function handleItemClick () {
+    closeDialog()
+  }
 </script>

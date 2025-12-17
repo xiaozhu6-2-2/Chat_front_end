@@ -3,106 +3,106 @@
     <v-card>
       <v-layout>
         <!-- 优化后的侧边栏 -->
-        <v-navigation-drawer width="80" permanent class="sidebar">
+        <v-navigation-drawer class="sidebar" permanent width="80">
           <!-- 头像区域 -->
           <div class="avatar-container">
-            <v-avatar size="56" class="custom-avatar" variant="tonal">
+            <v-avatar class="custom-avatar" size="56" variant="tonal">
               <img
-                src="@/assets/yxd.jpg"
                 alt="头像"
+                src="@/assets/yxd.jpg"
                 style="object-fit: cover"
-              />
+              >
             </v-avatar>
           </div>
 
           <!-- 导航按钮区域 -->
-          <v-list density="compact" class="button-list" nav>
+          <v-list class="button-list" density="compact" nav>
             <div class="main_buttons">
               <v-list-item class="nav-item">
                 <v-btn
-                  @click="navigateTo('/chat')"
                   class="nav-button"
-                  variant="text"
-                  size="large"
                   :class="{ active: $route.path === '/chat' }"
+                  size="large"
+                  variant="text"
+                  @click="navigateTo('/chat')"
                 >
                   <v-icon size="x-large">mdi-forum</v-icon>
                 </v-btn>
                 <v-badge
                   v-if="unreadCount.chat > 0"
-                  :content="unreadCount.chat"
-                  color="error"
                   class="badge"
-                ></v-badge>
+                  color="error"
+                  :content="unreadCount.chat"
+                />
               </v-list-item>
               <div class="bottom_buttons">
                 <v-list-item class="nav-item">
                   <v-btn
-                    @click="navigateTo('/contact')"
                     class="nav-button"
-                    variant="text"
-                    size="large"
                     :class="{ active: $route.path === '/contact' }"
+                    size="large"
+                    variant="text"
+                    @click="navigateTo('/contact')"
                   >
                     <v-icon size="x-large">mdi-account</v-icon>
                   </v-btn>
                   <v-badge
                     v-if="unreadCount.contact > 0"
-                    :content="unreadCount.contact"
-                    color="error"
                     class="badge"
-                  ></v-badge>
+                    color="error"
+                    :content="unreadCount.contact"
+                  />
                 </v-list-item>
               </div>
             </div>
 
             <v-list-item class="nav-item">
               <v-btn
-                @click="navigateTo('/settings')"
                 class="nav-button"
-                variant="text"
-                size="large"
                 :class="{ active: $route.path === '/settings' }"
+                size="large"
+                variant="text"
+                @click="navigateTo('/settings')"
               >
                 <v-icon size="x-large">mdi-cog</v-icon>
               </v-btn>
               <v-badge
                 v-if="unreadCount.settings > 0"
-                :content="unreadCount.settings"
-                color="error"
                 class="badge"
-              ></v-badge>
+                color="error"
+                :content="unreadCount.settings"
+              />
             </v-list-item>
           </v-list>
         </v-navigation-drawer>
 
         <v-main id="mainarea">
-          <router-view></router-view>
+          <router-view />
         </v-main>
       </v-layout>
     </v-card>
   </v-app>
 </template>
-  
+
   <script setup>
-import { useRouter, useRoute } from "vue-router";
-import { ref, reactive } from "vue";
+  import { reactive, ref } from 'vue'
+  import { useRoute, useRouter } from 'vue-router'
 
-const router = useRouter();
-const $route = useRoute();
+  const router = useRouter()
+  const $route = useRoute()
 
-// 模拟未读消息数量
-const unreadCount = reactive({
-  chat: 3,
-  contact: 1,
-  settings: 0,
-});
+  // 模拟未读消息数量
+  const unreadCount = reactive({
+    chat: 3,
+    contact: 1,
+    settings: 0,
+  })
 
-const navigateTo = (path) => {
-  router.push(path);
-};
+  function navigateTo (path) {
+    router.push(path)
+  }
 </script>
-  
+
   <style scoped>
 .sidebar {
   background-color: #0f0f0f !important;

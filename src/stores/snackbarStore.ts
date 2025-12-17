@@ -1,4 +1,4 @@
-//snackbar是vuetify封装的消息条，用做全局的提示弹出，用pinia存储提示信息，应对连续弹出的场景
+// snackbar是vuetify封装的消息条，用做全局的提示弹出，用pinia存储提示信息，应对连续弹出的场景
 import { defineStore } from 'pinia'
 
 interface SnackbarMessage {
@@ -16,7 +16,7 @@ export const useSnackbarStore = defineStore('snackbar', {
 
   actions: {
     // 显示消息
-    show(text: string, options?: {
+    show (text: string, options?: {
       color?: 'success' | 'error' | 'warning' | 'info'
       timeout?: number
     }) {
@@ -33,34 +33,34 @@ export const useSnackbarStore = defineStore('snackbar', {
     },
 
     // 显示成功消息
-    success(text: string, timeout?: number) {
+    success (text: string, timeout?: number) {
       this.show(text, { color: 'success', timeout })
     },
 
     // 显示错误消息
-    error(text: string, timeout?: number) {
+    error (text: string, timeout?: number) {
       this.show(text, { color: 'error', timeout: timeout || 5000 })
     },
 
     // 显示警告消息
-    warning(text: string, timeout?: number) {
+    warning (text: string, timeout?: number) {
       this.show(text, { color: 'warning', timeout })
     },
 
     // 显示信息消息
-    info(text: string, timeout?: number) {
+    info (text: string, timeout?: number) {
       this.show(text, { color: 'info', timeout })
     },
 
     // 关闭当前消息
-    close() {
+    close () {
       if (this.current) {
         this.current.show = false
       }
     },
 
     // 处理消息关闭后的逻辑
-    onClosed() {
+    onClosed () {
       // 简单清空
       this.current = null
     },

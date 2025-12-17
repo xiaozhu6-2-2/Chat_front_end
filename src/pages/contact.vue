@@ -30,40 +30,36 @@
 </template>
 
 <script lang="ts" setup>
-import maincontent from "@/layouts/maincontent.vue";
+  import { ref } from 'vue'
 
-import { ref } from "vue";
+  import maincontent from '@/layouts/maincontent.vue'
 
-interface Contact {
-  id: string;
-  uid: string;
-  name: string;
-  initial: string;
-  tag?: string;
-  avatar?: string;
-  bio?: string;
-  remark?: string;
-}
-
-interface Group {
-  id: string;
-  name: string;
-  initial?: string;
-}
-
-type ActiveItem =
-  | { type: "contact"; data: Contact }
-  | { type: "group"; data: Group }
-
-const activeItem = ref<ActiveItem | null>(null);
-
-const handleItemClick = (type: "contact" | "group", data: Contact | Group) => {
-  if (type === "contact") {
-    activeItem.value = { type, data: data as Contact };
-  } else {
-    activeItem.value = { type, data: data as Group };
+  interface Contact {
+    id: string
+    uid: string
+    name: string
+    initial: string
+    tag?: string
+    avatar?: string
+    bio?: string
+    remark?: string
   }
-};
+
+  interface Group {
+    id: string
+    name: string
+    initial?: string
+  }
+
+  type ActiveItem
+    = | { type: 'contact', data: Contact }
+      | { type: 'group', data: Group }
+
+  const activeItem = ref<ActiveItem | null>(null)
+
+  function handleItemClick (type: 'contact' | 'group', data: Contact | Group) {
+    activeItem.value = type === 'contact' ? { type, data: data as Contact } : { type, data: data as Group }
+  }
 </script>
 
 <style scoped>

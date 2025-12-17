@@ -1,17 +1,17 @@
 <template>
-    <!-- 主容器，使用全屏高度 -->
-  <v-container fluid class="fill-height container">
+  <!-- 主容器，使用全屏高度 -->
+  <v-container class="fill-height container" fluid>
     <!-- 行布局，垂直和水平居中 -->
-    <v-row align-content="center" justify="center" class="fill-height">
+    <v-row align-content="center" class="fill-height" justify="center">
       <!-- 注册卡片容器 -->
-      <v-col cols="12" md="10" lg="8" xl="6">
-        <v-card class="elevation-24 rounded-lg overflow-hidden card" >
-          <v-row no-gutters class="fill-height">
+      <v-col cols="12" lg="8" md="10" xl="6">
+        <v-card class="elevation-24 rounded-lg overflow-hidden card">
+          <v-row class="fill-height" no-gutters>
             <!-- 左侧文本信息区域 -->
             <v-col
+              class="pa-8 d-flex flex-column justify-start text-white"
               cols="12"
               md="6"
-              class="pa-8 d-flex flex-column justify-start text-white"
             >
               <!-- 品牌信息 -->
               <BrandInfo />
@@ -19,9 +19,9 @@
 
             <!-- 右侧注册表单区域 -->
             <v-col
+              class="pa-8 d-flex flex-column justify-center"
               cols="12"
               md="6"
-              class="pa-8 d-flex flex-column justify-center"
             >
               <!-- 步骤 1: 邮箱输入 -->
               <div v-if="currentStep === 1" class="step-content">
@@ -37,22 +37,22 @@
                 <v-form @submit.prevent="step1Click">
                   <v-text-field
                     v-model="forgetForm.email"
-                    :rules="emailRules"
+                    autofocus
+                    class="mb-4"
+                    color="primary"
                     label="请输入注册时的邮箱账户"
                     prepend-inner-icon="mdi-email"
-                    variant="outlined"
-                    color="primary"
-                    class="mb-4"
                     required
-                    autofocus
+                    :rules="emailRules"
+                    variant="outlined"
                   />
 
                   <div class="d-flex justify-end">
                     <v-btn
-                      type="submit"
                       color="primary"
-                      size="large"
                       :loading="loading"
+                      size="large"
+                      type="submit"
                     >
                       下一步
                       <v-icon end>mdi-arrow-right</v-icon>
@@ -75,20 +75,20 @@
                 <v-form @submit.prevent="step2Click">
                   <v-text-field
                     v-model="forgetForm.verificationCode"
-                    :rules="verificationCodeRules"
-                    label="请输入验证码"
-                    prepend-inner-icon="mdi-shield-check"
                     :append-inner-icon="resendCooldown > 0 ? '' : 'mdi-refresh'"
-                    variant="outlined"
-                    color="primary"
-                    class="mb-6"
-                    required
                     autofocus
-                    maxlength="6"
-                    @click:append-inner="resendCode"
+                    class="mb-6"
+                    color="primary"
                     :disabled="resendCooldown > 0"
+                    label="请输入验证码"
+                    maxlength="6"
+                    prepend-inner-icon="mdi-shield-check"
+                    required
+                    :rules="verificationCodeRules"
+                    variant="outlined"
+                    @click:append-inner="resendCode"
                   >
-                    <template v-slot:append-inner v-if="resendCooldown > 0">
+                    <template v-if="resendCooldown > 0" #append-inner>
                       <span class="text-caption text-primary">
                         {{ resendCooldown }}s
                       </span>
@@ -97,19 +97,19 @@
 
                   <div class="d-flex justify-space-between">
                     <v-btn
-                      variant="outlined"
                       color="grey"
                       size="large"
+                      variant="outlined"
                       @click="goBack"
                     >
                       <v-icon start>mdi-arrow-left</v-icon>
                       上一步
                     </v-btn>
                     <v-btn
-                      type="submit"
                       color="primary"
-                      size="large"
                       :loading="loading"
+                      size="large"
+                      type="submit"
                     >
                       验证
                       <v-icon end>mdi-check</v-icon>
@@ -132,48 +132,48 @@
                 <v-form @submit.prevent="step3Click">
                   <v-text-field
                     v-model="forgetForm.newPassword"
-                    :rules="passwordRules"
+                    :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                    autofocus
+                    class="mb-4"
+                    color="primary"
                     label="新密码"
                     prepend-inner-icon="mdi-lock-reset"
-                    variant="outlined"
-                    color="primary"
-                    :type="showPassword ? 'text' : 'password'"
-                    :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                    @click:append-inner="showPassword = !showPassword"
-                    class="mb-4"
                     required
-                    autofocus
+                    :rules="passwordRules"
+                    :type="showPassword ? 'text' : 'password'"
+                    variant="outlined"
+                    @click:append-inner="showPassword = !showPassword"
                   />
 
                   <v-text-field
                     v-model="forgetForm.confirmPassword"
-                    :rules="confirmPasswordRules"
+                    :append-inner-icon="showConfirmPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                    class="mb-6"
+                    color="primary"
                     label="确认新密码"
                     prepend-inner-icon="mdi-lock-check"
-                    variant="outlined"
-                    color="primary"
-                    :type="showConfirmPassword ? 'text' : 'password'"
-                    :append-inner-icon="showConfirmPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                    @click:append-inner="showConfirmPassword = !showConfirmPassword"
-                    class="mb-6"
                     required
+                    :rules="confirmPasswordRules"
+                    :type="showConfirmPassword ? 'text' : 'password'"
+                    variant="outlined"
+                    @click:append-inner="showConfirmPassword = !showConfirmPassword"
                   />
 
                   <div class="d-flex justify-space-between">
                     <v-btn
-                      variant="outlined"
                       color="grey"
                       size="large"
+                      variant="outlined"
                       @click="goBack"
                     >
                       <v-icon start>mdi-arrow-left</v-icon>
                       上一步
                     </v-btn>
                     <v-btn
-                      type="submit"
                       color="primary"
-                      size="large"
                       :loading="loading"
+                      size="large"
+                      type="submit"
                     >
                       重置密码
                       <v-icon end>mdi-check-bold</v-icon>
@@ -188,30 +188,30 @@
                   <v-stepper-header>
                     <v-stepper-item
                       :complete="currentStep > 1"
-                      :value="1"
                       icon="mdi-email"
-                    ></v-stepper-item>
+                      :value="1"
+                    />
 
-                    <v-divider></v-divider>
+                    <v-divider />
 
                     <v-stepper-item
                       :complete="currentStep > 2"
-                      :value="2"
                       icon="mdi-shield-check"
-                    ></v-stepper-item>
+                      :value="2"
+                    />
 
-                    <v-divider></v-divider>
+                    <v-divider />
 
                     <v-stepper-item
                       :complete="currentStep > 3"
-                      :value="3"
                       icon="mdi-lock-reset"
-                    ></v-stepper-item>
+                      :value="3"
+                    />
                   </v-stepper-header>
                 </v-stepper>
               </div>
 
-              </v-col>
+            </v-col>
           </v-row>
         </v-card>
       </v-col>
@@ -225,233 +225,231 @@ meta:
 </route>
 
 <script setup lang="ts">
-import { ref, reactive, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { generateSecureCredentials } from '@/service/crypto';
-import { noauthApi } from '@/service/api';
+  import { onUnmounted, reactive, ref } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { noauthApi } from '@/service/api'
+  import { generateSecureCredentials } from '@/service/crypto'
 
-const router = useRouter();
+  const router = useRouter()
 
-// 表单数据
-const forgetForm = reactive({
-  email: '',
-  verificationCode: '',
-  newPassword: '',
-  confirmPassword: ''
-})
+  // 表单数据
+  const forgetForm = reactive({
+    email: '',
+    verificationCode: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
 
-// 状态管理
-const currentStep = ref(1)
-const loading = ref(false)
-const showPassword = ref(false)
-const showConfirmPassword = ref(false)
-const resendCooldown = ref(0)
+  // 状态管理
+  const currentStep = ref(1)
+  const loading = ref(false)
+  const showPassword = ref(false)
+  const showConfirmPassword = ref(false)
+  const resendCooldown = ref(0)
 
-// 表单验证规则
-const emailRules = [
-  (value: string) => !!value || '邮箱不能为空',
-  (value: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(value) || '请输入有效的邮箱地址'
-  }
-]
+  // 表单验证规则
+  const emailRules = [
+    (value: string) => !!value || '邮箱不能为空',
+    (value: string) => {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      return emailRegex.test(value) || '请输入有效的邮箱地址'
+    },
+  ]
 
-const verificationCodeRules = [
-  (value: string) => !!value || '验证码不能为空',
-  (value: string) => (value && value.length === 6) || '请输入6位验证码'
-]
+  const verificationCodeRules = [
+    (value: string) => !!value || '验证码不能为空',
+    (value: string) => (value && value.length === 6) || '请输入6位验证码',
+  ]
 
-const passwordRules = [
-  (value: string) => !!value || '密码不能为空',
-  (value: string) => (value && value.length >= 6) || '密码至少6个字符'
-]
+  const passwordRules = [
+    (value: string) => !!value || '密码不能为空',
+    (value: string) => (value && value.length >= 6) || '密码至少6个字符',
+  ]
 
-const confirmPasswordRules = [
-  (value: string) => !!value || '请确认密码',
-  (value: string) => value === forgetForm.newPassword || '两次输入的密码不一致'
-]
+  const confirmPasswordRules = [
+    (value: string) => !!value || '请确认密码',
+    (value: string) => value === forgetForm.newPassword || '两次输入的密码不一致',
+  ]
 
-// 定时器
-let cooldownTimer: number | null = null
+  // 定时器
+  let cooldownTimer: number | null = null
 
-// 显示错误提示
-const showError = (message: string) => {
-  alert(message)
-}
-
-// 步骤 1: 邮箱验证
-const step1Click = async () => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(forgetForm.email)) {
-    showError('请输入有效的邮箱地址')
-    return
+  // 显示错误提示
+  function showError (message: string) {
+    alert(message)
   }
 
-  // TODO: 调用发送验证码 API
-  // loading.value = true
-  //
-  // try {
-  //   // 发送验证码请求
-  //   const response = await noauthApi.post('/forgot-password/send-code', {
-  //     email: forgetForm.email
-  //   })
-  //
-  //   if (response.status === 200) {
-  //     currentStep.value = 2
-  //     startResendCooldown()
-  //   } else {
-  //     showError('发送验证码失败，请重试')
-  //   }
-  // } catch (error: any) {
-  //   console.error('发送验证码失败:', error)
-  //   showError('发送验证码失败，请重试')
-  // } finally {
-  //   loading.value = false
-  // }
-
-  // 暂时直接进入第2步（用于测试UI）
-  currentStep.value = 2
-}
-
-// 步骤 2: 验证码验证
-const step2Click = () => {
-  if (!forgetForm.verificationCode) {
-    showError('请输入验证码')
-    return
-  }
-
-  if (forgetForm.verificationCode.length !== 6) {
-    showError('请输入6位验证码')
-    return
-  }
-
-  // TODO: 调用验证码验证 API
-  // try {
-  //   const response = await noauthApi.post('/forgot-password/verify-code', {
-  //     email: forgetForm.email,
-  //     verificationCode: forgetForm.verificationCode
-  //   })
-  //
-  //   if (response.status === 200) {
-  //     currentStep.value = 3
-  //   } else {
-  //     showError('验证码错误，请重试')
-  //   }
-  // } catch (error: any) {
-  //   console.error('验证码验证失败:', error)
-  //   showError('验证码验证失败，请重试')
-  // }
-
-  // 暂时直接通过（用于测试UI）
-  currentStep.value = 3
-}
-
-// 步骤 3: 重置密码
-const step3Click = async () => {
-  if (!forgetForm.newPassword) {
-    showError('请输入新密码')
-    return
-  }
-
-  if (forgetForm.newPassword.length < 6) {
-    showError('密码至少6个字符')
-    return
-  }
-
-  if (forgetForm.newPassword !== forgetForm.confirmPassword) {
-    showError('两次输入的密码不一致')
-    return
-  }
-
-  loading.value = true
-
-  try {
-    // 前端加密
-    const { encryptedAccount, encryptedPassword } = await generateSecureCredentials(
-      forgetForm.email,
-      forgetForm.newPassword
-    )
-
-    // 发送重置密码请求
-    const response = await noauthApi.post('/forgot-password/reset', {
-      email: encryptedAccount,
-      verificationCode: forgetForm.verificationCode,
-      newPassword: encryptedPassword
-    })
-
-    if (response.status === 200) {
-      alert('密码重置成功！')
-      router.push('/login')
-    } else {
-      showError('密码重置失败，请重试')
+  // 步骤 1: 邮箱验证
+  async function step1Click () {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(forgetForm.email)) {
+      showError('请输入有效的邮箱地址')
+      return
     }
-  } catch (error: any) {
-    console.error('密码重置失败:', error)
-    showError('密码重置失败，请重试')
-  } finally {
-    loading.value = false
+
+    // TODO: 调用发送验证码 API
+    // loading.value = true
+    //
+    // try {
+    //   // 发送验证码请求
+    //   const response = await noauthApi.post('/forgot-password/send-code', {
+    //     email: forgetForm.email
+    //   })
+    //
+    //   if (response.status === 200) {
+    //     currentStep.value = 2
+    //     startResendCooldown()
+    //   } else {
+    //     showError('发送验证码失败，请重试')
+    //   }
+    // } catch (error: any) {
+    //   console.error('发送验证码失败:', error)
+    //   showError('发送验证码失败，请重试')
+    // } finally {
+    //   loading.value = false
+    // }
+
+    // 暂时直接进入第2步（用于测试UI）
+    currentStep.value = 2
   }
-}
 
-// 返回上一步
-const goBack = () => {
-  if (currentStep.value > 1) {
-    currentStep.value--
+  // 步骤 2: 验证码验证
+  function step2Click () {
+    if (!forgetForm.verificationCode) {
+      showError('请输入验证码')
+      return
+    }
+
+    if (forgetForm.verificationCode.length !== 6) {
+      showError('请输入6位验证码')
+      return
+    }
+
+    // TODO: 调用验证码验证 API
+    // try {
+    //   const response = await noauthApi.post('/forgot-password/verify-code', {
+    //     email: forgetForm.email,
+    //     verificationCode: forgetForm.verificationCode
+    //   })
+    //
+    //   if (response.status === 200) {
+    //     currentStep.value = 3
+    //   } else {
+    //     showError('验证码错误，请重试')
+    //   }
+    // } catch (error: any) {
+    //   console.error('验证码验证失败:', error)
+    //   showError('验证码验证失败，请重试')
+    // }
+
+    // 暂时直接通过（用于测试UI）
+    currentStep.value = 3
   }
-}
 
-// 重新发送验证码
-const resendCode = async () => {
-  if (resendCooldown.value > 0) return
+  // 步骤 3: 重置密码
+  async function step3Click () {
+    if (!forgetForm.newPassword) {
+      showError('请输入新密码')
+      return
+    }
 
-  // 立即开始倒计时
-  startResendCooldown()
+    if (forgetForm.newPassword.length < 6) {
+      showError('密码至少6个字符')
+      return
+    }
 
-  // TODO: 调用发送验证码 API
-  // loading.value = true
-  //
-  // try {
-  //   const response = await noauthApi.post('/forgot-password/send-code', {
-  //     email: forgetForm.email
-  //   })
-  //
-  //   if (response.status === 200) {
-  //     showError('验证码已重新发送')
-  //   } else {
-  //     showError('发送失败，请重试')
-  //   }
-  // } catch (error: any) {
-  //   console.error('重新发送验证码失败:', error)
-  //   showError('发送失败，请重试')
-  // } finally {
-  //   loading.value = false
-  // }
+    if (forgetForm.newPassword !== forgetForm.confirmPassword) {
+      showError('两次输入的密码不一致')
+      return
+    }
 
-  // 暂时直接提示（用于测试UI）
-  showError('验证码已重新发送')
-}
+    loading.value = true
 
-// 开始重发倒计时
-const startResendCooldown = () => {
-  resendCooldown.value = 60
-  cooldownTimer = setInterval(() => {
-    resendCooldown.value--
-    if (resendCooldown.value <= 0) {
-      if (cooldownTimer) {
+    try {
+      // 前端加密
+      const { encryptedAccount, encryptedPassword } = await generateSecureCredentials(
+        forgetForm.email,
+        forgetForm.newPassword,
+      )
+
+      // 发送重置密码请求
+      const response = await noauthApi.post('/forgot-password/reset', {
+        email: encryptedAccount,
+        verificationCode: forgetForm.verificationCode,
+        newPassword: encryptedPassword,
+      })
+
+      if (response.status === 200) {
+        alert('密码重置成功！')
+        router.push('/login')
+      } else {
+        showError('密码重置失败，请重试')
+      }
+    } catch (error: any) {
+      console.error('密码重置失败:', error)
+      showError('密码重置失败，请重试')
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // 返回上一步
+  function goBack () {
+    if (currentStep.value > 1) {
+      currentStep.value--
+    }
+  }
+
+  // 重新发送验证码
+  async function resendCode () {
+    if (resendCooldown.value > 0) return
+
+    // 立即开始倒计时
+    startResendCooldown()
+
+    // TODO: 调用发送验证码 API
+    // loading.value = true
+    //
+    // try {
+    //   const response = await noauthApi.post('/forgot-password/send-code', {
+    //     email: forgetForm.email
+    //   })
+    //
+    //   if (response.status === 200) {
+    //     showError('验证码已重新发送')
+    //   } else {
+    //     showError('发送失败，请重试')
+    //   }
+    // } catch (error: any) {
+    //   console.error('重新发送验证码失败:', error)
+    //   showError('发送失败，请重试')
+    // } finally {
+    //   loading.value = false
+    // }
+
+    // 暂时直接提示（用于测试UI）
+    showError('验证码已重新发送')
+  }
+
+  // 开始重发倒计时
+  function startResendCooldown () {
+    resendCooldown.value = 60
+    cooldownTimer = setInterval(() => {
+      resendCooldown.value--
+      if (resendCooldown.value <= 0 && cooldownTimer) {
         clearInterval(cooldownTimer)
         cooldownTimer = null
       }
-    }
-  }, 1000)
-}
-
-// 组件卸载时清理定时器
-onUnmounted(() => {
-  if (cooldownTimer) {
-    clearInterval(cooldownTimer)
-    cooldownTimer = null
+    }, 1000)
   }
-})
+
+  // 组件卸载时清理定时器
+  onUnmounted(() => {
+    if (cooldownTimer) {
+      clearInterval(cooldownTimer)
+      cooldownTimer = null
+    }
+  })
 
 </script>
 

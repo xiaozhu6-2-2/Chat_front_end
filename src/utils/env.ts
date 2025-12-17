@@ -7,14 +7,14 @@
 export enum Environment {
   DEVELOPMENT = 'development',
   PRODUCTION = 'production',
-  TEST = 'test'
+  TEST = 'test',
 }
 
 /**
  * 获取当前环境类型
  * @returns 当前环境类型
  */
-export function getCurrentEnvironment(): Environment {
+export function getCurrentEnvironment (): Environment {
   return import.meta.env.MODE as Environment
 }
 
@@ -22,7 +22,7 @@ export function getCurrentEnvironment(): Environment {
  * 判断是否为开发环境
  * @returns 是否为开发环境
  */
-export function isDevelopment(): boolean {
+export function isDevelopment (): boolean {
   return getCurrentEnvironment() === Environment.DEVELOPMENT
 }
 
@@ -30,7 +30,7 @@ export function isDevelopment(): boolean {
  * 判断是否为生产环境
  * @returns 是否为生产环境
  */
-export function isProduction(): boolean {
+export function isProduction (): boolean {
   return getCurrentEnvironment() === Environment.PRODUCTION
 }
 
@@ -40,7 +40,7 @@ export function isProduction(): boolean {
  * @param defaultValue 默认值
  * @returns 配置值
  */
-export function getEnvValue(key: string, defaultValue: string = ''): string {
+export function getEnvValue (key: string, defaultValue = ''): string {
   return import.meta.env[key] || defaultValue
 }
 
@@ -64,7 +64,7 @@ export const envConfig = {
 
   // 聊天配置
   defaultGroupId: getEnvValue('VITE_DEFAULT_GROUP_ID'),
-  defaultPrivateChatId: getEnvValue('VITE_DEFAULT_PRIVATE_CHAT_ID')
+  defaultPrivateChatId: getEnvValue('VITE_DEFAULT_PRIVATE_CHAT_ID'),
 }
 
 /**
@@ -72,7 +72,7 @@ export const envConfig = {
  * @param message 日志消息
  * @param data 额外数据
  */
-export function devLog(message: string, data?: any): void {
+export function devLog (message: string, data?: any): void {
   if (envConfig.enableDebug) {
     console.log(`[DEV] ${message}`, data)
   }
@@ -83,7 +83,7 @@ export function devLog(message: string, data?: any): void {
  * @param message 错误消息
  * @param error 错误对象
  */
-export function envErrorLog(message: string, error?: any): void {
+export function envErrorLog (message: string, error?: any): void {
   if (envConfig.enableLog) {
     console.error(`[ENV] ${message}`, error)
   }

@@ -1,14 +1,14 @@
 // ./service/chatService.ts
 
 import type { Chat } from '@/types/chat'
+import { useSnackbar } from '@/composables/useSnackbar'
 import { transformApiChat } from '@/types/chat'
 import { authApi } from './api'
-import { useSnackbar } from '@/composables/useSnackbar'
 
 const { showError } = useSnackbar()
 
 export const ChatService = {
-  async getChatList(): Promise<Chat[]> {
+  async getChatList (): Promise<Chat[]> {
     try {
       const response = await authApi.get('/chat/list')
 
@@ -33,16 +33,16 @@ export const ChatService = {
         console.error(`ChatService: 获取聊天列表失败： ${response.status}`)
         throw new Error(`获取聊天列表失败：${response.status}`)
       }
-    } catch (error) {
+    } catch {
       showError('获取聊天列表失败')
       return []
     }
   },
 
-  async getPrivateChat(friendId: string): Promise<Chat | null> {
+  async getPrivateChat (friendId: string): Promise<Chat | null> {
     try {
       const response = await authApi.post('/chat/soloprivate', {
-        "fid": friendId
+        fid: friendId,
       })
 
       if (response.status === 200) {
@@ -56,17 +56,17 @@ export const ChatService = {
       }
 
       throw new Error(`获取私聊会话失败：${response.status}`)
-    } catch (err) {
-      console.error('ChatService: 获取私聊会话失败', err)
+    } catch (error) {
+      console.error('ChatService: 获取私聊会话失败', error)
       showError('获取私聊会话失败')
       return null
     }
   },
 
-  async getGroupChat(groupId: string): Promise<Chat | null> {
+  async getGroupChat (groupId: string): Promise<Chat | null> {
     try {
       const response = await authApi.post('/chat/sologroup', {
-        "gid": groupId
+        gid: groupId,
       })
 
       if (response.status === 200) {
@@ -80,19 +80,19 @@ export const ChatService = {
       }
 
       throw new Error(`获取群聊会话失败：${response.status}`)
-    } catch (err) {
-      console.error('ChatService: 获取群聊会话失败', err)
+    } catch (error) {
+      console.error('ChatService: 获取群聊会话失败', error)
       showError('获取群聊会话失败')
       return null
     }
   },
 
-  async updateIsPinned(chatId: string, chatType: 'private' | 'group', isPinned: boolean): Promise<boolean> {
+  async updateIsPinned (chatId: string, chatType: 'private' | 'group', isPinned: boolean): Promise<boolean> {
     try {
       const response = await authApi.post('/auth/chat/updateIsPinned', {
         id: chatId,
         type: chatType,
-        is_pinned: isPinned
+        is_pinned: isPinned,
       })
 
       if (response.status === 200 && response.data?.success) {

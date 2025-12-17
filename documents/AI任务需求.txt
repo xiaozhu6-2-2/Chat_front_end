@@ -1,0 +1,165 @@
+接下来我会给你安排任务，务必先了解我的需求：
+  目前只完成了以下模块：认证、好友、好友请求；未完成的没有参考意义。
+  参考我之前实现的friendRequst模块的示例
+四层架构：service(API交互) -> store(数据操作)->composable( 响应组件操作与需求)->ui(具体实现不用管)
+📋 实现步骤（以 friendRequest 模块为例）
+
+类型定义 (types/friendRequest.ts)
+	定义好友请求相关接口
+	注：转换函数放在 types 文件中
+
+Service 层 (service/friendRequestService.ts)
+	实现核心 API 方法（发送、处理、获取请求）
+	自动携带 Authorization Bearer token
+	处理 API 响应和错误（用 console 标记执行位置）
+	注：不在此层添加 snackbar（因为不是直接由组件调用）
+
+Store 层 (stores/friendRequestStore.ts)
+	定义状态（收到/发送的请求列表、loading、error）
+	实现 Actions（获取、添加、更新、移除请求）
+	只负责状态管理，不处理错误
+  如果只是简单的 CRUD → Store 直接调用 Service
+	如果 action 直接由组件调用，应该有 snackbar
+
+Composable 层 (composables/useFriendRequest.ts)
+	Composable 职责说明：
+	1. 组合多个 Store：当需要跨 Store 交互时
+	2. 封装复杂业务逻辑：组合多个 actions 的场景
+	3. 如果需要组合多个 Store/Service 或有额外逻辑 → 使用 Composable
+	4. 本地状态管理：与 Store 无关的组件级状态
+
+	注：
+	- 不重复暴露 store 已经完成的封装
+	- 错误处理和 snackbar 在 composable 层处理
+
+文档更新 (documents/API接入与Pinia封装.md)
+	更新 friendRequest 模块各层职责说明
+
+通用设计说明：
+1、获取初始数据在store层面封装，在auth的login中进行；resetStore在logout中进行。
+2、每部分的代码需要添加类似的注释：
+/**
+   * 创建群聊
+   *
+   * 执行流程：
+   * 1. 调用 groupService 发送创建群聊请求
+   * 2. 创建成功后，将新群聊添加到 groupStore
+   * 3. 将当前用户（创建者）添加为群成员，角色设置为 OWNER
+   * 4. 从 authStore 获取用户名，构建成员信息
+   * 5. 记录操作日志并返回群聊对象
+   *
+   * 数据流：
+   * - 输入：创建参数（群名、头像、简介）
+   * - 输出：完整的群聊对象
+   * - 副作用：更新 groupStore 中的 groups 和 members
+   *
+   * 使用场景：
+   * - 用户创建新的群聊
+   * - 群聊创建成功后的自动处理
+   *
+   * @param {CreateGroupParams} params - 创建群聊的参数
+   * @returns {Promise<Group>} 创建成功的群聊对象
+   */
+
+3、API请求体必须要包含所有字段。对于前端为undefine的可选字段，请求体应该设置为null
+4、Store 的 action 如果直接由组件调用，应该有 snackbar
+如果 action 由 composable 调用，则 snackbar 在 composable 层
+Service 层应该没有 snackbar（因为不是直接由组件调用）
+snackbar和console可以同时使用。
+
+你需要完成的任务：
+按照上面的需求，构建groupRequest模块。
+注意：群聊申请有两种，一是用户申请记录，二是申请审核，可以看到，他们分为两个API获取，所以可以维护两个列表。对于用户申请，需要有目前群聊的BaseProfile(types/global)，也就是id, 头像，名称。
+对于申请审核，需要有申请用户的BaseProfile，还需要有目标群聊的名称。
+
+这是相关API文档：
+32. 发送加入群聊申请（√√√）
+- URL:/auth/groups/send_group_request
+- 方法：POST
+- 场景：用户加入群聊前需申请。
+请求头
+Authorization: Bearer {token}
+请求体
+{
+    "gid":"group_123",
+    "apply_text":"I want to join",
+}
+
+成功响应（200 OK）
+{
+    "req_id": "787556646380376064",
+    "gid": "787547607969828864",
+    "apply_text": "I want to join",
+    "create_time": 1765604936,
+    "status": "pending"
+}
+33. 查看群聊申请列表（√√）
+- URL:/auth/groups/get_request_list
+- 方法：GET
+- 场景：用户可在申请列表中查看自己的群聊申请记录。
+请求头：
+Authorization: Bearer {token}
+Content-Type: application/json
+
+响应体：
+{
+    "requests": [
+        {
+            "req_id": "787556646380376064",
+            "gid": "787547607969828864",
+            "group_name":"Echat",
+            "group_avatar":"",
+            "sender_uid": "787551337918238720",
+            "apply_text": "I want to join",
+            "create_time": 1765604936,
+            "status": "pending"
+        }
+    ],
+    "total": 1
+}
+34. 获取群聊加入申请列表（√）
+- URL:/auth/groups/group_request_list
+- 方法：POST
+- 场景：用户申请加入该群后，其申请将进入待审核队列。群主或管理员可通过本接口查询指定群聊的所有待处理加入申请列表，用于后续批准或拒绝操作。
+普通成员无权访问此接口；仅群主/管理员可查看自己管理的群的申请列表。
+请求头
+Authorization: Bearer {token}
+请求体
+{
+    "gid":"787547607969828864"
+}
+
+成功响应（200 OK）
+{
+    "requests": [
+        {
+            "req_id": "787556646380376064",
+            "gid": "787547607969828864",
+            "group_name": "csfamily"
+            "sender_uid": "787551337918238720",
+            "sender_name":"zhuzhu",
+            "sender_avatar":"",
+            "apply_text": "I want to join",
+            "create_time": 1765604936,
+            "status": "pending"
+        }
+    ],
+    "total": 1
+}
+35. 处理加入群聊申请（√√√）
+- URL:/auth/groups/respond
+- 方法：POST
+- 场景：用户切换到“群聊管理”页面中的“处理申请”页面时，拉取群聊加入申请消息列表。保证待处理的请求位于前面，已经处理的置后。若要查看申请者信息调用API6.获取非好友用户资料。
+普通成员无权访问此接口；仅群主/管理员可处理自己管理的群的申请列表。
+请求头
+Authorization: Bearer {token}
+请求体
+{
+  "req_id": "787556646380376064",
+  "action": "accept"
+}
+
+成功响应（200 OK）
+{
+    "success": true
+}

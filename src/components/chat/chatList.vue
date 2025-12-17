@@ -8,18 +8,18 @@
         :class="{ 'active-chat': isActiveChat(chat.id) }"
         @click="handleChatClick(chat)"
       >
-        <template v-slot:prepend>
+        <template #prepend>
           <div class="avatar-container mr-4">
             <Avatar
-              :url="chat.avatar"
-              :name="chat.name"
-              :size="40"
-              :clickable="false"
               avatar-class="custom-avatar"
-              :show-badge="chat.unreadCount > 0"
-              :badge-content="formatUnreadCount(chat.unreadCount)"
               badge-color="error"
+              :badge-content="formatUnreadCount(chat.unreadCount)"
               :badge-dot="false"
+              :clickable="false"
+              :name="chat.name"
+              :show-badge="chat.unreadCount > 0"
+              :size="40"
+              :url="chat.avatar"
             />
           </div>
         </template>
@@ -32,9 +32,9 @@
           {{ chat.lastMessage || '暂无消息' }}
         </v-list-item-subtitle>
 
-        <template v-slot:append>
+        <template #append>
           <div class="chat-meta">
-            <span class="chat-time" v-if="chat.updatedAt">
+            <span v-if="chat.updatedAt" class="chat-time">
               {{ formatTime(chat.updatedAt) }}
             </span>
           </div>
@@ -45,63 +45,63 @@
 </template>
 
 <script setup lang="ts">
-import { useChat } from '@/composables/useChat'
-import type { Chat } from '../../service/messageTypes'
-import Avatar from '../../components/global/Avatar.vue'
+  import type { Chat } from '../../service/messageTypes'
+  import type { ChatListProps } from '../../types/componentProps'
+  import { useChat } from '@/composables/useChat'
 
-import type { ChatListProps } from '../../types/componentProps'
+  import Avatar from '../../components/global/Avatar.vue'
 
-const props = withDefaults(defineProps<ChatListProps>(), {
-  activeChatId: undefined
-})
+  const props = withDefaults(defineProps<ChatListProps>(), {
+    activeChatId: undefined,
+  })
 
-const emit = defineEmits<{
-  chatSelected: [chat: Chat]
-}>()
+  const emit = defineEmits<{
+    chatSelected: [chat: Chat]
+  }>()
 
-const { chatList, selectChat } = useChat()
+  const { chatList, selectChat } = useChat()
 
-const isActiveChat = (chatId: string) => {
-  return props.activeChatId === chatId
-}
-
-const handleChatClick = (chat: Chat) => {
-  selectChat(chat)
-  emit('chatSelected', chat)
-}
-
-const formatUnreadCount = (count: number) => {
-  return count > 99 ? '99+' : count.toString()
-}
-
-const formatTime = (timestamp: string) => {
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-  if (diffDays === 0) {
-    // Today - show time
-    return date.toLocaleTimeString('zh-CN', {
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } else if (diffDays === 1) {
-    // Yesterday
-    return '昨天'
-  } else if (diffDays < 7) {
-    // This week
-    return date.toLocaleDateString('zh-CN', {
-      weekday: 'short'
-    })
-  } else {
-    // Older - show date
-    return date.toLocaleDateString('zh-CN', {
-      month: '2-digit',
-      day: '2-digit'
-    })
+  function isActiveChat (chatId: string) {
+    return props.activeChatId === chatId
   }
-}
+
+  function handleChatClick (chat: Chat) {
+    selectChat(chat)
+    emit('chatSelected', chat)
+  }
+
+  function formatUnreadCount (count: number) {
+    return count > 99 ? '99+' : count.toString()
+  }
+
+  function formatTime (timestamp: string) {
+    const date = new Date(timestamp)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+    if (diffDays === 0) {
+      // Today - show time
+      return date.toLocaleTimeString('zh-CN', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    } else if (diffDays === 1) {
+      // Yesterday
+      return '昨天'
+    } else if (diffDays < 7) {
+      // This week
+      return date.toLocaleDateString('zh-CN', {
+        weekday: 'short',
+      })
+    } else {
+      // Older - show date
+      return date.toLocaleDateString('zh-CN', {
+        month: '2-digit',
+        day: '2-digit',
+      })
+    }
+  }
 </script>
 
 <style lang="scss" scoped>

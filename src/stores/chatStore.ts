@@ -6,11 +6,11 @@
 // - 管理UI状态（加载、在线面板等）
 // 注意：消息数据由 messageService 管理，不在本 store 中存储
 
-import { ref, computed } from 'vue'
-import { defineStore } from 'pinia'
 import type { Chat, ChatType } from '@/types/chat'
-import { ChatService } from '@/service/chatService'
+import { defineStore } from 'pinia'
+import { computed, ref } from 'vue'
 import { useSnackbar } from '@/composables/useSnackbar'
+import { ChatService } from '@/service/chatService'
 
 export const useChatStore = defineStore('chat', () => {
   // State
@@ -28,7 +28,7 @@ export const useChatStore = defineStore('chat', () => {
   })
 
   // Actions
-  //用户登录后，获取会话列表（已在useAuth调用）
+  // 用户登录后，获取会话列表（已在useAuth调用）
   const fetchChatList = async () => {
     setLoading(true)
     console.log('chatStore: 开始获取聊天列表')
@@ -45,17 +45,17 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  //设置活跃会话
+  // 设置活跃会话
   const setActiveChat = (chatId: string) => {
     activeChatId.value = chatId
   }
 
-  //根据ID获取Chat
+  // 根据ID获取Chat
   const getChatByid = (chatId: string): Chat | undefined => {
     return chatList.value.find((chat: Chat) => chat.id === chatId)
   }
 
-  //删除会话,只在前端删除
+  // 删除会话,只在前端删除
   const deleteChatByid = (chatId: string) => {
     console.log(`chatStore: 开始删除会话 ${chatId}`)
 
@@ -65,7 +65,7 @@ export const useChatStore = defineStore('chat', () => {
     if (index === -1) {
       console.warn(`chatStore: 未找到会话 ${chatId}`)
       return
-    }else {
+    } else {
       // 获取被删除的会话信息
       const deletedChat = chatList.value[index]
 
@@ -82,18 +82,22 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  //更新chatlist
+  // 更新chatlist
   const updateChatList = (chats: Chat[]) => {
     chatList.value = chats
     sortChatList()
   }
 
-  //聊天列表排序：置顶优先，然后按更新时间
+  // 聊天列表排序：置顶优先，然后按更新时间
   const sortChatList = () => {
     chatList.value.sort((a: Chat, b: Chat) => {
       // 置顶的聊天优先
-      if (a.isPinned && !b.isPinned) return -1
-      if (!a.isPinned && b.isPinned) return 1
+      if (a.isPinned && !b.isPinned) {
+        return -1
+      }
+      if (!a.isPinned && b.isPinned) {
+        return 1
+      }
       // 按更新时间排序（最新的在前）
       const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0
       const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0
@@ -101,24 +105,24 @@ export const useChatStore = defineStore('chat', () => {
     })
   }
 
-  //添加会话
+  // 添加会话
   const addChat = (chat: Chat) => {
     console.log(`chatStore: 添加会话 ${chat.id}`)
     const existingIndex = chatList.value.findIndex((c: Chat) => c.id === chat.id)
-    if (existingIndex >= 0) {
-      // 更新现有会话
-      chatList.value[existingIndex] = chat
-      console.log(`chatStore: 更新现有会话 ${chat.id}`)
-    } else {
+    if (existingIndex === -1) {
       // 添加新会话
       chatList.value.push(chat)
       console.log(`chatStore: 添加新会话 ${chat.id}`)
+    } else {
+      // 更新现有会话
+      chatList.value[existingIndex] = chat
+      console.log(`chatStore: 更新现有会话 ${chat.id}`)
     }
     // 重新排序
     sortChatList()
   }
 
-  //更新会话最新消息
+  // 更新会话最新消息
   const updateChatLastMessage = (chatId: string, lastMessage: string) => {
     console.log(`chatStore: 更新会话 ${chatId} 的最新消息`)
     const chat = chatList.value.find((c: Chat) => c.id === chatId)
@@ -133,7 +137,7 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  //设置未读数
+  // 设置未读数
   const updateChatUnreadCount = (chatId: string, count: number) => {
     console.log(`chatStore: 设置会话 ${chatId} 未读数为 ${count}`)
     const chat = chatList.value.find((c: Chat) => c.id === chatId)
@@ -145,7 +149,7 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  //会话未读数+1：接收新消息时
+  // 会话未读数+1：接收新消息时
   const incrementUnreadCount = (chatId: string) => {
     console.log(`chatStore: 会话 ${chatId} 未读数+1`)
     const chat = chatList.value.find((c: Chat) => c.id === chatId)
@@ -157,13 +161,13 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  //会话未读数归0并通知后端：会话被点击时
+  // 会话未读数归0并通知后端：会话被点击时
   const resetUnreadCount = (chatId: string) => {
     updateChatUnreadCount(chatId, 0)
   }
 
-  //更新会话置顶状态
-  const updateIsPinned = async (chatId: string, type: ChatType ,isPinned: boolean) => {
+  // 更新会话置顶状态
+  const updateIsPinned = async (chatId: string, type: ChatType, isPinned: boolean) => {
     console.log(`chatStore: 开始设置会话 ${chatId} 置顶状态为 ${isPinned}`)
 
     const chat = chatList.value.find((c: Chat) => c.id === chatId)
@@ -196,8 +200,6 @@ export const useChatStore = defineStore('chat', () => {
       showError('设置置顶失败')
     }
   }
-
-
 
   const setOnlineBoardVisible = (visible: boolean) => {
     onlineBoardVisible.value = visible
@@ -239,6 +241,6 @@ export const useChatStore = defineStore('chat', () => {
     updateIsPinned,
     setOnlineBoardVisible,
     setLoading,
-    reset
+    reset,
   }
 })

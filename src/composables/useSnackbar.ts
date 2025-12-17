@@ -1,7 +1,7 @@
-//更简洁的封装，使用时无需再声明一下store
+// 更简洁的封装，使用时无需再声明一下store
 import { useSnackbarStore } from '@/stores/snackbarStore'
 
-export function useSnackbar() {
+export function useSnackbar () {
   const snackbarStore = useSnackbarStore()
 
   return {
