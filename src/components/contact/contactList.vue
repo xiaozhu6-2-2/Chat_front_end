@@ -17,7 +17,7 @@
           v-for="group in sortedGroups"
           :key="group.id"
           class="contact-item"
-          :class="{ 'active-contact': activeItem === group.id }"
+          :class="{ 'active-contact': activeItemId === group.id }"
           @click="setActiveItem(group.id)"
         >
           <div class="contact_content">
@@ -28,20 +28,7 @@
           </div>
         </v-list-item>
       </v-list-group>
-
-      <!-- 公众号分组 -->
-      <v-list-group v-model:opened="openGroups['公众号']" value="公众号">
-        <template #activator="{ props }">
-          <v-list-item v-bind="props" prepend-icon="mdi-wechat" title="公众号" />
-        </template>
-
-        <v-list-item
-          class="contact-item"
-          :class="{ 'active-contact': activeItem === 'officialAccounts' }"
-          @click="setActiveItem('officialAccounts')"
-        />
-      </v-list-group>
-
+      
       <!-- 联系人分组 -->
       <v-list-group v-model:opened="openGroups['联系人']" value="联系人">
         <template #activator="{ props }">
@@ -78,7 +65,7 @@
             v-for="contact in contacts"
             :key="contact.id"
             class="contact-item"
-            :class="{ 'active-contact': activeItem === contact.id }"
+            :class="{ 'active-contact': activeItemId === contact.id }"
             @click="setActiveItem(contact.id)"
           >
             <div class="contact_content">
@@ -118,7 +105,7 @@
           <div class="contact-avatar add-friend-avatar">
             <v-icon color="white" icon="mdi-account-plus" />
           </div>
-          <div class="contact-name">添加好友</div>
+          <div class="contact-name">新的朋友</div>
         </div>
       </v-list-item>
     </v-list>
@@ -126,38 +113,43 @@
 </template>
 
 <script setup lang="ts">
-  import type { ContactListProps } from '@/types/componentProps'
-  import { computed, ref } from 'vue'
-  import { useRouter } from 'vue-router'
-  import { useFriend } from '@/composables/useFriend'
+import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
+import type { ContactListEmits } from "../../types/global";
+import { useFriend } from '../../composables/useFriend';
+// 定义 emits
 
-  interface Contact {
-    id: string // 对应 friend.fid
-    uid: string // 对应 friend.uid
-    name: string
-    initial: string
-    tag?: string
-    avatar?: string
-    bio?: string
-    remark?: string
-  }
+const emit = defineEmits<ContactListEmits>();
+
+// Router 实例
+const router = useRouter();
+
+//用于展示在contactlist中的结构体
+//该结构体只再这个组件内使用，未泄露
+interface Contact {
+  id: string;      // 对应 friend.fid
+  uid: string;     // 对应 friend.uid
+  name: string;
+  initial: string; // 必须要有一个initial来按首字母排序
+  tag?: string;
+  avatar?: string;
+}
 
   interface Group {
     id: string
     name: string
   }
 
-  // 响应式状态
-  const activeItem = ref<string | null>(null)
-  const groupBy = ref<'initial' | 'tag'>('initial') // 分组模式
-  const openGroups = ref({
-    群聊: true,
-    公众号: true,
-    联系人: true,
-  })
+// 响应式状态
+const activeItemId = ref<string | null>(null);
+const groupBy = ref<'initial' | 'tag'>('initial'); // 分组模式
+const openGroups = ref({
+  群聊: true,
+  联系人: true,
+});
 
-  // 使用 useFriend composable
-  const { activeFriends } = useFriend()
+// 使用 useFriend composable
+const { activeFriends, getFriendByUid} = useFriend();
 
   // 静态群聊数据
   const groups: Group[] = [
@@ -169,19 +161,17 @@
     { id: 'g6', name: '产品经理交流' },
   ]
 
-  // 将好友数据转换为联系人格式
-  const contacts = computed(() => {
-    return activeFriends.value.map(friend => ({
-      id: friend.fid,
-      uid: friend.id, // 使用 BaseProfile 的 id 字段
-      name: friend.remark || friend.name, // 优先显示备注，没有则显示 name
-      initial: getInitial(friend.remark || friend.name), // 提取首字母
-      tag: friend.tag, // 好友标签
-      avatar: friend.avatar, // 头像
-      bio: friend.bio,
-      remark: friend.remark,
-    }))
-  })
+// 将好友数据转换为联系人格式
+const contacts = computed(() => {
+  return activeFriends.value.map(friend => ({
+    id: friend.fid,
+    uid: friend.uid,  // 添加 uid
+    name: friend.remark || friend.username, // 优先显示备注，没有则显示用户名
+    initial: getInitial(friend.remark || friend.username), // 提取首字母
+    tag: friend.tag, // 好友标签
+    avatar: friend.avatar, // 头像
+  }))
+})
 
   // 提取首字母的辅助函数
   function getInitial (name: string): string {
@@ -200,29 +190,31 @@
     return [...contacts.value].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
   })
 
-  // 计算属性 - 按首字母分组的联系人
-  const groupedContacts = computed(() => {
-    const groupsMap: Record<string, Contact[]> = {}
-    for (const contact of sortedContacts.value) {
-      const initial = contact.initial
-      if (!groupsMap[initial]) {
-        groupsMap[initial] = []
-      }
-      groupsMap[initial].push(contact)
+// 计算属性 - 按首字母分组的联系人
+const groupedContacts = computed(() => {
+  const groupsMap: Record<string, Contact[]> = {};
+  // 遍历每个contact
+  sortedContacts.value.forEach((contact) => {
+    const initial = contact.initial;
+    if (!groupsMap[initial]) {
+      groupsMap[initial] = [];
     }
-    return groupsMap
-  })
+    groupsMap[initial].push(contact);
+  });
+  return groupsMap;
+});
 
-  // 计算属性 - 按标签分组的联系人
-  const groupedContactsByTag = computed(() => {
-    const groupsMap: Record<string, Contact[]> = {}
-    for (const contact of sortedContacts.value) {
-      if (contact.tag) {
-        if (!groupsMap[contact.tag]) {
-          groupsMap[contact.tag] = []
-        }
-        groupsMap[contact.tag].push(contact)
+// 计算属性 - 按标签分组的联系人
+const groupedContactsByTag = computed(() => {
+  const groupsMap: Record<string, Contact[]> = {};
+  // 遍历每个contact
+  sortedContacts.value.forEach((contact) => {
+    if (contact.tag) {
+      if (!groupsMap[contact.tag]) {
+        groupsMap[contact.tag] = [];
       }
+      //已经检查了tag非空，报错忽略
+      groupsMap[contact.tag].push(contact);
     }
     return groupsMap
   })
@@ -232,55 +224,46 @@
     return groupBy.value === 'tag' ? groupedContactsByTag.value : groupedContacts.value
   })
 
-  // 获取标签颜色
-  function getTagColor (tag: string): string {
-    const colors = ['primary', 'secondary', 'success', 'warning', 'error', 'info', 'purple', 'indigo', 'teal']
-    const hash = (tag || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    return colors[hash % colors.length]
-  }
-
-  // 定义 props 和 emits
-  defineProps<ContactListProps>()
-
-  const emit = defineEmits<{
-    (e: 'itemClick', type: 'contact' | 'group', data: Contact | Group): void
-  }>()
-
-  // Router 实例
-  const router = useRouter()
+// 获取标签颜色
+const getTagColor = (tag: string): string => {
+  const colors = ['primary', 'secondary', 'success', 'warning', 'error', 'info', 'purple', 'indigo', 'teal']
+  const hash = (tag || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  return colors[hash % colors.length]
+}
 
   // 导航到添加好友页面
   function navigateToAddFriend () {
     router.push('/AddFriend')
   }
 
-  // 修改 setActiveItem 方法
-  function setActiveItem (id: string) {
-    activeItem.value = id
+// 修改 setActiveItem 方法
+const setActiveItem = (id: string) => {
+  activeItemId.value = id;
 
-    // 查找并发射对应数据
-    let found = groups.find(g => g.id === id)
-    if (found) {
-      emit('itemClick', 'group', found)
-      return
-    }
-
-    found = contacts.value.find(c => c.id === id)
-    if (found) {
-      emit('itemClick', 'contact', found)
-      return
-    }
-
-    // 处理公众号点击
-    if (id === 'officialAccounts') {
-    // 可以添加公众号处理逻辑
-    }
+  // 查找并发射对应数据
+  // 只检查id来判断是群聊还是私聊
+  let found = groups.find((g) => g.id === id);
+  if (found) {
+    emit("itemClick", "group", found);
+    return;
   }
 
-  // 切换分组展开状态
-  function toggleGroup (groupName: '群聊' | '公众号' | '联系人') {
-    openGroups.value[groupName] = !openGroups.value[groupName]
+  found = contacts.value.find((c) => c.id === id);
+  if (found) {
+    // 从 activeFriends 中获取完整的 FriendWithUserInfo 数据
+    // 已进行类型转换，报错忽略
+    const friendData = getFriendByUid(found.uid);
+    if (friendData) {
+      emit("itemClick", "contact", friendData);
+    }
+    return;
   }
+};
+
+// 切换分组展开状态
+const toggleGroup = (groupName: '群聊' | '联系人') => {
+  openGroups.value[groupName] = !openGroups.value[groupName];
+};
 </script>
 
 <style scoped>

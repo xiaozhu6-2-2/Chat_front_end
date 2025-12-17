@@ -53,10 +53,18 @@ interface FriendUpdateOptions {
   tag?: string // 分组标签
 }
 
-// ==================== 转换函数 ====================
+// =================联系人相关组件props与emits===============
 
-// 将API的响应体转为好友列表的结构体
-function FriendApiToFriendWithUserInfo (apiData: FriendProfileFromApi): FriendWithUserInfo {
+
+/** 联系人卡片 Props */
+interface ContactCardProps {
+  contact: FriendWithUserInfo;
+}
+
+
+// =================结构体类型转换函数==================
+//将API的响应体转为好友列表的结构体
+function FriendApiToFriendWithUserInfo(apiData: FriendProfileFromApi): FriendWithUserInfo{
   const userInfo: UserInfo = {
     account: apiData.account,
     gender: apiData.gender,
@@ -99,7 +107,24 @@ export type {
   FriendWithUserInfo,
   UpdateFriendProfileParams,
   UserInfo,
+  ContactCardProps,
+  UpdateFriendProfileParams
+}
+export  {
+  FriendApiToFriendWithUserInfo,
 }
 
-// 转换函数导出
-export { FriendApiToFriendWithUserInfo }
+// ==================== 组件 Props 默认值配置 ====================
+
+/** 联系人卡片默认值 */
+export const ContactCardDefaults = {
+  contact: {
+    id: '',
+    name: '',
+    avatar: '',
+    email: '',
+    phone: '',
+    initial: '',
+    remark: ''
+  }
+};

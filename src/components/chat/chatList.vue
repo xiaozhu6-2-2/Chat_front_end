@@ -45,63 +45,63 @@
 </template>
 
 <script setup lang="ts">
-  import type { Chat } from '../../service/messageTypes'
-  import type { ChatListProps } from '../../types/componentProps'
-  import { useChat } from '@/composables/useChat'
+import { useChat } from '../../composables/useChat'
+import type { Chat } from '../../types/chat'
+import Avatar from '../../components/global/Avatar.vue'
 
-  import Avatar from '../../components/global/Avatar.vue'
+const { activeChatId } = useChat()
 
-  const props = withDefaults(defineProps<ChatListProps>(), {
-    activeChatId: undefined,
-  })
-
-  const emit = defineEmits<{
-    chatSelected: [chat: Chat]
-  }>()
+// 取消props，改用pinia缓存的活跃id
+// const props = withDefaults(defineProps<ChatListProps>(), {
+//   activeChatId: undefined
+// })
+// 使用usechat 中的函数
+// const emit = defineEmits<{
+//   chatSelected: [chat: Chat]
+// }>()
 
   const { chatList, selectChat } = useChat()
 
-  function isActiveChat (chatId: string) {
-    return props.activeChatId === chatId
-  }
+const isActiveChat = (chatId: string) => {
+  return activeChatId.value === chatId
+}
 
-  function handleChatClick (chat: Chat) {
-    selectChat(chat)
-    emit('chatSelected', chat)
-  }
+const handleChatClick = (chat: Chat) => {
+  selectChat(chat.id)
+}
 
-  function formatUnreadCount (count: number) {
-    return count > 99 ? '99+' : count.toString()
-  }
+const formatUnreadCount = (count: number) => {
+  return count > 99 ? '99+' : count.toString()
+}
 
-  function formatTime (timestamp: string) {
-    const date = new Date(timestamp)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+const formatTime = (timestamp: string) => {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
-    if (diffDays === 0) {
-      // Today - show time
-      return date.toLocaleTimeString('zh-CN', {
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    } else if (diffDays === 1) {
-      // Yesterday
-      return '昨天'
-    } else if (diffDays < 7) {
-      // This week
-      return date.toLocaleDateString('zh-CN', {
-        weekday: 'short',
-      })
-    } else {
-      // Older - show date
-      return date.toLocaleDateString('zh-CN', {
-        month: '2-digit',
-        day: '2-digit',
-      })
-    }
+  if (diffDays === 0) {
+    // Today - show time
+    return date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } else if (diffDays === 1) {
+    // Yesterday
+    return '昨天'
+  } else if (diffDays < 7) {
+    // This week
+    return date.toLocaleDateString('zh-CN', {
+      weekday: 'short'
+    })
+  } else {
+    // Older - show date
+    return date.toLocaleDateString('zh-CN', {
+      month: '2-digit',
+      day: '2-digit'
+    })
   }
+}
 </script>
 
 <style lang="scss" scoped>

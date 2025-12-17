@@ -35,9 +35,12 @@
   import { computed, ref } from 'vue'
   import { AvatarDefaults } from '../../types/componentProps'
 
-  defineOptions({
-    name: 'Avatar',
-  })
+defineOptions({
+  name: 'Avatar'
+})
+
+import type { AvatarProps } from '../../types/global'
+import { AvatarDefaults } from '../../types/global'
 
   const props = withDefaults(defineProps<AvatarProps>(), AvatarDefaults)
 
@@ -51,13 +54,13 @@
     return imageError.value ? '' : props.url
   })
 
-  const fallbackText = computed(() => {
-    if (props.name) {
-      // 取名字的前1-2个字符作为头像显示
-      return props.name.slice(0, 2).toUpperCase()
-    }
-    return props.alt.slice(0, 2).toUpperCase()
-  })
+const fallbackText = computed(() => {
+  if (props.name) {
+    // 取名字的前1-2个字符作为头像显示
+    return props.name.slice(0, 2).toUpperCase()
+  }
+  // return props.alt.slice(0, 2).toUpperCase()
+})
 
   function handleImageError () {
     imageError.value = true

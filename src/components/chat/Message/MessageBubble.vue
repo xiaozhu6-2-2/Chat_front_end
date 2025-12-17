@@ -74,25 +74,32 @@
       v-if="showContactCard && selectedContactInfo"
       v-model="showContactCard"
       :contact="selectedContactInfo"
+      v-model="showContactCard"
+      @update-friend-profile="(fid, remark, isBlacklisted, tag) => friendStore.updateFriendProfile(fid,  remark, isBlacklisted, tag )"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-  import type { MessageBubbleProps } from '../../../types/componentProps'
-  import { computed, ref } from 'vue'
-  import { ContentType, MessageType } from '../../../service/messageTypes'
+import { computed, ref } from 'vue'
+import { ContentType, MessageType } from '../../../service/messageTypes'
+import type { MessageBubbleProps } from '../../../types/chat'
+import { useFriendStore } from '../../../stores/friendStore'
+import type { FriendWithUserInfo } from '../../../types/friend'
+import { useFriend } from '../../../composables/useFriend'
 
   const props = withDefaults(defineProps<MessageBubbleProps>(), {
     currentUserId: 'current-user',
   })
 
-  const emit = defineEmits<{
-    imagePreview: [imageUrl: string]
-  }>()
+const friendStore = useFriendStore()
+const { updateFriendProfile } = useFriend()
+const emit = defineEmits<{
+  imagePreview: [imageUrl: string]
+}>()
 
-  const showContactCard = ref(false)
-  const selectedContactInfo = ref<any>(null)
+const showContactCard = ref(false)
+const selectedContactInfo = ref<FriendWithUserInfo>()
 
   const isOwnMessage = computed(() =>
     props.message.userIsSender || props.message.payload.senderId === props.currentUserId,
@@ -197,44 +204,52 @@
     }
   }
 
-  // 处理头像点击事件
-  function handleAvatarClick () {
-    selectedContactInfo.value = {
-      uid: senderName.value,
-      username: senderName.value,
-      account: senderName.value,
-      gender: 'other',
-      region: '',
-      email: `${senderName.value.toLowerCase()}@example.com`,
-      create_time: new Date().toISOString(),
-      avatar: senderAvatar.value,
-      bio: '用户信息',
-    }
-    showContactCard.value = true
+// 处理头像点击事件
+const handleAvatarClick = () => {
+  const senderId = props.message.payload.senderId
+
+  // 首先检查是否为好友
+  const friendInfo = senderId ? friendStore.getFriendByUid(senderId) : null
+
+  if (friendInfo) {
+    // 如果是好友，传递完整的 FriendWithUserInfo 数据
+    selectedContactInfo.value = friendInfo
+  } else {
+    // 如果是陌生人，构建不完整的数据
+    selectedContactInfo.value = getStrangerData()
   }
 
-  // 处理自己头像点击事件
-  function handleMyAvatarClick () {
-    selectedContactInfo.value = {
-      uid: 'current-user',
-      username: '我',
-      account: 'me',
-      gender: 'other',
-      region: '',
-      email: 'me@example.com',
-      create_time: new Date().toISOString(),
-      avatar: currentUserAvatar.value,
-      bio: '这是我的个人信息',
+  showContactCard.value = true
+}
+
+// 处理自己头像点击事件
+const handleMyAvatarClick = () => {
+  // 自己的头像不查询好友关系，直接构建 UserProfile
+  selectedContactInfo.value = {
+    // TODO：考虑从 authStore 获取真实的用户数据
+    fid: '1111',
+    uid: 'current-user',
+    username: '我',
+    createdAt: new Date().toISOString(),
+    isBlacklisted: false,
+    avatar: currentUserAvatar.value,
+    bio: '这是我的个人信息',
+    info:{
+      account: '1111',
+      gender: 'male',
+      region: '11',
+      email: '111'
     }
-    showContactCard.value = true
   }
+  showContactCard.value = true
+}
 </script>
 
 <style lang="scss" scoped>
 .message-bubble {
   display: flex;
   margin-bottom: 16px;
-  max-width: 80%;
+  // max-width: 80%;
   width: auto;
   &.own-message {
     margin-left: auto;
@@ -259,7 +274,7 @@
   flex-direction: column;
   min-width: 0;
   flex: 1;
-  max-width: 70%; // 限制内容区域最大宽度
+  // max-width: 70%; // 限制内容区域最大宽度
 }
 
 .message-sender {
@@ -276,7 +291,7 @@
   max-width: fit-content;
   min-width: 0;
   align-self: flex-start;
-
+  box-shadow: 2px 2px 5px 0 rgba(0,0,0,0.2);
   &.own-bubble {
     background-color: #1976d2;
     color: black;

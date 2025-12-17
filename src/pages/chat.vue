@@ -1,48 +1,45 @@
 <template>
-  <maincontent>
-    <template #detailbar>
-      <chatList :active-chat-id="activeChatId" @chat-selected="handleChatSelected" />
-    </template>
-    <template #main>
-      <!-- 默认界面 -->
-      <div v-if="!currentChat" class="welcome-container">
-        <echat-welcome />
-      </div>
+    <maincontent>
+      <template #detailbar>
+        <chatList :active-chat-id="activeChatId" />
+      </template>
+      <template #main>
+        <!-- 默认界面 -->
+        <div v-if="!activeChat" class="welcome-container">
+          <echat-welcome />
+        </div>
 
-      <!-- 聊天界面 -->
-      <chatArea v-else :chat="currentChat" @image-preview="handleImagePreview" />
-    </template>
-  </maincontent>
+        <!-- 聊天界面 -->
+        <chatArea v-else :chat="activeChat" @image-preview="handleImagePreview" />
+      </template>
+    </maincontent>
 </template>
 
 <script setup lang="ts">
-  import type { Chat } from '@/service/messageTypes'
-  import { computed, onMounted } from 'vue'
-  import chatArea from '@/components/chat/chatArea.vue'
-  import chatList from '@/components/chat/chatList.vue'
-  import { useChat } from '@/composables/useChat'
-  import maincontent from '@/layouts/maincontent.vue'
+import { computed, onMounted } from 'vue'
+import maincontent from '../layouts/maincontent.vue'
+import { useChat } from '../composables/useChat'
+import { useChatStore } from '../stores/chatStore'
+import chatList from '../components/chat/chatList.vue'
+import chatArea from '../components/chat/chatArea.vue'
+import type { Chat } from '../types/chat'
 
-  // Use chat composable
-  const { currentChat, selectChat, refreshChatList } = useChat()
+// Use chat composable
+const { activeChatId, activeChat, selectChat } = useChat()
+const { fetchChatList } = useChatStore()
+// Computed property for active chat ID
+// const activeChatId = computed(() => currentChat.value?.id)
 
-  // Computed property for active chat ID
-  const activeChatId = computed(() => currentChat.value?.id)
-
-  // Event handlers
-  function handleChatSelected (chat: Chat) {
-    selectChat(chat)
-  }
 
   function handleImagePreview (imageUrl: string) {
     // TODO: Implement image preview dialog
     console.log('Image preview:', imageUrl)
   }
 
-  // Initialize chat list on mount
-  onMounted(() => {
-    refreshChatList()
-  })
+// Initialize chat list on mount
+onMounted(() => {
+  fetchChatList()
+})
 </script>
 
 <style scoped>

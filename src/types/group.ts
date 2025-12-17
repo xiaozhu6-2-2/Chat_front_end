@@ -305,3 +305,18 @@ export function transformGroupMemberFromApi (apiData: GroupMemberFromAPI): Group
 export function getGroupId (group: Group | GroupCard | GroupProfile): string {
   return group.id
 }
+/** 群组信息接口 */
+interface GroupInfo {
+  id: string;
+  name: string;
+}
+
+/** 群组卡片 Props */
+interface GroupCardProps {
+  group: GroupInfo;
+}
+
+export type {
+    GroupInfo,
+    GroupCardProps
+}

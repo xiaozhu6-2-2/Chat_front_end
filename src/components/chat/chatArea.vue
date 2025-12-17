@@ -3,17 +3,19 @@
     <!-- 顶部聊天信息栏 -->
     <v-toolbar class="chat-header" density="compact">
       <Avatar
-        avatar-class="custom-avatar ml-6"
-        :clickable="false"
-        :name="currentChat?.name"
+        :url="activeChat?.avatar"
+        :name="activeChat?.name"
         :size="40"
-        :url="currentChat?.avatar"
-        v-bind="props"
+        :clickable="false"
+        avatar-class="custom-avatar ml-6"
       />
-      <v-toolbar-title>{{ currentChat?.name }}</v-toolbar-title>
-      <v-spacer />
+      <v-toolbar-title>{{ activeChat?.name }}</v-toolbar-title>
+      <v-spacer></v-spacer>
 
-      <v-btn icon @click="toggleOnlineBoard">
+      <v-btn v-if="activeChat?.type === 'group'" icon @click="toggleOnlineBoard">
+        <v-icon>mdi-dots-horizontal</v-icon>
+      </v-btn>
+      <v-btn v-if="activeChat?.type === 'private'" icon @click="togglePrivateBoard">
         <v-icon>mdi-dots-horizontal</v-icon>
       </v-btn>
     </v-toolbar>
@@ -36,41 +38,10 @@
         @image-preview="handleImagePreview"
         @scroll-near-bottom="handleScrollNearBottom"
       />
-
-      <!-- Typing Indicator -->
-      <!-- todo：检测对方正在输入 -->
-      <!-- <div v-if="isTyping" class="typing-indicator">
-        <div class="typing-dots">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-        <span class="typing-text">对方正在输入...</span>
-      </div> -->
     </div>
-    <v-divider />
 
     <!-- 底部输入区域 -->
     <div class="input-container">
-      <!-- 工具栏 -->
-      <div class="toolbar">
-        <v-btn icon variant="text" @click="toggleEmojiPicker">
-          <v-icon>mdi-emoticon-outline</v-icon>
-        </v-btn>
-        <v-btn icon variant="text" @click="handleFileUpload">
-          <v-icon>mdi-image-outline</v-icon>
-        </v-btn>
-        <v-btn icon variant="text" @click="handleFileUpload">
-          <v-icon>mdi-file-outline</v-icon>
-        </v-btn>
-        <v-btn icon variant="text" @click="handleVoiceRecord">
-          <v-icon>mdi-microphone</v-icon>
-        </v-btn>
-        <v-spacer />
-        <v-btn icon variant="text">
-          <v-icon>mdi-dots-horizontal</v-icon>
-        </v-btn>
-      </div>
 
       <!-- 表情选择器 -->
       <div v-if="showEmojiPicker" class="emoji-picker">
@@ -85,7 +56,7 @@
       </div>
 
       <!-- 输入框 -->
-      <v-textarea
+      <!-- <v-textarea
         v-model="message"
         auto-grow
         class="message-input"
@@ -95,20 +66,14 @@
         variant="plain"
         @input="handleTyping"
         @keydown.enter.exact.prevent="handleSendMessage"
+        @input="handleTyping"
+      /> -->
+      <echatInput
+        @keydown.enter.exact.prevent="handleSendMessage"
+        @send-message="handleSendMessage"
+        v-model="message"
       />
 
-      <!-- 发送按钮 -->
-      <div class="send-button-container">
-        <v-btn
-          color="primary"
-          :disabled="!message.trim()"
-          :loading="isSending"
-          variant="flat"
-          @click="handleSendMessage"
-        >
-          发送
-        </v-btn>
-      </div>
     </div>
 
     <!-- Online Board -->
@@ -117,37 +82,37 @@
 </template>
 
 <script setup lang="ts">
-  import type { Chat, LocalMessage } from '../../service/messageTypes'
-  import type { ChatAreaProps } from '@/types/componentProps'
-  import { computed, onMounted, ref, watch } from 'vue'
-  import { useChat } from '@/composables/useChat'
-  import { useMessageInput } from '@/composables/useMessageInput'
-  import { useChatStore } from '@/stores/chatStore'
-  import Avatar from '../../components/global/Avatar.vue'
-  import ContactCardModal from '../../components/global/ContactCardModal.vue'
-  import { messageService } from '../../service/message'
-  import { ChatType } from '../../service/messageTypes'
-  import OnlineBoard from './onlineBoard.vue'
+import { ref, computed, watch, onMounted } from "vue";
+import { useChat } from "../../composables/useChat";
+import { useMessageInput } from "../../composables/useMessageInput";
+import { useChatStore } from "../../stores/chatStore";
+import { messageService } from "../../service/message";
+import type { ChatType, Chat, ChatAreaProps } from "../../types/chat";
+import Avatar from "../../components/global/Avatar.vue";
+import ContactCardModal from "../../components/global/ContactCardModal.vue";
+import OnlineBoard from "./onlineBoard.vue";
+import echatInput from "./echatInput.vue";
 
-  import VirtualMessageList from './VirtualMessageList.vue'
+import VirtualMessageList from "./VirtualMessageList.vue";
+import type { LocalMessage } from "../../service/messageTypes";
 
-  const props = defineProps<ChatAreaProps>()
+const props = defineProps<ChatAreaProps>();
 
   const emit = defineEmits<{
     imagePreview: [imageUrl: string]
   }>()
 
-  // Store and composables
-  const chatStore = useChatStore()
-  const { currentChat, messages, sendMessage, selectChat } = useChat()
-  const {
-    message,
-    showEmojiPicker,
-    emojis,
-    insertEmoji,
-    toggleEmojiPicker,
-    scrollToBottom,
-  } = useMessageInput()
+// Store and composables
+const chatStore = useChatStore();
+const { activeChat, selectChat } = useChat();
+const {
+  message,
+  showEmojiPicker,
+  emojis,
+  insertEmoji,
+  toggleEmojiPicker,
+  scrollToBottom,
+} = useMessageInput();
 
   // Local state
   const showOnlineBoard = ref(false)
@@ -157,48 +122,50 @@
   const typingTimeout = ref<number>()
   const virtualMessageList = ref()
 
-  // 当前聊天联系人信息
-  const currentChatContact = computed(() => {
-    if (!props.chat) return null
-    return {
-      uid: props.chat.id,
-      username: props.chat.name,
-      account: props.chat.name.toLowerCase().replace(/\s+/g, '_'),
-      gender: 'other' as const,
-      region: '',
-      email: `${props.chat.name.toLowerCase()}@example.com`,
-      create_time: new Date().toISOString(),
-      avatar: props.chat.avatar,
-      bio: `${props.chat.name}的聊天`,
-    }
-  })
+// 当前聊天联系人信息
+const currentChatContact = computed(() => {
+  if (!props.chat) return null;
+  return {
+    //TODO: 改用useauth中的缓存
+    uid: props.chat.id,
+    username: props.chat.name,
+    account: props.chat.name.toLowerCase().replace(/\s+/g, "_"),
+    gender: "other" as const,
+    region: "",
+    email: `${props.chat.name.toLowerCase()}@example.com`,
+    create_time: new Date().toISOString(),
+    avatar: props.chat.avatar,
+    bio: `${props.chat.name}的聊天`,
+  };
+});
 
-  // 虚拟滚动配置
-  const currentUserId = ref('current-user')
-  const autoScroll = ref(true)
-  const containerHeight = computed(() => {
-    // 计算容器高度，减去头部、输入框等高度
-    const headerHeight = 64 // v-toolbar 高度
-    const inputHeight = 120 // 输入区域估计高度
-    const padding = 32 // 上下边距
-    return window.innerHeight - headerHeight - inputHeight - padding - 60 // 侧边栏宽度
-  })
+// 虚拟滚动配置
+//todo ：改用useauth缓存
+const currentUserId = ref("current-user");
+const autoScroll = ref(true);
+const containerHeight = computed(() => {
+  // 计算容器高度，减去头部、输入框等高度
+  const headerHeight = 64; // v-toolbar 高度
+  const inputHeight = 120; // 输入区域估计高度
+  const padding = 32; // 上下边距
+  return window.innerHeight - headerHeight - inputHeight - padding - 60; // 侧边栏宽度
+});
 
   // Computed
   const isLoading = computed(() => chatStore.isLoading)
 
-  // Watch for chat changes
-  watch(
-    () => props.chat,
-    newChat => {
-      if (newChat) {
-        // The useChat composable will handle setting the current chat
-        // Call selectChat to load history messages
-        selectChat(newChat)
-      }
-    },
-    { immediate: true },
-  )
+// Watch for chat changes
+watch(
+  () => props.chat,
+  (newChat) => {
+    if (newChat) {
+      // The useChat composable will handle setting the current chat
+      // Call selectChat to load history messages
+      selectChat(newChat.id);
+    }
+  },
+  { immediate: true }
+);
 
   // Watch for messages to scroll to bottom
   watch(
@@ -230,36 +197,25 @@
       isSending.value = false
     }
   }
+};
 
-  function handleTyping () {
-    // Clear existing timeout
-    if (typingTimeout.value) {
-      clearTimeout(typingTimeout.value)
-    }
+const toggleOnlineBoard = () => {
+  showOnlineBoard.value = !showOnlineBoard.value;
+  chatStore.setOnlineBoardVisible(showOnlineBoard.value);
+};
 
-  // todo：检测对方正在输入
-  // Show typing indicator
-  // isTyping.value = true;
+const togglePrivateBoard = () => {
+  //todo 私聊时点击右上角三个点出现什么界面待设计
+}
 
-  // Hide after 3 seconds of no typing
-  // typingTimeout.value = window.setTimeout(() => {
-  //   isTyping.value = false;
-  // }, 3000) as unknown as number;
-  }
+const handleImagePreview = (imageUrl: string) => {
+  emit("imagePreview", imageUrl);
+};
 
-  function toggleOnlineBoard () {
-    showOnlineBoard.value = !showOnlineBoard.value
-    chatStore.setOnlineBoardVisible(showOnlineBoard.value)
-  }
-
-  function handleImagePreview (imageUrl: string) {
-    emit('imagePreview', imageUrl)
-  }
-
-  function handleFileUpload () {
-    // TODO: Implement file upload
-    console.log('File upload clicked')
-  }
+const handleFileUpload = () => {
+  // TODO: Implement file upload
+  console.log("File upload clicked");
+};
 
   function handleVoiceRecord () {
     // TODO: Implement voice recording
@@ -321,12 +277,6 @@
 .input-container {
   background-color: #1a1a25;
   padding: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.toolbar {
-  display: flex;
-  padding: 5px 0;
 }
 
 .emoji-picker {
@@ -343,11 +293,5 @@
 
 .message-input {
   margin: 8px 0;
-}
-
-.send-button-container {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 10px;
 }
 </style>
