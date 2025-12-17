@@ -106,7 +106,7 @@
           <div class="contact-avatar add-friend-avatar">
             <v-icon icon="mdi-account-plus" color="white"></v-icon>
           </div>
-          <div class="contact-name">添加好友</div>
+          <div class="contact-name">新的朋友</div>
         </div>
       </v-list-item>
     </v-list>
@@ -126,6 +126,7 @@ const emit = defineEmits<ContactListEmits>();
 const router = useRouter();
 
 //用于展示在contactlist中的结构体
+//该结构体只再这个组件内使用，未泄露
 interface Contact {
   id: string;      // 对应 friend.fid
   uid: string;     // 对应 friend.uid
@@ -145,12 +146,11 @@ const activeItemId = ref<string | null>(null);
 const groupBy = ref<'initial' | 'tag'>('initial'); // 分组模式
 const openGroups = ref({
   群聊: true,
-  公众号: true,
   联系人: true,
 });
 
 // 使用 useFriend composable
-const { activeFriends, getFriendByUid } = useFriend();
+const { activeFriends, getFriendByUid} = useFriend();
 
 // 静态群聊数据
 const groups: Group[] = [
@@ -194,6 +194,7 @@ const sortedContacts = computed(() => {
 // 计算属性 - 按首字母分组的联系人
 const groupedContacts = computed(() => {
   const groupsMap: Record<string, Contact[]> = {};
+  // 遍历每个contact
   sortedContacts.value.forEach((contact) => {
     const initial = contact.initial;
     if (!groupsMap[initial]) {
@@ -207,11 +208,13 @@ const groupedContacts = computed(() => {
 // 计算属性 - 按标签分组的联系人
 const groupedContactsByTag = computed(() => {
   const groupsMap: Record<string, Contact[]> = {};
+  // 遍历每个contact
   sortedContacts.value.forEach((contact) => {
     if (contact.tag) {
       if (!groupsMap[contact.tag]) {
         groupsMap[contact.tag] = [];
       }
+      //已经检查了tag非空，报错忽略
       groupsMap[contact.tag].push(contact);
     }
   });
@@ -250,21 +253,17 @@ const setActiveItem = (id: string) => {
   found = contacts.value.find((c) => c.id === id);
   if (found) {
     // 从 activeFriends 中获取完整的 FriendWithUserInfo 数据
+    // 已进行类型转换，报错忽略
     const friendData = getFriendByUid(found.uid);
     if (friendData) {
       emit("itemClick", "contact", friendData);
     }
     return;
   }
-
-  // // 处理公众号点击
-  // if (id === "officialAccounts") {
-  //   // 可以添加公众号处理逻辑
-  // }
 };
 
 // 切换分组展开状态
-const toggleGroup = (groupName: '群聊' | '公众号' | '联系人') => {
+const toggleGroup = (groupName: '群聊' | '联系人') => {
   openGroups.value[groupName] = !openGroups.value[groupName];
 };
 </script>

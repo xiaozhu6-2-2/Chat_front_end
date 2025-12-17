@@ -3,17 +3,19 @@
     <!-- 顶部聊天信息栏 -->
     <v-toolbar density="compact" class="chat-header">
       <Avatar
-        :url="currentChat?.avatar"
-        :name="currentChat?.name"
+        :url="activeChat?.avatar"
+        :name="activeChat?.name"
         :size="40"
         :clickable="false"
         avatar-class="custom-avatar ml-6"
-        v-bind="props"
       />
-      <v-toolbar-title>{{ currentChat?.name }}</v-toolbar-title>
+      <v-toolbar-title>{{ activeChat?.name }}</v-toolbar-title>
       <v-spacer></v-spacer>
 
-      <v-btn icon @click="toggleOnlineBoard">
+      <v-btn v-if="activeChat?.type === 'group'" icon @click="toggleOnlineBoard">
+        <v-icon>mdi-dots-horizontal</v-icon>
+      </v-btn>
+      <v-btn v-if="activeChat?.type === 'private'" icon @click="togglePrivateBoard">
         <v-icon>mdi-dots-horizontal</v-icon>
       </v-btn>
     </v-toolbar>
@@ -36,17 +38,6 @@
         @scroll-near-bottom="handleScrollNearBottom"
         ref="virtualMessageList"
       />
-
-      <!-- Typing Indicator -->
-      <!-- todo：检测对方正在输入 -->
-      <!-- <div v-if="isTyping" class="typing-indicator">
-        <div class="typing-dots">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-        <span class="typing-text">对方正在输入...</span>
-      </div> -->
     </div>
 
     <!-- 底部输入区域 -->
@@ -78,6 +69,7 @@
       /> -->
       <echatInput
         @keydown.enter.exact.prevent="handleSendMessage"
+        @send-message="handleSendMessage"
         v-model="message"
       />
 
@@ -90,20 +82,18 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
-import { useChat } from "@/composables/useChat";
-import { useMessageInput } from "@/composables/useMessageInput";
-import { useChatStore } from "@/stores/chatStore";
+import { useChat } from "../../composables/useChat";
+import { useMessageInput } from "../../composables/useMessageInput";
+import { useChatStore } from "../../stores/chatStore";
 import { messageService } from "../../service/message";
-import { ChatType } from "../../service/messageTypes";
+import type { ChatType, Chat, ChatAreaProps } from "../../types/chat";
 import Avatar from "../../components/global/Avatar.vue";
 import ContactCardModal from "../../components/global/ContactCardModal.vue";
 import OnlineBoard from "./onlineBoard.vue";
 import echatInput from "./echatInput.vue";
 
 import VirtualMessageList from "./VirtualMessageList.vue";
-import type { Chat } from "../../service/messageTypes";
 import type { LocalMessage } from "../../service/messageTypes";
-import type { ChatAreaProps } from "@/types/componentProps";
 
 const props = defineProps<ChatAreaProps>();
 
@@ -113,7 +103,7 @@ const emit = defineEmits<{
 
 // Store and composables
 const chatStore = useChatStore();
-const { currentChat, messages, sendMessage, selectChat } = useChat();
+const { activeChat, selectChat } = useChat();
 const {
   message,
   showEmojiPicker,
@@ -135,6 +125,7 @@ const virtualMessageList = ref();
 const currentChatContact = computed(() => {
   if (!props.chat) return null;
   return {
+    //TODO: 改用useauth中的缓存
     uid: props.chat.id,
     username: props.chat.name,
     account: props.chat.name.toLowerCase().replace(/\s+/g, "_"),
@@ -148,6 +139,7 @@ const currentChatContact = computed(() => {
 });
 
 // 虚拟滚动配置
+//todo ：改用useauth缓存
 const currentUserId = ref("current-user");
 const autoScroll = ref(true);
 const containerHeight = computed(() => {
@@ -168,7 +160,7 @@ watch(
     if (newChat) {
       // The useChat composable will handle setting the current chat
       // Call selectChat to load history messages
-      selectChat(newChat);
+      selectChat(newChat.id);
     }
   },
   { immediate: true }
@@ -205,26 +197,14 @@ const handleSendMessage = async () => {
   }
 };
 
-const handleTyping = () => {
-  // Clear existing timeout
-  if (typingTimeout.value) {
-    clearTimeout(typingTimeout.value);
-  }
-
-  //todo：检测对方正在输入
-  // Show typing indicator
-  // isTyping.value = true;
-
-  // Hide after 3 seconds of no typing
-  // typingTimeout.value = window.setTimeout(() => {
-  //   isTyping.value = false;
-  // }, 3000) as unknown as number;
-};
-
 const toggleOnlineBoard = () => {
   showOnlineBoard.value = !showOnlineBoard.value;
   chatStore.setOnlineBoardVisible(showOnlineBoard.value);
 };
+
+const togglePrivateBoard = () => {
+  //todo 私聊时点击右上角三个点出现什么界面待设计
+}
 
 const handleImagePreview = (imageUrl: string) => {
   emit("imagePreview", imageUrl);

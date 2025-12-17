@@ -97,7 +97,7 @@
 </template>
 
 <script setup lang="ts">
-import type { FriendRequestItemProps, FriendRequestItemEmits } from '@/types/componentProps'
+import type { FriendRequestItemProps, FriendRequestItemEmits } from '../../types/searchAndRequest'
 
 const props = defineProps<FriendRequestItemProps>()
 const emit = defineEmits<FriendRequestItemEmits>()

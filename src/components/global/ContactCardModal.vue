@@ -246,7 +246,7 @@
 
 <script setup lang="ts">
 import { computed, ref, reactive } from 'vue'
-import { isFriend, type FriendWithUserInfo } from '../../types/friend'
+import { type FriendWithUserInfo } from '../../types/friend'
 
 import { useFriend } from '../../composables/useFriend'
 
@@ -258,7 +258,7 @@ defineOptions({
 import type { ContactCardModalProps, ContactCardModalEmits } from '../../types/global'
 
 // 使用 useFriend composable
-const { } = useFriend()
+const { checkUserRelation } = useFriend()
 
 //modelValue 是默认的 v-model 绑定属性
 const props = withDefaults(defineProps<ContactCardModalProps>(), {
@@ -304,7 +304,7 @@ const dialog = computed({
 
 // 判断是否为好友
 const isFriendContact = computed(() => {
-  return props.contact && isFriend(props.contact)
+  return props.contact && checkUserRelation(props.contact.uid).isFriend
 })
 
 // 根据联系人类型获取显示信息
@@ -349,9 +349,13 @@ const contactInfo = computed(() => {
   }
 })
 
-const isContactFriend = computed(() => isFriend(props.contact))
+//计算属性控制card是陌生人 or 好友 or 自己
+const isContactFriend = computed(() => {
+  return props.contact && checkUserRelation(props.contact.uid).isFriend
+})
 
 // 判断是否是当前用户
+// todo：使用authstore
 const isCurrentUser = computed(() => {
   return props.contact?.uid === 'current-user' || props.contact?.uid === 'test-user-001'
 })
@@ -364,7 +368,7 @@ const formatDate = (dateString?: string) => {
 
 // 编辑模式方法
 const enterEditMode = () => {
-  if (!isContactFriend.value) return
+  if (!isContactFriend.value || !props.contact) return
 
   // 备份当前数据
   originalData.remark = contactInfo.value?.remark || ''
@@ -391,7 +395,7 @@ const cancelEdit = () => {
 }
 
 const saveEdit = async () => {
-  if (!formValid.value || !isContactFriend.value) return
+  if (!formValid.value || !isContactFriend.value || !props.contact) return
 
   saving.value = true
 
@@ -405,24 +409,8 @@ const saveEdit = async () => {
       editData.isBlacklist !== originalData.isBlacklist
 
     if (hasChanges) {
-      // 备注发生变化
-      if (editData.remark !== originalData.remark) {
-        emit('edit-remark', friend, editData.remark)
-      }
-
-      // 标签发生变化
-      if (editData.tag !== originalData.tag) {
-        emit('set-tag', friend, editData.tag || '')
-        // TODO: 保存标签到最近使用
-        // if (editData.tag) {
-        //   saveRecentTag(editData.tag)
-        // }
-      }
-
-      // 黑名单状态发生变化
-      if (editData.isBlacklist !== originalData.isBlacklist) {
-        emit('set-blacklist', friend, editData.isBlacklist)
-      }
+      // 备注黑名单标签发生变化
+      emit('update-friend-profile', friend.fid, editData.remark, editData.isBlacklist, editData.tag)
     }
 
     // 退出编辑模式
@@ -452,33 +440,9 @@ const addFriend = () => {
 }
 
 const removeFriend = () => {
-  if (isContactFriend.value) {
+  if (isContactFriend.value && props.contact) {
     emit('remove-friend', props.contact as FriendWithUserInfo)
     closeDialog()
-  }
-}
-
-const editRemark = () => {
-  if (isContactFriend.value) {
-    const newRemark = prompt('请输入新的备注名称：', contactInfo.value?.remark || '')
-    if (newRemark !== null) {
-      emit('edit-remark', props.contact as FriendWithUserInfo, newRemark)
-    }
-  }
-}
-
-const setTag = () => {
-  if (isContactFriend.value) {
-    const newTag = prompt('请输入标签：', contactInfo.value?.tag || '')
-    if (newTag !== null) {
-      emit('set-tag', props.contact as FriendWithUserInfo, newTag)
-    }
-  }
-}
-
-const toggleBlacklist = () => {
-  if (isContactFriend.value) {
-    emit('set-blacklist', props.contact as FriendWithUserInfo, !contactInfo.value?.isBlacklist)
   }
 }
 

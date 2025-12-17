@@ -41,8 +41,11 @@ defineProps({
         default: ''
     }
 })
-
-defineEmits(['update:modelValue', 'keydown.enter.exact.prevent'])
+defineEmits(['update:modelValue', 'keydown.enter.exact.prevent','send-message'])
+// 处理发送按钮点击
+const handleSendMessage = () => {
+    emit('send-message')
+}
 </script>
 
 <style>

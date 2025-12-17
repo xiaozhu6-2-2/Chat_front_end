@@ -88,6 +88,7 @@ const showSettingsDialog = ref(false);
 const showContactCard = ref(false);
 
 // 当前用户信息
+//todo: 使用useauth
 const currentUser = ref({
   uid: 'current-user-001',
   username: '我',

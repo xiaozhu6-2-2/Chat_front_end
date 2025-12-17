@@ -74,6 +74,7 @@
       v-if="showContactCard && selectedContactInfo"
       :contact="selectedContactInfo"
       v-model="showContactCard"
+      @update-friend-profile="(fid, remark, isBlacklisted, tag) => friendStore.updateFriendProfile(fid,  remark, isBlacklisted, tag )"
     />
   </div>
 </template>
@@ -81,16 +82,17 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ContentType, MessageType } from '../../../service/messageTypes'
-import type { MessageBubbleProps } from '../../../types/componentProps'
+import type { MessageBubbleProps } from '../../../types/chat'
 import { useFriendStore } from '../../../stores/friendStore'
 import type { FriendWithUserInfo } from '../../../types/friend'
+import { useFriend } from '../../../composables/useFriend'
 
 const props = withDefaults(defineProps<MessageBubbleProps>(), {
   currentUserId: 'current-user'
 })
 
 const friendStore = useFriendStore()
-
+const { updateFriendProfile } = useFriend()
 const emit = defineEmits<{
   imagePreview: [imageUrl: string]
 }>()

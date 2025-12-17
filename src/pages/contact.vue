@@ -33,7 +33,7 @@
 import maincontent from "../layouts/maincontent.vue";
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import type { GroupProfile } from "../service/messageTypes";
+import type { GroupProfile } from "../../service/messageTypes";
 import type { FriendWithUserInfo } from "../types/friend";
 
 type ActiveItem =

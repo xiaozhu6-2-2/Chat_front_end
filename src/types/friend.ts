@@ -47,17 +47,8 @@ interface UpdateFriendProfileParams {
   group_by: string;
 }
 
-<<<<<<< HEAD
 // =================联系人相关组件props与emits===============
 
-
-/** 联系人数据联合类型 */
-// type ContactData = FriendWithUserInfo;
-
-/** 类型守卫函数：判断是否为好友类型 */
-function isFriend(contact: FriendWithUserInfo | UserProfile): contact is FriendWithUserInfo {
-  return 'fid' in contact;
-}
 
 /** 联系人卡片 Props */
 interface ContactCardProps {
@@ -68,12 +59,6 @@ interface ContactCardProps {
 // =================结构体类型转换函数==================
 //将API的响应体转为好友列表的结构体
 function FriendApiToFriendWithUserInfo(apiData: FriendProfileFromApi): FriendWithUserInfo{
-=======
-// ==================== 转换函数 ====================
-
-// 将API的响应体转为好友列表的结构体
-function FriendApiToFriendWithUserInfo(apiData: FriendProfileFromApi): FriendWithUserInfo {
->>>>>>> 9b9648d06be76f1f7b4c45eff0b045ffadd31798
   const userInfo: UserInfo = {
     account: apiData.account,
     gender: apiData.gender,
@@ -112,20 +97,24 @@ function FriendApiToFriendWithUserInfo(apiData: FriendProfileFromApi): FriendWit
 export type {
   FriendWithUserInfo,
   UserInfo,
-<<<<<<< HEAD
   ContactCardProps,
-  ContactData,
   UpdateFriendProfileParams
 }
 export  {
   FriendApiToFriendWithUserInfo,
-  isFriend //类型守卫函数：判断是否为好友类型
 }
-=======
-  FriendProfileFromApi,
-  UpdateFriendProfileParams
-};
 
-// 转换函数导出
-export { FriendApiToFriendWithUserInfo };
->>>>>>> 9b9648d06be76f1f7b4c45eff0b045ffadd31798
+// ==================== 组件 Props 默认值配置 ====================
+
+/** 联系人卡片默认值 */
+export const ContactCardDefaults = {
+  contact: {
+    id: '',
+    name: '',
+    avatar: '',
+    email: '',
+    phone: '',
+    initial: '',
+    remark: ''
+  }
+};

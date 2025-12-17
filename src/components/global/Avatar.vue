@@ -37,7 +37,7 @@ defineOptions({
 })
 
 import type { AvatarProps } from '../../types/global'
-import { AvatarDefaults } from '../../types/componentProps'
+import { AvatarDefaults } from '../../types/global'
 
 const props = withDefaults(defineProps<AvatarProps>(), AvatarDefaults)
 

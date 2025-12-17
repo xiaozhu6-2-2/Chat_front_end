@@ -40,7 +40,7 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import type { LocalMessage } from '../../service/messageTypes'
 import MessageBubble from './Message/MessageBubble.vue'
-import type { VirtualMessageListProps } from '../../types/componentProps'
+import type { VirtualMessageListProps } from '../../types/chat'
 
 const props = withDefaults(defineProps<VirtualMessageListProps>(), {
   currentUserId: 'current-user',

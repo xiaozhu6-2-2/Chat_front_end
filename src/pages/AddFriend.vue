@@ -3,7 +3,7 @@
     <v-card flat style="background-color: #1A1A25">
       <v-card-title class="d-flex align-center">
         <v-icon icon="mdi-account-plus" class="mr-2"></v-icon>
-        添加好友
+        新的朋友
       </v-card-title>
 
       <v-card-text>
@@ -43,10 +43,10 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useFriend } from '@/composables/useFriend'
-import { useRequestAndSearch } from '@/composables/useRequestAndSearch'
-import UserSearchPanel from '@/components/friend/UserSearchPanel.vue'
-import FriendRequestPanel from '@/components/friend/FriendRequestPanel.vue'
+import { useFriend } from '../composables/useFriend'
+import { useRequestAndSearch } from '../composables/useRequestAndSearch'
+import UserSearchPanel from '../components/friend/UserSearchPanel.vue'
+import FriendRequestPanel from '../components/friend/FriendRequestPanel.vue'
 
 const {
   selectedTab,

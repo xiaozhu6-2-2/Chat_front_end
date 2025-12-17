@@ -45,29 +45,29 @@
 </template>
 
 <script setup lang="ts">
-import { useChat } from '@/composables/useChat'
-import type { Chat } from '../../service/messageTypes'
+import { useChat } from '../../composables/useChat'
+import type { Chat } from '../../types/chat'
 import Avatar from '../../components/global/Avatar.vue'
 
-import type { ChatListProps } from '../../types/componentProps'
+const { activeChatId } = useChat()
 
-const props = withDefaults(defineProps<ChatListProps>(), {
-  activeChatId: undefined
-})
-
-const emit = defineEmits<{
-  chatSelected: [chat: Chat]
-}>()
+// 取消props，改用pinia缓存的活跃id
+// const props = withDefaults(defineProps<ChatListProps>(), {
+//   activeChatId: undefined
+// })
+// 使用usechat 中的函数
+// const emit = defineEmits<{
+//   chatSelected: [chat: Chat]
+// }>()
 
 const { chatList, selectChat } = useChat()
 
 const isActiveChat = (chatId: string) => {
-  return props.activeChatId === chatId
+  return activeChatId.value === chatId
 }
 
 const handleChatClick = (chat: Chat) => {
-  selectChat(chat)
-  emit('chatSelected', chat)
+  selectChat(chat.id)
 }
 
 const formatUnreadCount = (count: number) => {

@@ -21,9 +21,7 @@ interface ContactCardModalEmits {
   (e: 'send-message', contact: FriendWithUserInfo): void;
   (e: 'add-friend', contact: FriendWithUserInfo, message?: string, tags?: string[]): void;
   (e: 'remove-friend', friend: FriendWithUserInfo): void;
-  (e: 'edit-remark', friend: FriendWithUserInfo, remark: string): void;
-  (e: 'set-tag', friend: FriendWithUserInfo, tag: string): void;
-  (e: 'set-blacklist', friend: FriendWithUserInfo, isBlacklist: boolean): void;
+  (e: 'update-friend-profile', friendId: string, remark: string, isBlacklisted: boolean, tag: string): void; //使用usefriend
   (e: 'edit-profile'): void;
 }
 
@@ -69,3 +67,15 @@ export type{
     SettingsDialogProps,
     SettingsDialogEmits,
 }
+
+// ==================== 组件 Props 默认值配置 ====================
+
+/** 头像组件默认值 */
+export const AvatarDefaults = {
+  size: 40,
+  clickable: false,
+  variant: 'elevated' as const,
+  showBadge: false,
+  badgeDot: false,
+  badgeInline: false
+};
