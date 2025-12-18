@@ -29,8 +29,8 @@
           <v-btn
             v-if="isContactFriend && !editMode"
             icon="mdi-pencil"
-            variant="text"
             size="small"
+            variant="text"
             @click="enterEditMode"
           />
           <v-btn
@@ -51,33 +51,33 @@
             <!-- 备注输入框 -->
             <v-text-field
               v-model="editData.remark"
-              label="备注"
-              placeholder="为好友设置备注名称"
-              variant="outlined"
-              density="compact"
-              :rules="remarkRules"
-              maxlength="20"
-              counter
-              prepend-inner-icon="mdi-account-edit"
               class="mb-4"
+              counter
+              density="compact"
+              label="备注"
+              maxlength="20"
+              placeholder="为好友设置备注名称"
+              prepend-inner-icon="mdi-account-edit"
+              :rules="remarkRules"
+              variant="outlined"
             />
 
             <!-- 标签选择器 -->
             <v-combobox
               v-model="editData.tag"
-              label="标签"
-              placeholder="选择或输入标签"
-              variant="outlined"
-              density="compact"
-              :rules="tagRules"
-              maxlength="10"
-              counter
-              prepend-inner-icon="mdi-tag"
               chips
-              clearable
               class="mb-4"
+              clearable
+              counter
+              density="compact"
+              label="标签"
+              maxlength="10"
+              placeholder="选择或输入标签"
+              prepend-inner-icon="mdi-tag"
+              :rules="tagRules"
+              variant="outlined"
             >
-              <template v-slot:chip="{ props: chipProps, item }">
+              <template #chip="{ props: chipProps, item }">
                 <v-chip
                   v-bind="chipProps"
                   size="small"
@@ -88,18 +88,18 @@
             <!-- 黑名单开关 -->
             <v-switch
               v-model="editData.isBlacklist"
-              label="加入黑名单"
               color="error"
               inset
-              prepend-inner-icon="mdi-block-helper"
+              label="加入黑名单"
               :messages="editData.isBlacklist ? '加入黑名单后将无法接收对方消息' : ''"
+              prepend-inner-icon="mdi-block-helper"
             />
           </div>
         </v-form>
 
         <!-- 查看模式详情 -->
         <div v-else class="contact-details">
-          <v-list lines="two" density="compact">
+          <v-list density="compact" lines="two">
             <!-- 邮箱 -->
             <v-list-item prepend-icon="mdi-email" title="邮箱">
               <template #subtitle>
@@ -144,7 +144,7 @@
 
             <!-- 标签（如果是好友） -->
             <v-list-item v-if="isContactFriend && contactInfo.tag" prepend-icon="mdi-tag" title="标签">
-              <template v-slot:subtitle>
+              <template #subtitle>
                 <v-chip size="small">{{ contactInfo.tag }}</v-chip>
               </template>
             </v-list-item>
@@ -176,18 +176,18 @@
         <!-- 编辑模式按钮 -->
         <template v-if="editMode && isContactFriend">
           <v-btn
+            :disabled="saving"
             variant="outlined"
             @click="cancelEdit"
-            :disabled="saving"
           >
             取消
           </v-btn>
           <v-btn
             color="primary"
+            :disabled="!formValid || saving"
+            :loading="saving"
             variant="elevated"
             @click="saveEdit"
-            :loading="saving"
-            :disabled="!formValid || saving"
           >
             保存
           </v-btn>
@@ -245,189 +245,189 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive } from 'vue'
-import { type FriendWithUserInfo } from '../../types/friend'
+  import type { FriendWithUserInfo } from '../../types/friend'
+  import type { ContactCardModalEmits, ContactCardModalProps } from '../../types/global'
 
-import { useFriend } from '../../composables/useFriend'
+  import { computed, reactive, ref } from 'vue'
+
+  import { useFriend } from '../../composables/useFriend'
 
   // 作用是为这个 Vue 组件设置名称为 "ContactCardModal"
   defineOptions({
     name: 'ContactCardModal',
   })
 
-import type { ContactCardModalProps, ContactCardModalEmits } from '../../types/global'
+  // 使用 useFriend composable
+  const { checkUserRelation } = useFriend()
 
-// 使用 useFriend composable
-const { checkUserRelation } = useFriend()
+  // modelValue 是默认的 v-model 绑定属性
+  const props = withDefaults(defineProps<ContactCardModalProps>(), {
+    modelValue: false,
+  })
 
-//modelValue 是默认的 v-model 绑定属性
-const props = withDefaults(defineProps<ContactCardModalProps>(), {
-  modelValue: false
-})
+  const emit = defineEmits<ContactCardModalEmits>()
 
-const emit = defineEmits<ContactCardModalEmits>()
+  // 编辑状态管理
+  const editMode = ref(false)
+  const formValid = ref(false)
+  const saving = ref(false)
+  const editData = reactive({
+    remark: '',
+    tag: null as string | null,
+    isBlacklist: false,
+  })
+  const originalData = reactive({
+    remark: '',
+    tag: null as string | null,
+    isBlacklist: false,
+  })
 
-// 编辑状态管理
-const editMode = ref(false)
-const formValid = ref(false)
-const saving = ref(false)
-const editData = reactive({
-  remark: '',
-  tag: null as string | null,
-  isBlacklist: false
-})
-const originalData = reactive({
-  remark: '',
-  tag: null as string | null,
-  isBlacklist: false
-})
+  // 验证规则
+  const remarkRules = [
+    (v: string) => !v || v.length <= 20 || '备注不能超过20个字符',
+  ]
 
-// 验证规则
-const remarkRules = [
-  (v: string) => !v || v.length <= 20 || '备注不能超过20个字符'
-]
+  const tagRules = [
+    (v: string) => !v || v.length <= 10 || '标签不能超过10个字符',
+  ]
 
-const tagRules = [
-  (v: string) => !v || v.length <= 10 || '标签不能超过10个字符'
-]
+  // 监听双向绑定变量
+  const dialog = computed({
+    get: () => props.modelValue,
+    set: value => {
+      if (!value && editMode.value) {
+        cancelEdit()
+      }
+      emit('update:modelValue', value)
+    },
+  })
 
-//监听双向绑定变量
-const dialog = computed({
-  get: () => props.modelValue,
-  set: (value) => {
-    if (!value && editMode.value) {
-      cancelEdit()
-    }
-    emit('update:modelValue', value)
-  }
-})
-
-// 判断是否为好友
-const isFriendContact = computed(() => {
-  return props.contact && checkUserRelation(props.contact.uid).isFriend
-})
+  // 判断是否为好友
+  const isFriendContact = computed(() => {
+    return props.contact && checkUserRelation(props.contact.uid).isFriend
+  })
 
   // 根据联系人类型获取显示信息
   const contactInfo = computed(() => {
     if (!props.contact) return null
 
-  if (isFriendContact.value) {
-    const friend = props.contact as FriendWithUserInfo
-    return {
-      // 好友
-      id: friend.uid,
-      name: friend.username,
-      avatar: friend.avatar,
-      email: friend.info?.email,
-      remark: friend.remark,
-      initial: friend.username.charAt(0).toUpperCase(),
-      isBlacklist: friend.isBlacklisted,
-      tag: friend.tag,
-      fid: friend.fid,
-      createTime: friend.createdAt,
-      account: friend.info?.account,
-      region: friend.info?.region,
-      gender: friend.info?.gender,
-      bio: friend.bio
+    if (isFriendContact.value) {
+      const friend = props.contact as FriendWithUserInfo
+      return {
+        // 好友
+        id: friend.uid,
+        name: friend.username,
+        avatar: friend.avatar,
+        email: friend.info?.email,
+        remark: friend.remark,
+        initial: friend.username.charAt(0).toUpperCase(),
+        isBlacklist: friend.isBlacklisted,
+        tag: friend.tag,
+        fid: friend.fid,
+        createTime: friend.createdAt,
+        account: friend.info?.account,
+        region: friend.info?.region,
+        gender: friend.info?.gender,
+        bio: friend.bio,
+      }
+    } else {
+      // UserProfile
+      // 非好友
+      const profile = props.contact as FriendWithUserInfo
+      return {
+        id: profile.uid,
+        name: profile.username,
+        avatar: profile.avatar,
+        email: profile.info?.email,
+        initial: (profile.username || '').charAt(0).toUpperCase(),
+        account: profile.info?.account,
+        gender: profile.info?.gender,
+        region: profile.info?.region,
+        bio: profile.bio,
+        createTime: profile.createdAt,
+      }
     }
-  } else {
-    // UserProfile
-    // 非好友
-    const profile = props.contact as FriendWithUserInfo
-    return {
-      id: profile.uid,
-      name: profile.username,
-      avatar: profile.avatar,
-      email: profile.info?.email,
-      initial: (profile.username || '').charAt(0).toUpperCase(),
-      account: profile.info?.account,
-      gender: profile.info?.gender,
-      region: profile.info?.region,
-      bio: profile.bio,
-      createTime: profile.createdAt,
-    }
+  })
+
+  // 计算属性控制card是陌生人 or 好友 or 自己
+  const isContactFriend = computed(() => {
+    return props.contact && checkUserRelation(props.contact.uid).isFriend
+  })
+
+  // 判断是否是当前用户
+  // todo：使用authstore
+  const isCurrentUser = computed(() => {
+    return props.contact?.uid === 'current-user' || props.contact?.uid === 'test-user-001'
+  })
+
+  // 格式化日期
+  function formatDate (dateString?: string) {
+    if (!dateString) return '未知'
+    return new Date(dateString).toLocaleDateString('zh-CN')
   }
-})
 
-//计算属性控制card是陌生人 or 好友 or 自己
-const isContactFriend = computed(() => {
-  return props.contact && checkUserRelation(props.contact.uid).isFriend
-})
+  // 编辑模式方法
+  function enterEditMode () {
+    if (!isContactFriend.value || !props.contact) return
 
-// 判断是否是当前用户
-// todo：使用authstore
-const isCurrentUser = computed(() => {
-  return props.contact?.uid === 'current-user' || props.contact?.uid === 'test-user-001'
-})
+    // 备份当前数据
+    originalData.remark = contactInfo.value?.remark || ''
+    originalData.tag = contactInfo.value?.tag || null
+    originalData.isBlacklist = contactInfo.value?.isBlacklist || false
 
-// 格式化日期
-const formatDate = (dateString?: string) => {
-  if (!dateString) return '未知'
-  return new Date(dateString).toLocaleDateString('zh-CN')
-}
+    // 设置编辑数据
+    editData.remark = originalData.remark
+    editData.tag = originalData.tag
+    editData.isBlacklist = originalData.isBlacklist
 
-// 编辑模式方法
-const enterEditMode = () => {
-  if (!isContactFriend.value || !props.contact) return
+    // 进入编辑模式
+    editMode.value = true
+  }
 
-  // 备份当前数据
-  originalData.remark = contactInfo.value?.remark || ''
-  originalData.tag = contactInfo.value?.tag || null
-  originalData.isBlacklist = contactInfo.value?.isBlacklist || false
-
-  // 设置编辑数据
-  editData.remark = originalData.remark
-  editData.tag = originalData.tag
-  editData.isBlacklist = originalData.isBlacklist
-
-  // 进入编辑模式
-  editMode.value = true
-}
-
-const cancelEdit = () => {
-  // 恢复原始数据
-  editData.remark = originalData.remark
-  editData.tag = originalData.tag
-  editData.isBlacklist = originalData.isBlacklist
-
-  // 退出编辑模式
-  editMode.value = false
-}
-
-const saveEdit = async () => {
-  if (!formValid.value || !isContactFriend.value || !props.contact) return
-
-  saving.value = true
-
-  try {
-    const friend = props.contact as FriendWithUserInfo
-
-    // 检查是否有变化
-    const hasChanges =
-      editData.remark !== originalData.remark ||
-      editData.tag !== originalData.tag ||
-      editData.isBlacklist !== originalData.isBlacklist
-
-    if (hasChanges) {
-      // 备注黑名单标签发生变化
-      emit('update-friend-profile', friend.fid, editData.remark, editData.isBlacklist, editData.tag)
-    }
+  function cancelEdit () {
+    // 恢复原始数据
+    editData.remark = originalData.remark
+    editData.tag = originalData.tag
+    editData.isBlacklist = originalData.isBlacklist
 
     // 退出编辑模式
     editMode.value = false
-  } catch (error) {
-    console.error('保存失败:', error)
-  } finally {
-    saving.value = false
   }
-}
 
-const closeDialog = () => {
-  if (editMode.value) {
-    cancelEdit()
+  async function saveEdit () {
+    if (!formValid.value || !isContactFriend.value || !props.contact) return
+
+    saving.value = true
+
+    try {
+      const friend = props.contact as FriendWithUserInfo
+
+      // 检查是否有变化
+      const hasChanges
+        = editData.remark !== originalData.remark
+          || editData.tag !== originalData.tag
+          || editData.isBlacklist !== originalData.isBlacklist
+
+      if (hasChanges) {
+        // 备注黑名单标签发生变化
+        emit('update-friend-profile', friend.fid, editData.remark, editData.isBlacklist, editData.tag)
+      }
+
+      // 退出编辑模式
+      editMode.value = false
+    } catch (error) {
+      console.error('保存失败:', error)
+    } finally {
+      saving.value = false
+    }
   }
-  dialog.value = false
-}
+
+  function closeDialog () {
+    if (editMode.value) {
+      cancelEdit()
+    }
+    dialog.value = false
+  }
 
   function sendMessage () {
     emit('send-message', props.contact)
@@ -439,18 +439,18 @@ const closeDialog = () => {
     closeDialog()
   }
 
-const removeFriend = () => {
-  if (isContactFriend.value && props.contact) {
-    emit('remove-friend', props.contact as FriendWithUserInfo)
+  function removeFriend () {
+    if (isContactFriend.value && props.contact) {
+      emit('remove-friend', props.contact as FriendWithUserInfo)
+      closeDialog()
+    }
+  }
+
+  // 处理编辑资料
+  function handleEditProfile () {
+    emit('edit-profile')
     closeDialog()
   }
-}
-
-// 处理编辑资料
-const handleEditProfile = () => {
-  emit('edit-profile')
-  closeDialog()
-}
 </script>
 
 <style scoped>

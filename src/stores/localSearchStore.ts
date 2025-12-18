@@ -23,12 +23,12 @@ import type {
   LocalSearchParams,
   LocalSearchResult,
   LocalSearchStats,
-  MessageSearchResult
+  MessageSearchResult,
 } from '@/types/localSearch'
-import { LocalSearchType } from '@/types/localSearch'
-
 import { defineStore } from 'pinia'
+
 import { computed, readonly, ref } from 'vue'
+import { LocalSearchType } from '@/types/localSearch'
 
 /**
  * 分页信息接口

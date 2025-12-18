@@ -236,8 +236,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import type { UserSearchResultCardProps, UserSearchResultCardEmits } from '../../types/searchAndRequest'
+  import type { UserSearchResultCardEmits, UserSearchResultCardProps } from '../../types/searchAndRequest'
+  import { ref } from 'vue'
 
   const props = defineProps<UserSearchResultCardProps>()
   const emit = defineEmits<UserSearchResultCardEmits>()

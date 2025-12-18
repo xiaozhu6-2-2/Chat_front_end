@@ -1,51 +1,63 @@
 <!-- From Uiverse.io by 0xnihilism -->
 <template>
-    <div class="input__container">
-        <div class="shadow__input"></div>
-        <!-- 工具栏 -->
-        <div class="toolbar">
-            <v-btn icon variant="text" @click="toggleEmojiPicker" color="#000000">
-                <v-icon>mdi-emoticon-outline</v-icon>
-            </v-btn>
-            <v-btn icon variant="text" @click="handleFileUpload" color="#000000">
-                <v-icon>mdi-image-outline</v-icon>
-            </v-btn>
-            <v-btn icon variant="text" @click="handleFileUpload" color="#000000">
-                <v-icon>mdi-file-outline</v-icon>
-            </v-btn>
-            <v-btn icon variant="text" @click="handleVoiceRecord" color="#000000">
-                <v-icon>mdi-microphone</v-icon>
-            </v-btn>
-            <v-spacer></v-spacer>
-            <v-btn icon variant="text">
-                <v-icon>mdi-dots-horizontal</v-icon>
-            </v-btn>
-        </div>
-        <input type="text" name="chat_input" class="chat_input" placeholder="请输入消息" :value="modelValue"
-            @input="$emit('update:modelValue', $event.target.value)"
-            @keydown.enter.exact.prevent="$emit('keydown.enter.exact.prevent', $event)" />
-
-        <!-- 发送按钮 -->
-        <div class="send-button-container">
-            <v-btn class="input__button__shadow" color="primary" variant="flat" :loading="isSending" @click="handleSendMessage">
-                发送
-            </v-btn>
-        </div>
+  <div class="input__container">
+    <div class="shadow__input" />
+    <!-- 工具栏 -->
+    <div class="toolbar">
+      <v-btn color="#000000" icon variant="text" @click="toggleEmojiPicker">
+        <v-icon>mdi-emoticon-outline</v-icon>
+      </v-btn>
+      <v-btn color="#000000" icon variant="text" @click="handleFileUpload">
+        <v-icon>mdi-image-outline</v-icon>
+      </v-btn>
+      <v-btn color="#000000" icon variant="text" @click="handleFileUpload">
+        <v-icon>mdi-file-outline</v-icon>
+      </v-btn>
+      <v-btn color="#000000" icon variant="text" @click="handleVoiceRecord">
+        <v-icon>mdi-microphone</v-icon>
+      </v-btn>
+      <v-spacer />
+      <v-btn icon variant="text">
+        <v-icon>mdi-dots-horizontal</v-icon>
+      </v-btn>
     </div>
+    <input
+      class="chat_input"
+      name="chat_input"
+      placeholder="请输入消息"
+      type="text"
+      :value="modelValue"
+      @input="$emit('update:modelValue', $event.target.value)"
+      @keydown.enter.exact.prevent="$emit('keydown.enter.exact.prevent', $event)"
+    >
+
+    <!-- 发送按钮 -->
+    <div class="send-button-container">
+      <v-btn
+        class="input__button__shadow"
+        color="primary"
+        :loading="isSending"
+        variant="flat"
+        @click="handleSendMessage"
+      >
+        发送
+      </v-btn>
+    </div>
+  </div>
 </template>
 
 <script setup>
-defineProps({
+  defineProps({
     modelValue: {
-        type: String,
-        default: ''
-    }
-})
-defineEmits(['update:modelValue', 'keydown.enter.exact.prevent','send-message'])
-// 处理发送按钮点击
-const handleSendMessage = () => {
+      type: String,
+      default: '',
+    },
+  })
+  defineEmits(['update:modelValue', 'keydown.enter.exact.prevent', 'send-message'])
+  // 处理发送按钮点击
+  function handleSendMessage () {
     emit('send-message')
-}
+  }
 </script>
 
 <style>

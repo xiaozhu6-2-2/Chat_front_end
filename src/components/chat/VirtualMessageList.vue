@@ -37,10 +37,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import type { LocalMessage } from '../../service/messageTypes'
-import MessageBubble from './Message/MessageBubble.vue'
-import type { VirtualMessageListProps } from '../../types/chat'
+  import type { LocalMessage } from '../../service/messageTypes'
+  import type { VirtualMessageListProps } from '../../types/chat'
+  import { computed, nextTick, onMounted, ref, watch } from 'vue'
+  import MessageBubble from './Message/MessageBubble.vue'
 
   const props = withDefaults(defineProps<VirtualMessageListProps>(), {
     currentUserId: 'current-user',

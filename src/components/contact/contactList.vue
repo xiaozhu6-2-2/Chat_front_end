@@ -28,7 +28,7 @@
           </div>
         </v-list-item>
       </v-list-group>
-      
+
       <!-- 联系人分组 -->
       <v-list-group v-model:opened="openGroups['联系人']" value="联系人">
         <template #activator="{ props }">
@@ -113,43 +113,43 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { useRouter } from "vue-router";
-import type { ContactListEmits } from "../../types/global";
-import { useFriend } from '../../composables/useFriend';
-// 定义 emits
+  import type { ContactListEmits } from '../../types/global'
+  import { computed, ref } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { useFriend } from '../../composables/useFriend'
+  // 定义 emits
 
-const emit = defineEmits<ContactListEmits>();
+  const emit = defineEmits<ContactListEmits>()
 
-// Router 实例
-const router = useRouter();
+  // Router 实例
+  const router = useRouter()
 
-//用于展示在contactlist中的结构体
-//该结构体只再这个组件内使用，未泄露
-interface Contact {
-  id: string;      // 对应 friend.fid
-  uid: string;     // 对应 friend.uid
-  name: string;
-  initial: string; // 必须要有一个initial来按首字母排序
-  tag?: string;
-  avatar?: string;
-}
+  // 用于展示在contactlist中的结构体
+  // 该结构体只再这个组件内使用，未泄露
+  interface Contact {
+    id: string // 对应 friend.fid
+    uid: string // 对应 friend.uid
+    name: string
+    initial: string // 必须要有一个initial来按首字母排序
+    tag?: string
+    avatar?: string
+  }
 
   interface Group {
     id: string
     name: string
   }
 
-// 响应式状态
-const activeItemId = ref<string | null>(null);
-const groupBy = ref<'initial' | 'tag'>('initial'); // 分组模式
-const openGroups = ref({
-  群聊: true,
-  联系人: true,
-});
+  // 响应式状态
+  const activeItemId = ref<string | null>(null)
+  const groupBy = ref<'initial' | 'tag'>('initial') // 分组模式
+  const openGroups = ref({
+    群聊: true,
+    联系人: true,
+  })
 
-// 使用 useFriend composable
-const { activeFriends, getFriendByUid} = useFriend();
+  // 使用 useFriend composable
+  const { activeFriends, getFriendByUid } = useFriend()
 
   // 静态群聊数据
   const groups: Group[] = [
@@ -161,17 +161,17 @@ const { activeFriends, getFriendByUid} = useFriend();
     { id: 'g6', name: '产品经理交流' },
   ]
 
-// 将好友数据转换为联系人格式
-const contacts = computed(() => {
-  return activeFriends.value.map(friend => ({
-    id: friend.fid,
-    uid: friend.uid,  // 添加 uid
-    name: friend.remark || friend.username, // 优先显示备注，没有则显示用户名
-    initial: getInitial(friend.remark || friend.username), // 提取首字母
-    tag: friend.tag, // 好友标签
-    avatar: friend.avatar, // 头像
-  }))
-})
+  // 将好友数据转换为联系人格式
+  const contacts = computed(() => {
+    return activeFriends.value.map(friend => ({
+      id: friend.fid,
+      uid: friend.id,
+      name: friend.remark || friend.name, // 优先显示备注，没有则显示用户名
+      initial: getInitial(friend.remark || friend.name), // 提取首字母
+      tag: friend.tag, // 好友标签
+      avatar: friend.avatar, // 头像
+    }))
+  })
 
   // 提取首字母的辅助函数
   function getInitial (name: string): string {
@@ -190,80 +190,81 @@ const contacts = computed(() => {
     return [...contacts.value].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
   })
 
-// 计算属性 - 按首字母分组的联系人
-const groupedContacts = computed(() => {
-  const groupsMap: Record<string, Contact[]> = {};
-  // 遍历每个contact
-  sortedContacts.value.forEach((contact) => {
-    const initial = contact.initial;
-    if (!groupsMap[initial]) {
-      groupsMap[initial] = [];
-    }
-    groupsMap[initial].push(contact);
-  });
-  return groupsMap;
-});
-
-// 计算属性 - 按标签分组的联系人
-const groupedContactsByTag = computed(() => {
-  const groupsMap: Record<string, Contact[]> = {};
-  // 遍历每个contact
-  sortedContacts.value.forEach((contact) => {
-    if (contact.tag) {
-      if (!groupsMap[contact.tag]) {
-        groupsMap[contact.tag] = [];
+  // 计算属性 - 按首字母分组的联系人
+  const groupedContacts = computed(() => {
+    const groupsMap: Record<string, Contact[]> = {}
+    // 遍历每个contact
+    for (const contact of sortedContacts.value) {
+      const initial = contact.initial
+      if (!groupsMap[initial]) {
+        groupsMap[initial] = []
       }
-      //已经检查了tag非空，报错忽略
-      groupsMap[contact.tag].push(contact);
+      groupsMap[initial].push(contact)
     }
     return groupsMap
   })
 
+  // 计算属性 - 按标签分组的联系人
+  const groupedContactsByTag = computed(() => {
+    const groupsMap: Record<string, Contact[]> = {}
+    // 遍历每个contact
+    for (const contact of sortedContacts.value) {
+      if (contact.tag) {
+        if (!groupsMap[contact.tag]) {
+          groupsMap[contact.tag] = []
+        }
+        // 已经检查了tag非空，报错忽略
+        groupsMap[contact.tag]!.push(contact)
+      }
+    }
+    return groupsMap
+  })
   // 根据分组模式返回对应的分组数据
   const currentGroupedContacts = computed(() => {
     return groupBy.value === 'tag' ? groupedContactsByTag.value : groupedContacts.value
   })
 
-// 获取标签颜色
-const getTagColor = (tag: string): string => {
-  const colors = ['primary', 'secondary', 'success', 'warning', 'error', 'info', 'purple', 'indigo', 'teal']
-  const hash = (tag || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-  return colors[hash % colors.length]
-}
+  // 获取标签颜色
+  function getTagColor (tag: string): string {
+    const colors = ['primary', 'secondary', 'success', 'warning', 'error', 'info', 'purple', 'indigo', 'teal']
+    const hash = (tag || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    const index = Math.abs(hash) % colors.length
+    return colors[index] || 'primary' // 提供默认值
+  }
 
   // 导航到添加好友页面
   function navigateToAddFriend () {
     router.push('/AddFriend')
   }
 
-// 修改 setActiveItem 方法
-const setActiveItem = (id: string) => {
-  activeItemId.value = id;
+  // 修改 setActiveItem 方法
+  function setActiveItem (id: string) {
+    activeItemId.value = id
 
-  // 查找并发射对应数据
-  // 只检查id来判断是群聊还是私聊
-  let found = groups.find((g) => g.id === id);
-  if (found) {
-    emit("itemClick", "group", found);
-    return;
-  }
-
-  found = contacts.value.find((c) => c.id === id);
-  if (found) {
-    // 从 activeFriends 中获取完整的 FriendWithUserInfo 数据
-    // 已进行类型转换，报错忽略
-    const friendData = getFriendByUid(found.uid);
-    if (friendData) {
-      emit("itemClick", "contact", friendData);
+    // 查找并发射对应数据
+    // 只检查id来判断是群聊还是私聊
+    let found = groups.find(g => g.id === id)
+    if (found) {
+      emit('itemClick', 'group', found)
+      return
     }
-    return;
-  }
-};
 
-// 切换分组展开状态
-const toggleGroup = (groupName: '群聊' | '联系人') => {
-  openGroups.value[groupName] = !openGroups.value[groupName];
-};
+    found = contacts.value.find(c => c.id === id)
+    if (found) {
+      // 从 activeFriends 中获取完整的 FriendWithUserInfo 数据
+      // 已进行类型转换，报错忽略
+      const friendData = getFriendByUid(found.id)
+      if (friendData) {
+        emit('itemClick', 'contact', friendData)
+      }
+      return
+    }
+  }
+
+  // 切换分组展开状态
+  function toggleGroup (groupName: '群聊' | '联系人') {
+    openGroups.value[groupName] = !openGroups.value[groupName]
+  }
 </script>
 
 <style scoped>

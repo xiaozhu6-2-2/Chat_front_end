@@ -141,13 +141,10 @@ meta:
   import { reactive, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { useAuth } from '@/composables/useAuth'
-  import { useSnackbar } from '@/composables/useSnackbar'
 
   const router = useRouter()
 
   const { login } = useAuth()
-
-  const { showSuccess } = useSnackbar()
 
   // 响应式数据定义
   const loginForm = reactive({
@@ -188,11 +185,22 @@ meta:
     loginError.value = ''
 
     try {
-      const resault = await login(loginForm.account, loginForm.password, loginForm.remember)
-      if (resault.success === true) {
-        router.push('/home')
-        showSuccess('登录成功')
+      console.log('Login.vue: 开始登录流程')
+      const result = await login(loginForm.account, loginForm.password, loginForm.remember)
+
+      if (result.success === true) {
+        console.log('Login.vue: 登录成功，准备跳转到首页')
+        // 登录成功后跳转
+        await router.push('/home')
+      } else {
+        // 登录失败，显示错误信息
+        loginError.value = result.error || '登录失败，请检查用户名和密码'
+        console.error('Login.vue: 登录失败', loginError.value)
       }
+    } catch (error: any) {
+      // 捕获异常，显示错误信息
+      console.error('Login.vue: 登录过程中发生异常', error)
+      loginError.value = error.message || '登录过程中发生错误，请稍后重试'
     } finally {
       loading.value = false
     }

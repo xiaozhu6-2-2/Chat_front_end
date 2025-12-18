@@ -2,7 +2,7 @@
   <v-container class="pa-4" fluid>
     <v-card flat style="background-color: #1A1A25">
       <v-card-title class="d-flex align-center">
-        <v-icon icon="mdi-account-plus" class="mr-2"></v-icon>
+        <v-icon class="mr-2" icon="mdi-account-plus" />
         新的朋友
       </v-card-title>
 
@@ -17,10 +17,10 @@
             <v-icon class="mr-2" icon="mdi-bell-ring" />
             好友请求
             <v-badge
-              v-if="pendingRequestCount > 0"
+              v-if="totalPending > 0"
               class="ml-2"
               color="error"
-              :content="pendingRequestCount"
+              :content="totalPending"
             />
           </v-tab>
         </v-tabs>
@@ -42,26 +42,17 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useFriend } from '../composables/useFriend'
-import { useRequestAndSearch } from '../composables/useRequestAndSearch'
-import UserSearchPanel from '../components/friend/UserSearchPanel.vue'
-import FriendRequestPanel from '../components/friend/FriendRequestPanel.vue'
+  import { onMounted } from 'vue'
+  import { useFriendRequest } from '@/composables/useFriendRequest'
+  import FriendRequestPanel from '../components/friend/FriendRequestPanel.vue'
+  import UserSearchPanel from '../components/friend/UserSearchPanel.vue'
+  import { useFriend } from '../composables/useFriend'
 
-const {
-  selectedTab,
-  pendingRequestCount,
-  initializeRequestFeature
-} = useRequestAndSearch()
+  const selectedTab = 'search'
 
-// 页面初始化时加载好友数据
-onMounted(async () => {
-  try {
-    await initializeRequestFeature()
-  } catch (error) {
-    console.error('初始化好友功能失败:', error)
-  }
-})
+  // 待处理的请求的总数
+  const { totalPending } = useFriendRequest()
+
 </script>
 
 <style scoped>

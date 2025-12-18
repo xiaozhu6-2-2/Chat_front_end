@@ -307,16 +307,16 @@ export function getGroupId (group: Group | GroupCard | GroupProfile): string {
 }
 /** 群组信息接口 */
 interface GroupInfo {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
 /** 群组卡片 Props */
 interface GroupCardProps {
-  group: GroupInfo;
+  group: GroupInfo
 }
 
 export type {
-    GroupInfo,
-    GroupCardProps
+  GroupCardProps,
+  GroupInfo,
 }

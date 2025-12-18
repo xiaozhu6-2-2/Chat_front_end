@@ -1,36 +1,23 @@
 import type {
-  CreateGroupParams,
-  DisbandGroupParams,
   GetGroupAnnouncementsResponse,
+  GetGroupListResponse,
   GetGroupMembersResponse,
   Group,
   GroupAnnouncement,
   GroupCard,
   GroupMember,
   GroupProfile,
-  KickMemberParams,
-  LeaveGroupParams,
-  SetAdminParams,
-  SetGroupInfoParams,
-  TransferOwnershipParams,
 } from '@/types/group'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { useSnackbar } from '@/composables/useSnackbar'
-import { groupService } from '@/service/groupService'
 import {
   GroupRole,
-  transformGroupCardToGroup,
+  transformGroupListFromApi,
   transformGroupMemberFromApi,
   transformGroupProfileToGroup,
-  transformGroupProfileToGroupCard,
 } from '@/types/group'
-import { useUserStore } from './userStore'
 
 export const useGroupStore = defineStore('group', () => {
-  // 初始化 snackbar
-  const { showSuccess, showError, showWarning } = useSnackbar()
-
   // State
   const groups = ref<Map<string, Group>>(new Map()) // id(gid) -> group
   const groupCards = ref<Map<string, GroupCard>>(new Map()) // gid -> card (缓存)
@@ -53,652 +40,506 @@ export const useGroupStore = defineStore('group', () => {
    */
   const allGroups = computed(() => {
     return Array.from(groups.value.values())
-      .sort((a, b) => b.id.localeCompare(a.id))
   })
 
   /**
-   * 获取群聊总数
+   * 获取群聊数量
    *
    * 使用场景：
-   * - 群聊列表页面显示数量
-   * - 徽标或角标显示
-   * - 数据统计展示
+   * - 首页显示群聊数量
+   * - 统计面板显示
+   * - 验证是否加载了群聊数据
    *
    * @returns {number} 群聊总数
    */
-  const groupCount = computed(() => groups.value.size)
-
-  /**
-   * 根据 ID 获取群聊信息
-   *
-   * 使用场景：
-   * - 进入群聊页面时获取群聊信息
-   * - 群聊设置页面展示基本信息
-   * - 消息推送时获取群聊详情
-   *
-   * @returns {(gid: string) => Group | undefined} 根据 gid 获取群聊对象的函数
-   */
-  const getGroupById = computed(() => {
-    return (gid: string) => groups.value.get(gid)
+  const groupCount = computed(() => {
+    return groups.value.size
   })
-
-  /**
-   * 获取群聊名片缓存
-   *
-   * 使用场景：
-   * - 搜索结果展示群聊基本信息
-   * - 群聊邀请页面展示群聊卡片
-   * - 群聊列表预览信息
-   *
-   * @returns {(gid: string) => GroupCard | undefined} 根据 gid 获取群聊名片的函数
-   */
-  const getGroupCard = computed(() => {
-    return (gid: string) => groupCards.value.get(gid)
-  })
-
-  /**
-   * 获取群聊详细信息缓存
-   *
-   * 使用场景：
-   * - 群聊设置页面展示完整信息
-   * - 获取群聊公告、成员等详细信息
-   * - 用户在群聊中的个人信息展示
-   *
-   * @returns {(gid: string) => GroupProfile | undefined} 根据 gid 获取群聊详细信息的函数
-   */
-  const getGroupProfile = computed(() => {
-    return (gid: string) => groupProfiles.value.get(gid)
-  })
-
-  /**
-   * 获取群成员列表缓存
-   *
-   * 使用场景：
-   * - 群成员页面展示成员列表
-   * - @提及功能获取成员列表
-   * - 权限验证时获取成员角色
-   *
-   * @returns {(gid: string) => GroupMember[]} 根据 gid 获取群成员列表的函数
-   */
-  const getGroupMembers = computed(() => {
-    return (gid: string) => groupMembers.value.get(gid) || []
-  })
-
-  /**
-   * 获取群公告列表缓存
-   *
-   * 使用场景：
-   * - 群公告页面展示公告列表
-   * - 群聊入口显示最新公告
-   * - 公告管理和编辑功能
-   *
-   * @returns {(gid: string) => GroupAnnouncement[]} 根据 gid 获取群公告列表的函数
-   */
-  const getGroupAnnouncements = computed(() => {
-    return (gid: string) => groupAnnouncements.value.get(gid) || []
-  })
-
-  /**
-   * 获取群主信息
-   *
-   * 使用场景：
-   * - 显示群主标识
-   * - 权限验证时判断是否为群主
-   * - 群主相关操作的权限检查
-   *
-   * @returns {(gid: string) => GroupMember | undefined} 根据 gid 获取群主成员对象的函数
-   */
-  const getGroupOwner = computed(() => {
-    return (gid: string) => {
-      const members = getGroupMembers.value(gid)
-      return members.find(m => m.role === GroupRole.OWNER)
-    }
-  })
-
-  /**
-   * 获取群管理员列表
-   *
-   * 使用场景：
-   * - 显示管理员标识
-   * - 管理员权限验证
-   * - 管理员相关功能的权限检查
-   *
-   * @returns {(gid: string) => GroupMember[]} 根据 gid 获取管理员成员列表的函数
-   */
-  const getGroupAdmins = computed(() => {
-    return (gid: string) => {
-      const members = getGroupMembers.value(gid)
-      return members.filter(m => m.role === GroupRole.ADMIN)
-    }
-  })
-
-  /**
-   * 获取普通群成员列表
-   *
-   * 使用场景：
-   * - 成员管理页面
-   * - 批量操作普通成员
-   * - 成员统计和展示
-   *
-   * @returns {(gid: string) => GroupMember[]} 根据 gid 获取普通成员列表的函数
-   */
-  const getOrdinaryMembers = computed(() => {
-    return (gid: string) => {
-      const members = getGroupMembers.value(gid)
-      return members.filter(m => m.role === GroupRole.MEMBER)
-    }
-  })
-
-  /**
-   * 获取群成员总数
-   *
-   * 使用场景：
-   * - 群聊信息页面显示成员数量
-   * - 群聊列表显示成员统计
-   * - 数据统计和展示
-   *
-   * @returns {(gid: string) => number} 根据 gid 获取群成员总数的函数
-   */
-  const getGroupMemberCount = computed(() => {
-    return (gid: string) => getGroupMembers.value(gid).length
-  })
-
-  /**
-   * 检查用户是否为群主
-   *
-   * 使用场景：
-   * - 群主权限功能显示/隐藏
-   * - 解散群聊、转让群主等操作权限
-   * - 群主专属功能的访问控制
-   *
-   * @returns {(gid: string, uid: string) => boolean} 检查指定用户是否为群主的函数
-   */
-  const isGroupOwner = computed(() => {
-    return (gid: string, uid: string) => {
-      const member = getGroupMembers.value(gid).find(m => m.id === uid)
-      return member?.role === GroupRole.OWNER
-    }
-  })
-
-  /**
-   * 检查用户是否为管理员（包含群主）
-   *
-   * 使用场景：
-   * - 管理员权限功能显示/隐藏
-   * - 踢出成员等操作权限
-   * - 管理员专属功能的访问控制
-   *
-   * @returns {(gid: string, uid: string) => boolean} 检查指定用户是否为管理员或群主的函数
-   */
-  const isGroupAdmin = computed(() => {
-    return (gid: string, uid: string) => {
-      const member = getGroupMembers.value(gid).find(m => m.id === uid)
-      return member?.role === GroupRole.ADMIN || member?.role === GroupRole.OWNER
-    }
-  })
-
-  /**
-   * 检查用户是否在群聊中
-   *
-   * 使用场景：
-   * - 进入群聊前的权限验证
-   * - 显示加入群聊按钮或进入群聊按钮
-   * - 群聊相关功能的访问控制
-   *
-   * @returns {(gid: string, uid: string) => boolean} 检查指定用户是否在群聊中的函数
-   */
-  const isInGroup = computed(() => {
-    return (gid: string, uid: string) => {
-      return getGroupMembers.value(gid).some(m => m.id === uid)
-    }
-  })
-
-  /**
-   * 获取用户在指定群中的角色
-   *
-   * 执行流程：
-   * 1. 获取指定群的成员列表
-   * 2. 查找当前用户在群中的信息
-   * 3. 返回用户角色，如果不是成员返回 null
-   *
-   * 使用场景：
-   * - 群申请权限验证
-   * - UI 权限控制
-   * - 获取用户在群中的具体角色信息
-   *
-   * @param {string} gid - 群聊ID
-   * @param {string} uid - 用户ID，默认为当前用户
-   * @returns {GroupRole | null} 用户角色，如果不是成员返回 null
-   */
-  const getUserRoleInGroup = (gid: string, uid?: string): GroupRole | null => {
-    const userId = uid || useUserStore().currentUserId
-    if (!userId) {
-      return null
-    }
-
-    const member = getGroupMembers.value(gid).find(m => m.id === userId)
-    return member?.role || null
-  }
-
-  /**
-   * 获取用户管理的群聊列表
-   *
-   * 执行流程：
-   * 1. 遍历所有群聊
-   * 2. 检查用户在每个群中的角色
-   * 3. 过滤出用户有管理权限的群聊（群主或管理员）
-   * 4. 返回群聊基本信息列表
-   *
-   * 使用场景：
-   * - 显示用户可以管理群聊申请的群列表
-   * - 群申请页面的群选择器
-   * - 权限相关的群聊筛选
-   *
-   * @param {string} uid - 用户ID，默认为当前用户
-   * @returns {Group[]} 用户有管理权限的群聊列表
-   */
-  const getManagedGroups = (uid?: string): Group[] => {
-    const userId = uid || useUserStore().currentUserId
-    if (!userId) {
-      return []
-    }
-
-    return allGroups.value.filter(group => {
-      const role = getUserRoleInGroup(group.id, userId)
-      return role === GroupRole.OWNER || role === GroupRole.ADMIN
-    })
-  }
 
   // Actions
   /**
    * 设置加载状态
    *
    * 使用场景：
-   * - API 请求开始时设置为 true
-   * - API 请求结束时设置为 false
+   * - 开始数据请求时设置为 true
+   * - 请求完成（成功或失败）后设置为 false
+   * - 防止重复请求
    *
-   * @param {boolean} loading - 加载状态值
+   * @param {boolean} loading - 加载状态
    */
   const setLoading = (loading: boolean) => {
     isLoading.value = loading
+    console.log(`groupStore: 设置加载状态 ${loading ? '开启' : '关闭'}`)
+  }
+
+  // ==================== 群聊管理方法 ====================
+
+  /**
+   * 内部方法：添加群聊（不包含API调用）
+   *
+   * 使用场景：
+   * - Composable层创建群聊后更新本地状态
+   * - 批量初始化群聊列表
+   * - 合并外部数据源
+   *
+   * @param {Group} group - 群聊对象
+   */
+  const _addGroupInternal = (group: Group) => {
+    groups.value.set(group.id, group)
+    console.log(`groupStore: 添加群聊 ${group.id}`)
   }
 
   /**
-   * 设置群聊列表
+   * 内部方法：批量添加群聊（不包含API调用）
    *
    * 使用场景：
-   * - 从服务器获取群聊列表后更新本地状态
-   * - 初始化或刷新群聊数据
+   * - 初始化群聊列表
+   * - 合并外部群聊数据
+   * - 批量更新群聊信息
    *
-   * @param {Group[]} groupList - 群聊列表数组
+   * @param {Group[]} groupList - 群聊列表
    */
-  const setGroups = (groupList: Group[]) => {
-    groups.value.clear()
+  const _addGroupsInternal = (groupList: Group[]) => {
     for (const group of groupList) {
       groups.value.set(group.id, group)
     }
-    lastFetchTime.value = Date.now()
-    console.log(`groupStore: 设置群聊列表，共 ${groupList.length} 个群聊`)
+    console.log(`groupStore: 批量添加 ${groupList.length} 个群聊`)
   }
 
   /**
-   * 添加群聊
+   * 内部方法：更新群聊信息（不包含API调用）
    *
    * 使用场景：
-   * - 创建新群聊后添加到列表
-   * - 加入新群聊后添加到本地状态
+   * - Composable层更新群聊信息后同步本地状态
+   * - 群聊名称、头像、简介等信息的更新
+   * - 合并部分群聊信息
    *
-   * @param {Group} group - 要添加的群聊对象
+   * @param {string} gid - 群聊ID
+   * @param {Partial<Group>} updates - 更新的群聊信息
    */
-  const addGroup = (group: Group) => {
-    groups.value.set(group.id, group)
-    console.log(`groupStore: 添加群聊`, group)
-  }
-
-  /**
-   * 更新群聊信息
-   *
-   * 使用场景：
-   * - 群聊名称、头像、简介等基本信息修改
-   * - 群聊设置变更后的本地状态更新
-   *
-   * @param {string} gid - 群聊 ID
-   * @param {Partial<Group>} updates - 要更新的群聊信息部分字段
-   */
-  const updateGroup = (gid: string, updates: Partial<Group>) => {
-    const group = groups.value.get(gid)
-    if (group) {
-      const updatedGroup = { ...group, ...updates }
-      groups.value.set(gid, updatedGroup)
-      console.log(`groupStore: 更新群聊信息`, { gid, updates })
+  const _updateGroupInternal = (gid: string, updates: Partial<Group>) => {
+    const existingGroup = groups.value.get(gid)
+    if (existingGroup) {
+      groups.value.set(gid, { ...existingGroup, ...updates })
+      console.log(`groupStore: 更新群聊信息 ${gid}`)
+    } else {
+      console.warn(`groupStore: 尝试更新不存在的群聊 ${gid}`)
     }
   }
 
   /**
-   * 更新群主信息
+   * 内部方法：移除群聊（不包含API调用）
    *
    * 使用场景：
-   * - 转让群主后更新群主ID
-   * - WebSocket 推送群主变更
+   * - Composable层解散群聊后清理本地状态
+   * - 退出群聊后移除本地记录
+   * - 数据同步时清理无效群聊
    *
-   * @param {string} gid - 群聊 ID
-   * @param {string} managerUid - 新群主的用户 ID
+   * @param {string} gid - 群聊ID
    */
-  const updateGroupManager = (gid: string, managerUid: string) => {
-    // 更新 groupCards 缓存
-    const groupCard = groupCards.value.get(gid)
-    if (groupCard) {
-      const updatedCard = { ...groupCard, manager_uid: managerUid }
-      setGroupCard(updatedCard) // 这会同时更新 groups 缓存
-    }
-
-    // 更新 groupProfiles 缓存
-    const groupProfile = groupProfiles.value.get(gid)
-    if (groupProfile) {
-      const updatedProfile = { ...groupProfile, manager_uid: managerUid }
-      setGroupProfile(updatedProfile) // 这会同时更新 groups 和 groupCards 缓存
-    }
-
-    console.log(`groupStore: 更新群主信息`, { gid, managerUid })
-  }
-
-  /**
-   * 删除群聊
-   *
-   * 使用场景：
-   * - 退出群聊后清理本地数据
-   * - 解散群聊后移除相关缓存
-   * - 踢出群聊后清理数据
-   *
-   * @param {string} gid - 群聊 ID
-   * @returns {boolean} 是否成功删除
-   */
-  const removeGroup = (gid: string) => {
-    const deleted = groups.value.delete(gid)
-    if (deleted) {
+  const _removeGroupInternal = (gid: string) => {
+    const removed = groups.value.delete(gid)
+    if (removed) {
+      // 清理相关缓存
       groupCards.value.delete(gid)
       groupProfiles.value.delete(gid)
       groupMembers.value.delete(gid)
       groupAnnouncements.value.delete(gid)
-      console.log(`groupStore: 删除群聊`, gid)
-    }
-    return deleted
-  }
-
-  // GroupCard 缓存管理
-  /**
-   * 缓存群聊名片
-   *
-   * 使用场景：
-   * - 从 API 获取群聊名片后进行缓存
-   * - WebSocket 推送群聊信息更新
-   * - 搜索群聊结果缓存
-   *
-   * @param {GroupCard} card - 群聊名片对象
-   */
-  const setGroupCard = (card: GroupCard) => {
-    groupCards.value.set(card.id, card)
-    // 同时更新基本信息到 groups
-    const basicGroup = transformGroupCardToGroup(card)
-    if (!groups.value.has(card.id)) {
-      groups.value.set(card.id, basicGroup)
-    }
-    console.log(`groupStore: 缓存群聊名片`, { gid: card.id, card })
-  }
-
-  /**
-   * 获取或请求群聊名片
-   *
-   * 使用场景：
-   * - 查看群聊资料页面
-   * - 搜索群聊结果展示
-   * - 群聊信息预览
-   *
-   * @param {string} gid - 群聊 ID
-   * @returns {Promise<GroupCard>} 群聊名片对象
-   */
-  const getOrFetchGroupCard = async (gid: string): Promise<GroupCard> => {
-    // 先检查缓存
-    let card = groupCards.value.get(gid)
-    if (card) {
-      return card
-    }
-
-    // 缓存没有，从 API 获取
-    try {
-      card = await groupService.getGroupCard({ gid })
-      setGroupCard(card)
-      return card
-    } catch (error) {
-      console.error('groupStore: 获取群聊名片失败', { gid }, error)
-      throw error
-    }
-  }
-
-  // GroupProfile 缓存管理
-  /**
-   * 缓存群聊详细信息
-   *
-   * 使用场景：
-   * - 进入群聊设置页面时缓存详细信息
-   * - 群聊设置更新后更新缓存
-   * - 获取用户在群聊中的个人信息
-   *
-   * @param {GroupProfile} profile - 群聊详细信息对象
-   */
-  const setGroupProfile = (profile: GroupProfile) => {
-    groupProfiles.value.set(profile.id, profile)
-    // 同时更新基本信息到 groups
-    const basicGroup = transformGroupProfileToGroup(profile)
-    groups.value.set(profile.id, basicGroup)
-    // 更新groupCards缓存
-    const groupCard = transformGroupProfileToGroupCard(profile)
-    groupCards.value.set(profile.id, groupCard)
-    console.log(`groupStore: 缓存群聊详细信息`, { gid: profile.id, profile })
-  }
-
-  /**
-   * 获取或请求群聊详细信息
-   *
-   * 使用场景：
-   * - 进入群聊设置页面
-   * - 查看用户在群聊中的详细资料
-   * - 刷新群聊详细信息
-   *
-   * @param {string} gid - 群聊 ID
-   * @param {boolean} [forceRefresh=false] - 是否强制刷新缓存
-   * @returns {Promise<GroupProfile>} 群聊详细信息对象
-   */
-  const getOrFetchGroupProfile = async (gid: string, forceRefresh = false): Promise<GroupProfile> => {
-    // 检查缓存
-    if (!forceRefresh && groupProfiles.value.has(gid)) {
-      return groupProfiles.value.get(gid)!
-    }
-
-    // 从 API 获取
-    try {
-      const profile = await groupService.getGroupProfile({ gid })
-      setGroupProfile(profile)
-      return profile
-    } catch (error) {
-      console.error('groupStore: 获取群聊详细信息失败', { gid }, error)
-      throw error
-    }
-  }
-
-  // 成员管理
-  /**
-   * 设置群成员列表
-   *
-   * 使用场景：
-   * - 从服务器获取群成员列表后更新本地状态
-   * - 初始化或刷新群成员数据
-   *
-   * @param {string} gid - 群聊 ID
-   * @param {GroupMember[]} members - 群成员列表数组
-   */
-  const setGroupMembers = (gid: string, members: GroupMember[]) => {
-    groupMembers.value.set(gid, members)
-    console.log(`groupStore: 设置群成员列表，群 ${gid}，共 ${members.length} 个成员`)
-  }
-
-  /**
-   * 添加或更新群成员
-   *
-   * 使用场景：
-   * - 新成员加入群聊
-   * - 群成员信息更新（角色变更、昵称修改等）
-   * - WebSocket 推送成员信息变更
-   *
-   * @param {string} gid - 群聊 ID
-   * @param {GroupMember} member - 群成员对象
-   */
-  const addGroupMember = (gid: string, member: GroupMember) => {
-    const members = groupMembers.value.get(gid) || []
-    const existingIndex = members.findIndex(m => m.id === member.id)
-
-    if (existingIndex === -1) {
-      // 添加新成员
-      members.push(member)
+      console.log(`groupStore: 移除群聊 ${gid} 及相关数据`)
     } else {
-      // 更新现有成员
-      members[existingIndex] = member
+      console.warn(`groupStore: 尝试移除不存在的群聊 ${gid}`)
     }
+  }
 
+  /**
+   * 设置群聊列表（从API数据）
+   *
+   * 使用场景：
+   * - Composable层获取群聊列表后更新Store
+   * - 初始化群聊数据
+   * - 刷新群聊列表
+   *
+   * @param {Group[]} groupList - 群聊列表
+   */
+  const setGroups = (groupList: Group[]) => {
+    // 清空现有数据
+    groups.value.clear()
+
+    // 批量添加新数据
+    _addGroupsInternal(groupList)
+
+    // 更新最后获取时间
+    lastFetchTime.value = Date.now()
+
+    console.log(`groupStore: 设置群聊列表，共 ${groupList.length} 个群聊`)
+  }
+
+  /**
+   * 设置群聊列表（从API响应数据）
+   *
+   * 使用场景：
+   * - Composable层调用API后直接传入响应数据
+   * - 数据格式转换和状态更新
+   *
+   * @param {GetGroupListResponse} apiResponse - API响应数据
+   */
+  const setGroupsFromApiResponse = (apiResponse: GetGroupListResponse) => {
+    const groupList = transformGroupListFromApi(apiResponse)
+    setGroups(groupList)
+  }
+
+  // ==================== 群聊名片和详细信息管理 ====================
+
+  /**
+   * 内部方法：设置群聊名片（不包含API调用）
+   *
+   * 使用场景：
+   * - Composable层获取群聊名片后更新缓存
+   * - 批量预加载群聊名片
+   *
+   * @param {GroupCard} card - 群聊名片
+   */
+  const _setGroupCardInternal = (card: GroupCard) => {
+    groupCards.value.set(card.id, card)
+    console.log(`groupStore: 缓存群聊名片 ${card.id}`)
+  }
+
+  /**
+   * 内部方法：设置群聊详细信息（不包含API调用）
+   *
+   * 使用场景：
+   * - Composable层获取群聊详细信息后更新缓存
+   * - 用户查看群聊设置时缓存数据
+   *
+   * @param {GroupProfile} profile - 群聊详细信息
+   */
+  const _setGroupProfileInternal = (profile: GroupProfile) => {
+    groupProfiles.value.set(profile.id, profile)
+    // 同时更新群聊基本信息
+    _updateGroupInternal(profile.id, transformGroupProfileToGroup(profile))
+    console.log(`groupStore: 缓存群聊详细信息 ${profile.id}`)
+  }
+
+  // ==================== 群成员管理方法 ====================
+
+  /**
+   * 内部方法：添加群成员（不包含API调用）
+   *
+   * 使用场景：
+   * - Composable层添加成员后更新本地状态
+   * - 批量导入群成员
+   *
+   * @param {string} gid - 群聊ID
+   * @param {GroupMember} member - 群成员信息
+   */
+  const _addGroupMemberInternal = (gid: string, member: GroupMember) => {
+    const members = groupMembers.value.get(gid) || []
+    // 检查是否已存在
+    const existingIndex = members.findIndex(m => m.id === member.id)
+    if (existingIndex === -1) {
+      members.push(member) // 添加新成员
+    } else {
+      members[existingIndex] = member // 更新现有成员
+    }
     groupMembers.value.set(gid, members)
-    console.log(`groupStore: 添加/更新群成员`, { gid, member })
+    console.log(`groupStore: 添加/更新群成员 ${gid}:${member.id}`)
   }
 
   /**
-   * 移除群成员
+   * 内部方法：移除群成员（不包含API调用）
    *
    * 使用场景：
-   * - 成员主动退出群聊
-   * - 管理员踢出群成员
-   * - 成员被解散群聊时清理数据
+   * - Composable层踢出成员后更新本地状态
+   * - 成员主动退群后清理数据
    *
-   * @param {string} gid - 群聊 ID
-   * @param {string} uid - 要移除的成员用户 ID
+   * @param {string} gid - 群聊ID
+   * @param {string} uid - 用户ID
    */
-  const removeGroupMember = (gid: string, uid: string) => {
+  const _removeGroupMemberInternal = (gid: string, uid: string) => {
     const members = groupMembers.value.get(gid) || []
-    const index = members.findIndex(m => m.id === uid)
-    if (index !== -1) {
-      members.splice(index, 1)
+    const filteredMembers = members.filter(m => m.id !== uid)
+    groupMembers.value.set(gid, filteredMembers)
+    console.log(`groupStore: 移除群成员 ${gid}:${uid}`)
+  }
+
+  /**
+   * 内部方法：更新群成员信息（不包含API调用）
+   *
+   * 使用场景：
+   * - Composable层修改成员角色后更新本地状态
+   * - 成员更改群昵称等信息
+   *
+   * @param {string} gid - 群聊ID
+   * @param {string} uid - 用户ID
+   * @param {Partial<GroupMember>} updates - 更新的成员信息
+   */
+  const _updateGroupMemberInternal = (gid: string, uid: string, updates: Partial<GroupMember>) => {
+    const members = groupMembers.value.get(gid) || []
+    const memberIndex = members.findIndex(m => m.id === uid)
+    if (memberIndex === -1) {
+      console.warn(`groupStore: 尝试更新不存在的群成员 ${gid}:${uid}`)
+    } else {
+      members[memberIndex] = { ...members[memberIndex], ...updates } as GroupMember
       groupMembers.value.set(gid, members)
-      console.log(`groupStore: 移除群成员`, { gid, uid })
+      console.log(`groupStore: 更新群成员信息 ${gid}:${uid}`)
     }
   }
 
   /**
-   * 更新群成员信息
+   * 内部方法：批量更新群成员角色（不包含API调用）
    *
    * 使用场景：
-   * - 成员角色变更（设置为管理员）
-   * - 成员昵称、备注等信息更新
+   * - Composable层批量设置管理员后更新本地状态
+   * - 批量角色权限调整
    *
-   * @param {string} gid - 群聊 ID
-   * @param {string} uid - 成员用户 ID
-   * @param {Partial<GroupMember>} updates - 要更新的成员信息部分字段
+   * @param {string} gid - 群聊ID
+   * @param {string[]} uids - 用户ID数组
+   * @param {GroupRole} role - 新角色
    */
-  const updateGroupMember = (gid: string, uid: string, updates: Partial<GroupMember>) => {
+  const _batchUpdateGroupMemberRoleInternal = (gid: string, uids: string[], role: GroupRole) => {
     const members = groupMembers.value.get(gid) || []
-    const index = members.findIndex(m => m.id === uid)
-    if (index !== -1) {
-      members[index] = { ...members[index], ...updates } as GroupMember
-      groupMembers.value.set(gid, members)
-      console.log(`groupStore: 更新群成员信息`, { gid, uid, updates })
-    }
-  }
-
-  /**
-   * 批量更新群成员角色
-   *
-   * 使用场景：
-   * - 群主转让后更新双方角色
-   * - 批量设置或取消管理员权限
-   * - 批量成员角色调整
-   *
-   * @param {string} gid - 群聊 ID
-   * @param {{ uid: string; role: GroupRole }[]} updates - 要更新的角色信息数组
-   */
-  const batchUpdateGroupMemberRole = (gid: string, updates: { uid: string, role: GroupRole }[]) => {
-    const members = groupMembers.value.get(gid) || []
-    for (const { uid, role } of updates) {
-      const index = members.findIndex(m => m.id === uid)
-      if (index !== -1) {
-        (members[index] as any).role = role
+    for (const uid of uids) {
+      const memberIndex = members.findIndex(m => m.id === uid)
+      if (memberIndex !== -1) {
+        const member = members[memberIndex]
+        if (member) {
+          member.role = role
+        }
       }
     }
     groupMembers.value.set(gid, members)
-    console.log(`groupStore: 批量更新群成员角色`, { gid, updates })
+    console.log(`groupStore: 批量更新群成员角色 ${gid}，${uids.length}个成员设为${role}`)
   }
 
   /**
-   * 批量移除群成员
+   * 设置群成员列表（从API响应数据）
    *
    * 使用场景：
-   * - 解散群聊时移除所有成员
-   * - 批量踢出多个违规成员
-   * - 清理已退出或被踢的成员数据
+   * - Composable层获取群成员列表后更新Store
+   * - 初始化群成员数据
+   * - 刷新群成员列表
    *
-   * @param {string} gid - 群聊 ID
-   * @param {string[]} uids - 要移除的成员用户 ID 数组
+   * @param {string} gid - 群聊ID
+   * @param {GetGroupMembersResponse} apiResponse - API响应数据
    */
-  const batchRemoveGroupMembers = (gid: string, uids: string[]) => {
-    const members = groupMembers.value.get(gid) || []
-    const filteredMembers = members.filter(m => !uids.includes(m.id))
-    groupMembers.value.set(gid, filteredMembers)
-    console.log(`groupStore: 批量移除群成员`, { gid, uids })
+  const setGroupMembersFromApiResponse = (gid: string, apiResponse: GetGroupMembersResponse) => {
+    const members = apiResponse.members.map(transformGroupMemberFromApi)
+    groupMembers.value.set(gid, members)
+    console.log(`groupStore: 设置群成员列表 ${gid}，共 ${members.length} 个成员`)
   }
 
-  // 公告管理
-  /**
-   * 设置群公告列表
-   *
-   * 使用场景：
-   * - 从服务器获取群公告列表后更新本地状态
-   * - 初始化或刷新群公告数据
-   *
-   * @param {string} gid - 群聊 ID
-   * @param {GroupAnnouncement[]} announcements - 群公告列表数组
-   */
-  const setGroupAnnouncements = (gid: string, announcements: GroupAnnouncement[]) => {
-    groupAnnouncements.value.set(gid, announcements)
-    console.log(`groupStore: 设置群公告列表`, { gid, count: announcements.length })
-  }
+  // ==================== 群公告管理方法 ====================
 
   /**
-   * 添加或更新群公告
+   * 内部方法：添加群公告（不包含API调用）
    *
    * 使用场景：
-   * - 发布新群公告
-   * - 编辑现有群公告
-   * - WebSocket 推送公告更新
+   * - Composable层发布公告后更新本地状态
+   * - 批量导入历史公告
    *
-   * @param {string} gid - 群聊 ID
-   * @param {GroupAnnouncement} announcement - 群公告对象
+   * @param {GroupAnnouncement} announcement - 群公告信息
    */
-  const addGroupAnnouncement = (gid: string, announcement: GroupAnnouncement) => {
-    const announcements = groupAnnouncements.value.get(gid) || []
+  const _addGroupAnnouncementInternal = (announcement: GroupAnnouncement) => {
+    const announcements = groupAnnouncements.value.get(announcement.gid) || []
+    // 检查是否已存在（通过msg_id）
     const existingIndex = announcements.findIndex(a => a.msg_id === announcement.msg_id)
-
     if (existingIndex === -1) {
-      announcements.unshift(announcement) // 新公告放在前面
+      announcements.unshift(announcement) // 添加新公告到开头
     } else {
-      announcements[existingIndex] = announcement
+      announcements[existingIndex] = announcement // 更新现有公告
+    }
+    groupAnnouncements.value.set(announcement.gid, announcements)
+    console.log(`groupStore: 添加/更新群公告 ${announcement.gid}:${announcement.msg_id}`)
+  }
+
+  /**
+   * 设置群公告列表（从API响应数据）
+   *
+   * 使用场景：
+   * - Composable层获取群公告列表后更新Store
+   * - 初始化群公告数据
+   * - 刷新群公告列表
+   *
+   * @param {string} gid - 群聊ID
+   * @param {GetGroupAnnouncementsResponse} apiResponse - API响应数据
+   */
+  const setGroupAnnouncementsFromApiResponse = (gid: string, apiResponse: GetGroupAnnouncementsResponse) => {
+    groupAnnouncements.value.set(gid, apiResponse.announcements)
+    console.log(`groupStore: 设置群公告列表 ${gid}，共 ${apiResponse.announcements.length} 个公告`)
+  }
+
+  // ==================== 权限检查方法 ====================
+
+  /**
+   * 检查用户是否为群主
+   *
+   * 使用场景：
+   * - 判断是否可以解散群聊
+   * - 判断是否可以转让群主
+   * - 判断是否可以设置管理员
+   *
+   * @param {string} gid - 群聊ID
+   * @param {string} uid - 用户ID，默认为当前用户
+   * @returns {boolean} 是否为群主
+   */
+  const isGroupOwner = (gid: string, uid: string): boolean => {
+    // 检查群聊详细信息中的manager_uid
+    const profile = groupProfiles.value.get(gid)
+    if (profile?.manager_uid === uid) {
+      return true
     }
 
-    groupAnnouncements.value.set(gid, announcements)
+    // 检查群成员列表中的角色
+    const members = groupMembers.value.get(gid) || []
+    const member = members.find(m => m.id === uid)
+    return member?.role === GroupRole.OWNER
   }
 
   /**
-   * 重置所有群聊状态
+   * 检查用户是否为群管理员
    *
    * 使用场景：
-   * - 用户退出登录时清理数据
-   * - 切换账号时重置状态
-   * - 调试或测试时清理缓存
+   * - 判断是否可以踢出成员
+   * - 判断是否可以发布公告
+   * - 判断是否可以编辑群信息
+   *
+   * @param {string} gid - 群聊ID
+   * @param {string} uid - 用户ID，默认为当前用户
+   * @returns {boolean} 是否为群管理员
+   */
+  const isGroupAdmin = (gid: string, uid: string): boolean => {
+    // 群主也是管理员
+    if (isGroupOwner(gid, uid)) {
+      return true
+    }
+
+    // 检查群成员列表中的角色
+    const members = groupMembers.value.get(gid) || []
+    const member = members.find(m => m.id === uid)
+    return member?.role === GroupRole.ADMIN
+  }
+
+  /**
+   * 检查用户是否在群中
+   *
+   * 使用场景：
+   * - 判断用户是否可以查看群内容
+   * - 过滤用户所在的群聊列表
+   * - 权限验证的基础检查
+   *
+   * @param {string} gid - 群聊ID
+   * @param {string} uid - 用户ID
+   * @returns {boolean} 是否在群中
+   */
+  const isInGroup = (gid: string, uid: string): boolean => {
+    // 检查是否在群成员列表中
+    const members = groupMembers.value.get(gid) || []
+    return members.some(m => m.id === uid)
+  }
+
+  // ==================== 数据查询方法 ====================
+
+  /**
+   * 获取群聊信息
+   *
+   * 使用场景：
+   * - 显示群聊基本信息
+   * - 群聊列表项展示
+   * - 权限验证前的存在性检查
+   *
+   * @param {string} gid - 群聊ID
+   * @returns {Group | null} 群聊信息或null
+   */
+  const getGroupById = (gid: string): Group | null => {
+    return groups.value.get(gid) || null
+  }
+
+  /**
+   * 获取群聊名片
+   *
+   * 使用场景：
+   * - 显示群聊详细信息
+   * - 群聊设置页面展示
+   * - 权限验证需要群主信息
+   *
+   * @param {string} gid - 群聊ID
+   * @returns {GroupCard | null} 群聊名片或null
+   */
+  const getGroupCard = (gid: string): GroupCard | null => {
+    return groupCards.value.get(gid) || null
+  }
+
+  /**
+   * 获取群聊详细信息
+   *
+   * 使用场景：
+   * - 显示完整群聊信息
+   * - 群聊设置和成员管理
+   * - 用户个人群聊配置
+   *
+   * @param {string} gid - 群聊ID
+   * @returns {GroupProfile | null} 群聊详细信息或null
+   */
+  const getGroupProfile = (gid: string): GroupProfile | null => {
+    return groupProfiles.value.get(gid) || null
+  }
+
+  /**
+   * 获取群成员列表
+   *
+   * 使用场景：
+   * - 显示群成员列表
+   * - 成员管理和权限设置
+   * - @提及功能的前端匹配
+   *
+   * @param {string} gid - 群聊ID
+   * @returns {GroupMember[]} 群成员列表
+   */
+  const getGroupMembers = (gid: string): GroupMember[] => {
+    return groupMembers.value.get(gid) || []
+  }
+
+  /**
+   * 获取群成员信息
+   *
+   * 使用场景：
+   * - 显示特定成员信息
+   * - 权限验证
+   * - 成员编辑操作
+   *
+   * @param {string} gid - 群聊ID
+   * @param {string} uid - 用户ID
+   * @returns {GroupMember | null} 群成员信息或null
+   */
+  const getGroupMemberByUid = (gid: string, uid: string): GroupMember | null => {
+    const members = groupMembers.value.get(gid) || []
+    return members.find(m => m.id === uid) || null
+  }
+
+  /**
+   * 获取群公告列表
+   *
+   * 使用场景：
+   * - 显示群公告列表
+   * - 群聊公告管理
+   * - 新消息提示
+   *
+   * @param {string} gid - 群聊ID
+   * @returns {GroupAnnouncement[]} 群公告列表
+   */
+  const getGroupAnnouncements = (gid: string): GroupAnnouncement[] => {
+    return groupAnnouncements.value.get(gid) || []
+  }
+
+  // ==================== 状态管理方法 ====================
+
+  /**
+   * 重置所有群聊数据
+   *
+   * 使用场景：
+   * - 用户登出时清理数据
+   * - 切换账号时清理旧数据
+   * - 开发环境重置测试数据
    */
   const reset = () => {
     groups.value.clear()
@@ -708,316 +549,10 @@ export const useGroupStore = defineStore('group', () => {
     groupAnnouncements.value.clear()
     isLoading.value = false
     lastFetchTime.value = 0
-    console.log('groupStore: 重置所有状态')
+    console.log('groupStore: 重置所有群聊数据')
   }
 
-  // API 调用方法
-  /**
-   * 获取群聊列表
-   *
-   * 使用场景：
-   * - 进入群聊界面时加载群聊列表
-   * - 下拉刷新群聊列表
-   * - 定期同步群聊数据
-   *
-   * @param {boolean} [forceRefresh=false] - 是否强制刷新缓存
-   * @returns {Promise<Group[]>} 群聊列表数组
-   */
-  const fetchGroups = async (forceRefresh = false): Promise<Group[]> => {
-    // 如果不需要强制刷新且已经有数据，直接返回
-    if (!forceRefresh && groups.value.size > 0) {
-      return allGroups.value
-    }
-
-    setLoading(true)
-    try {
-      const groupList = await groupService.getGroupList()
-      setGroups(groupList)
-      return groupList
-    } catch (error) {
-      console.error('groupStore: 获取群聊列表失败', error)
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  /**
-   * 获取群成员列表
-   *
-   * 使用场景：
-   * - 进入群成员页面时加载成员列表
-   * - 刷新群成员信息
-   * - 获取管理员权限验证所需的成员信息
-   *
-   * @param {string} gid - 群聊 ID
-   * @param {boolean} [forceRefresh=false] - 是否强制刷新缓存
-   * @returns {Promise<GroupMember[]>} 群成员列表数组
-   */
-  const fetchGroupMembers = async (gid: string, forceRefresh = false): Promise<GroupMember[]> => {
-    if (!forceRefresh && groupMembers.value.has(gid)) {
-      return getGroupMembers.value(gid)
-    }
-
-    try {
-      const response: GetGroupMembersResponse = await groupService.getGroupMembers({ gid })
-      const members = response.members.map(transformGroupMemberFromApi)
-      setGroupMembers(gid, members)
-      return members
-    } catch (error) {
-      console.error('groupStore: 获取群成员失败', { gid }, error)
-      throw error
-    }
-  }
-
-  /**
-   * 获取群公告列表
-   *
-   * 使用场景：
-   * - 进入群公告页面时加载公告列表
-   * - 刷新群公告信息
-   * - 群公告推送后的数据同步
-   *
-   * @param {string} gid - 群聊 ID
-   * @param {boolean} [forceRefresh=false] - 是否强制刷新缓存
-   * @returns {Promise<GroupAnnouncement[]>} 群公告列表数组
-   */
-  const fetchGroupAnnouncements = async (gid: string, forceRefresh = false): Promise<GroupAnnouncement[]> => {
-    if (!forceRefresh && groupAnnouncements.value.has(gid)) {
-      return getGroupAnnouncements.value(gid)
-    }
-
-    try {
-      const response: GetGroupAnnouncementsResponse = await groupService.getGroupAnnouncements({ gid })
-      setGroupAnnouncements(gid, response.announcements)
-      return response.announcements
-    } catch (error) {
-      console.error('groupStore: 获取群公告失败', { gid }, error)
-      throw error
-    }
-  }
-
-  // 工具方法
-  /**
-   * 根据 UID 获取群成员信息
-   *
-   * 使用场景：
-   * - 获取特定成员的详细信息
-   * - 验证用户是否在群聊中
-   * - 获取成员角色等权限信息
-   *
-   * @param {string} gid - 群聊 ID
-   * @param {string} uid - 用户 ID
-   * @returns {GroupMember | undefined} 群成员对象，如果不存在则返回 undefined
-   */
-  const getGroupMemberByUid = (gid: string, uid: string): GroupMember | undefined => {
-    const members = getGroupMembers.value(gid)
-    return members.find(m => m.id === uid)
-  }
-
-  // 组件直接调用的 API 方法（带 snackbar 反馈）
-
-  /**
-   * 创建群聊（组件直接调用）
-   *
-   * 使用场景：
-   * - 用户在创建群聊页面点击创建按钮
-   * - 系统需要创建默认群聊
-   *
-   * @param {CreateGroupParams} params - 创建群聊的参数
-   * @returns {Promise<Group>} 创建成功的群聊对象
-   */
-  const createGroup = async (params: CreateGroupParams): Promise<Group> => {
-    setLoading(true)
-    try {
-      const group = await groupService.createGroup(params)
-      addGroup(group)
-      showSuccess('群聊创建成功')
-      return group
-    } catch (error: any) {
-      console.error('groupStore: 创建群聊失败', error)
-      showError(error.message || '创建群聊失败，请重试')
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  /**
-   * 更新群信息（组件直接调用）
-   *
-   * 使用场景：
-   * - 管理员在群设置页面修改群信息
-   * - 群主更新群名称、头像或简介
-   *
-   * @param {SetGroupInfoParams} params - 更新群信息的参数
-   * @returns {Promise<void>}
-   */
-  const updateGroupInfo = async (params: SetGroupInfoParams): Promise<void> => {
-    setLoading(true)
-    try {
-      await groupService.setGroupInfo(params)
-      // 更新本地缓存的群信息
-      updateGroup(params.gid, {
-        name: params.group_name,
-        avatar: params.group_avatar,
-        group_intro: params.group_intro,
-      })
-      showSuccess('群信息更新成功')
-    } catch (error: any) {
-      console.error('groupStore: 更新群信息失败', error)
-      showError(error.message || '更新群信息失败，请重试')
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  /**
-   * 退出群聊（组件直接调用）
-   *
-   * 使用场景：
-   * - 普通成员在群设置页面点击退出群聊
-   * - 用户确认要退出群聊
-   *
-   * @param {LeaveGroupParams} params - 退出群聊的参数
-   * @returns {Promise<void>}
-   */
-  const leaveGroup = async (params: LeaveGroupParams): Promise<void> => {
-    setLoading(true)
-    try {
-      await groupService.leaveGroup(params)
-      // 从本地状态中移除该群聊
-      removeGroup(params.gid)
-      showSuccess('已退出群聊')
-    } catch (error: any) {
-      console.error('groupStore: 退出群聊失败', error)
-      showError(error.message || '退出群聊失败，请重试')
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  /**
-   * 踢出群成员（组件直接调用）
-   *
-   * 使用场景：
-   * - 管理员在群成员页面踢出违规成员
-   * - 群主清理不活跃成员
-   *
-   * @param {KickMemberParams} params - 踢出成员的参数
-   * @returns {Promise<void>}
-   */
-  const kickMember = async (params: KickMemberParams): Promise<void> => {
-    setLoading(true)
-    try {
-      await groupService.kickMember(params)
-      // 从本地成员列表中移除该成员
-      removeGroupMember(params.gid, params.uid)
-      showSuccess('成员已被踢出')
-    } catch (error: any) {
-      console.error('groupStore: 踢出成员失败', error)
-      showError(error.message || '踢出成员失败，请重试')
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  /**
-   * 解散群聊（组件直接调用）
-   *
-   * 使用场景：
-   * - 群主在群设置页面点击解散群聊
-   * - 群主确认要解散群聊
-   *
-   * @param {DisbandGroupParams} params - 解散群聊的参数
-   * @returns {Promise<void>}
-   */
-  const disbandGroup = async (params: DisbandGroupParams): Promise<void> => {
-    setLoading(true)
-    try {
-      await groupService.disbandGroup(params)
-      // 从本地状态中移除该群聊
-      removeGroup(params.gid)
-      showSuccess('群聊已解散')
-    } catch (error: any) {
-      console.error('groupStore: 解散群聊失败', error)
-      showError(error.message || '解散群聊失败，请重试')
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  /**
-   * 转让群主（组件直接调用）
-   *
-   * 使用场景：
-   * - 群主在群成员页面转让群主权限
-   * - 群主退出前转让权限
-   *
-   * @param {TransferOwnershipParams} params - 转让群主的参数
-   * @returns {Promise<void>}
-   */
-  const transferGroupOwnership = async (params: TransferOwnershipParams): Promise<void> => {
-    setLoading(true)
-    try {
-      await groupService.transferOwnership(params)
-      // 获取当前用户信息
-      const userStore = useUserStore()
-      const currentUserId = userStore.currentUserId
-      if (!currentUserId) {
-        throw new Error('无法获取当前用户信息')
-      }
-      // 更新本地成员角色
-      batchUpdateGroupMemberRole(params.gid, [
-        { uid: params.uid, role: GroupRole.OWNER },
-        { uid: currentUserId, role: GroupRole.MEMBER },
-      ])
-      // 更新群主信息
-      updateGroupManager(params.gid, params.uid)
-      showSuccess('群主转让成功')
-    } catch (error: any) {
-      console.error('groupStore: 转让群主失败', error)
-      showError(error.message || '转让群主失败，请重试')
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  /**
-   * 设置/取消管理员（组件直接调用）
-   *
-   * 使用场景：
-   * - 群主在群成员页面设置管理员
-   * - 群主取消管理员权限
-   *
-   * 存在问题：没有取消的API/字段
-   *
-   * @param {SetAdminParams} params - 设置管理员的参数
-   * @param {boolean} isSetAdmin - true表示设置管理员，false表示取消管理员
-   * @returns {Promise<void>}
-   */
-  const setGroupAdmin = async (params: SetAdminParams, isSetAdmin = true): Promise<void> => {
-    setLoading(true)
-    try {
-      await groupService.setAdmin(params)
-      // 更新本地成员角色
-      const newRole = isSetAdmin ? GroupRole.ADMIN : GroupRole.MEMBER
-      updateGroupMember(params.gid, params.uid, { role: newRole })
-      showSuccess(isSetAdmin ? '已设置管理员' : '已取消管理员权限')
-    } catch (error: any) {
-      console.error('groupStore: 设置管理员失败', error)
-      showError(error.message || '设置管理员失败，请重试')
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
+  // ==================== 返回接口 ====================
   return {
     // State
     groups,
@@ -1031,66 +566,45 @@ export const useGroupStore = defineStore('group', () => {
     // Computed
     allGroups,
     groupCount,
-    getGroupById,
-    getGroupCard,
-    getGroupProfile,
-    getGroupMembers,
-    getGroupAnnouncements,
-    getGroupOwner,
-    getGroupAdmins,
-    getOrdinaryMembers,
-    getGroupMemberCount,
+
+    // 状态管理
+    setLoading,
+    reset,
+
+    // 群聊管理（内部方法，供Composable调用）
+    _addGroupInternal,
+    _addGroupsInternal,
+    _updateGroupInternal,
+    _removeGroupInternal,
+    setGroups,
+    setGroupsFromApiResponse,
+
+    // 群聊名片和详细信息（内部方法）
+    _setGroupCardInternal,
+    _setGroupProfileInternal,
+
+    // 群成员管理（内部方法）
+    _addGroupMemberInternal,
+    _removeGroupMemberInternal,
+    _updateGroupMemberInternal,
+    _batchUpdateGroupMemberRoleInternal,
+    setGroupMembersFromApiResponse,
+
+    // 群公告管理（内部方法）
+    _addGroupAnnouncementInternal,
+    setGroupAnnouncementsFromApiResponse,
+
+    // 权限检查
     isGroupOwner,
     isGroupAdmin,
     isInGroup,
 
-    // Actions
-    setLoading,
-    setGroups,
-    addGroup,
-    updateGroup,
-    removeGroup,
-    updateGroupManager,
-
-    // GroupCard 缓存
-    setGroupCard,
-    getOrFetchGroupCard,
-
-    // GroupProfile 缓存
-    setGroupProfile,
-    getOrFetchGroupProfile,
-
-    // 成员管理
-    setGroupMembers,
-    addGroupMember,
-    removeGroupMember,
-    updateGroupMember,
-    batchUpdateGroupMemberRole,
-    batchRemoveGroupMembers,
-
-    // 公告管理
-    setGroupAnnouncements,
-    addGroupAnnouncement,
-
-    reset,
-
-    // API 调用方法
-    fetchGroups,
-    fetchGroupMembers,
-    fetchGroupAnnouncements,
-
-    // 组件直接调用的 API 方法（带 snackbar 反馈）
-    createGroup,
-    updateGroupInfo,
-    leaveGroup,
-    kickMember,
-    disbandGroup,
-    transferGroupOwnership,
-    setGroupAdmin,
-
-    // 工具方法
+    // 数据查询
+    getGroupById,
+    getGroupCard,
+    getGroupProfile,
+    getGroupMembers,
     getGroupMemberByUid,
-    getUserRoleInGroup,
-    getManagedGroups,
+    getGroupAnnouncements,
   }
 })

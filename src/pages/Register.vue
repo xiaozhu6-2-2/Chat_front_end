@@ -410,12 +410,12 @@ meta:
 <script setup lang="ts">
   import { reactive, ref } from 'vue'
   import { useRouter } from 'vue-router'
+  import { useAuth } from '@/composables/useAuth'
   import { useSnackbar } from '@/composables/useSnackbar'
-  import { noauthApi } from '@/service/api'
-  import { generateSecureCredentials } from '@/service/crypto'
 
   const router = useRouter()
   const { showError, showSuccess } = useSnackbar()
+  const { register, isLoading } = useAuth()
 
   // 表单数据
   const registerForm = reactive({
@@ -613,27 +613,31 @@ meta:
     loading.value = true
 
     try {
-      // 前端加密
-      const { encryptedAccount, encryptedPassword } = await generateSecureCredentials(
-        registerForm.email,
-        registerForm.password,
-      )
+      console.log('Register: 开始注册流程，调用 useAuth.register')
 
-      // 发送注册请求
-      const response = await noauthApi.post('/auth/register', {
-        account: encryptedAccount,
-        password: encryptedPassword,
+      // 准备注册数据
+      const userData = {
+        account: registerForm.email,
+        password: registerForm.password,
         username: registerForm.username,
-        gender: registerForm.gender,
-        region: registerForm.region,
-        bio: registerForm.bio,
-        avatar: registerForm.avatar,
-      })
-
-      if (response.status === 200) {
-        currentStep.value = 5 // 跳转到注册成功页面
-        showSuccess('注册成功')
+        gender: registerForm.gender === 'male' ? 1 : (registerForm.gender === 'female' ? 2 : undefined),
+        region: registerForm.region || undefined,
+        bio: registerForm.bio || undefined,
+        avatar: '1', // 默认头像
       }
+
+      // 调用 useAuth 的 register 方法
+      const result = await register(userData)
+
+      if (result.success) {
+        currentStep.value = 5 // 跳转到注册成功页面
+        showSuccess('注册成功，请登录')
+      } else {
+        showError(result.error || '注册失败')
+      }
+    } catch (error: any) {
+      console.error('Register: 注册失败', error)
+      showError(error.message || '注册失败，请重试')
     } finally {
       loading.value = false
     }

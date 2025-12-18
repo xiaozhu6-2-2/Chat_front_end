@@ -1,18 +1,33 @@
 /**
- * 好友服务层 - 处理好友关系管理
- * 负责好友相关的CRUD操作，不包括实时通知功能
+ * 好友服务层 - 纯数据访问层
+ *
+ * 职责：
+ * - 负责API调用
+ * - 数据转换
+ * - 错误抛出（不处理UI）
+ *
+ * 数据流：
+ * - 输入：请求参数
+ * - 输出：转换后的数据或错误
+ * - 副作用：发送HTTP请求
  */
 
 import type { FriendUpdateOptions, FriendWithUserInfo } from '@/types/friend'
-import { useSnackbar } from '@/composables/useSnackbar'
 import { FriendApiToFriendWithUserInfo } from '@/types/friend'
 import { authApi } from './api'
-const { showError } = useSnackbar()
 
 export const friendService = {
   /**
    * 获取好友列表
-   * @returns 合并的好友列表（包括普通好友和黑名单用户）
+   *
+   * 执行流程：
+   * 1. 调用 /friends/friendlist API
+   * 2. 验证响应格式
+   * 3. 转换数据格式
+   * 4. 返回转换后的数据
+   *
+   * @returns Promise<FriendWithUserInfo[]> 好友列表（包括普通好友和黑名单用户）
+   * @throws Error API错误或数据格式错误
    */
   async getFriendsFromApi (): Promise<FriendWithUserInfo[]> {
     try {
@@ -25,9 +40,8 @@ export const friendService = {
         throw new Error(`获取好友列表失败：${response.status}`)
       }
     } catch (error) {
-      // 错误处理
-      showError('获取好友列表失败')
-      throw error
+      console.error('friendService.getFriendsFromApi:', error)
+      throw error // 重新抛出，让上层处理
     }
   },
 
@@ -72,7 +86,15 @@ export const friendService = {
 
   /**
    * 删除好友
-   * @param friendId 好友ID
+   *
+   * 执行流程：
+   * 1. 调用 /friends/remove API
+   * 2. 验证响应状态
+   * 3. 处理错误
+   *
+   * @param {string} friendId 好友ID
+   * @returns Promise<void>
+   * @throws Error 删除失败时抛出错误
    */
   async removeFriend (friendId: string): Promise<void> {
     try {
@@ -80,33 +102,63 @@ export const friendService = {
         fid: friendId,
       })
 
-      if (response.status != 200) {
-        console.error('friendService: 删除好友失败')
+      if (response.status !== 200) {
+        throw new Error(`删除好友失败：HTTP ${response.status}`)
       }
+
+      console.log(`friendService: 成功删除好友 ${friendId}`)
     } catch (error) {
-      console.error('删除好友失败:', error)
+      console.error('friendService.removeFriend:', error)
+      throw error
     }
   },
 
+  /**
+   * 获取好友资料
+   *
+   * 执行流程：
+   * 1. 调用 /friends/profile API
+   * 2. 验证响应状态
+   * 3. 转换数据格式
+   * 4. 返回好友信息
+   *
+   * @param {string} friendId 好友ID
+   * @param {string} userId 用户ID
+   * @returns Promise<FriendWithUserInfo> 好友资料信息
+   * @throws Error 获取失败时抛出错误
+   */
   async getFriendProfile (friendId: string, userId: string): Promise<FriendWithUserInfo> {
-    const response = await authApi.post('/friends/profile', {
-      uid: userId,
-      fid: friendId,
-    })
-    if (response.status === 200) {
-      const apiData = response.data
-      return FriendApiToFriendWithUserInfo(apiData)
-    } else {
-      console.error('useFriend: 获取好友资料失败')
-      throw undefined
+    try {
+      const response = await authApi.post('/friends/profile', {
+        uid: userId,
+        fid: friendId,
+      })
+
+      if (response.status === 200) {
+        const apiData = response.data
+        return FriendApiToFriendWithUserInfo(apiData)
+      } else {
+        throw new Error(`获取好友资料失败：HTTP ${response.status}`)
+      }
+    } catch (error) {
+      console.error('friendService.getFriendProfile:', error)
+      throw error
     }
   },
 
   /**
    * 更新好友资料（备注、黑名单状态、分组）
-   * @param friendId 好友ID
-   * @param options 更新选项对象
+   *
+   * 执行流程：
+   * 1. 验证更新参数
+   * 2. 调用 /friends/update API
+   * 3. 验证响应状态
+   * 4. 处理错误
+   *
+   * @param {string} friendId 好友ID
+   * @param {FriendUpdateOptions} options 更新选项对象
    * @returns Promise<void>
+   * @throws Error 更新失败时抛出错误
    */
   async updateFriendProfile (
     friendId: string,
@@ -117,7 +169,7 @@ export const friendService = {
       if (!options || (options.remark === undefined
         && options.isBlacklisted === undefined
         && options.tag === undefined)) {
-        console.warn('更新好友资料必须要有一项更改')
+        console.warn('friendService: 更新好友资料必须要有一项更改')
         throw new Error('更新好友资料必须要有一项更改')
       }
 
@@ -132,11 +184,14 @@ export const friendService = {
       })
 
       if (response.status === 200) {
+        console.log(`friendService: 成功更新好友 ${friendId} 资料`)
         return
+      } else {
+        throw new Error(`更新好友资料失败：HTTP ${response.status}`)
       }
     } catch (error) {
-      console.error('Service更新好友资料失败:', error)
-      return Promise.reject(error)
+      console.error('friendService.updateFriendProfile:', error)
+      throw error
     }
   },
 

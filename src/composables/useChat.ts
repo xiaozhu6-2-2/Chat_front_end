@@ -5,10 +5,9 @@ import { ChatService } from '@/service/chatService'
 import { messageService } from '@/service/message'
 import { useChatStore } from '@/stores/chatStore'
 
-const { showError } = useSnackbar()
-
 export function useChat () {
   const chatStore = useChatStore()
+  const { showError, showSuccess } = useSnackbar()
 
   // Computed properties
   const chatList = computed(() => chatStore.chatList)
@@ -20,6 +19,40 @@ export function useChat () {
   })
 
   // Actions
+
+  /**
+   * 初始化聊天列表
+   *
+   * 执行流程：
+   * 1. 检查是否强制初始化
+   * 2. 非强制时检查缓存
+   * 3. 调用Service获取数据
+   * 4. 更新Store
+   * 5. 处理错误和用户反馈
+   *
+   * @param force 是否强制初始化（默认true）
+   */
+  const initializeChats = async (force = true): Promise<void> => {
+    try {
+      // 非强制初始化时，检查缓存中是否已有会话
+      if (!force && chatList.value.length > 0) {
+        console.log('聊天列表已缓存，跳过初始化')
+        return
+      }
+
+      // 1. 调用Service获取数据
+      const chats = await ChatService.getChatList()
+
+      // 2. 更新Store
+      chatStore.setChatList(chats)
+
+      console.log('聊天列表初始化成功')
+    } catch (error) {
+      console.error('聊天列表初始化失败:', error)
+      showError('获取聊天列表失败，请刷新重试')
+    }
+  }
+
   // 用户点击某个会话；改变activeChatId；未读消息数归零；
   const selectChat = (chatId: string): Chat | null => {
     console.log(`useChat: 选择会话 ${chatId}`)
@@ -38,7 +71,7 @@ export function useChat () {
     chatStore.resetUnreadCount(chatId)
 
     // 4.通知后端将会话的消息标记为已读
-    messageService.markMessagesAsRead()
+    useMessage.markMessagesAsRead()
 
     console.log(`useChat: 会话 ${chatId} 未读数已重置`)
 
@@ -47,15 +80,33 @@ export function useChat () {
     return chat
   }
 
-  // 创建新的会话：当用户从联系人card点击开始聊天时；当未在会话列表的会话收到新消息时。
+  /**
+   * 创建或获取聊天会话
+   *
+   * 执行流程：
+   * 1. 先从缓存查找
+   * 2. 缓存没有则调用API
+   * 3. 处理成功/失败
+   * 4. 添加到Store
+   * 5. 显示用户反馈
+   *
+   * @param fidOrGid 好友ID或群组ID
+   * @param chatType 会话类型
+   * @returns Promise<Chat | null> 会话信息或null
+   */
   const createChat = async (fidOrGid: string, chatType: ChatType): Promise<Chat | null> => {
     console.log(`useChat: 开始创建/获取会话，${chatType === 'private' ? '好友ID' : '群组ID'}: ${fidOrGid}`)
 
     try {
-      // 由于数据库设计，私聊的chatId跟fid不是同一个，无法在前端缓存中查找对应的chat
-      // 目前统一通过API获取fid/gid对应的chat
-      let chat: Chat | null = null
+      // 1. 先从缓存查找（现在后端已更新，fid和私聊pid是同一个id）
+      let chat = chatStore.getChatByid(fidOrGid)
 
+      if (chat) {
+        console.log(`useChat: 从缓存找到会话 ${fidOrGid}`)
+        return chat
+      }
+
+      // 2. 缓存没有则调用API
       if (chatType === 'private') {
         // 获取私聊会话
         chat = await ChatService.getPrivateChat(fidOrGid)
@@ -64,6 +115,7 @@ export function useChat () {
         chat = await ChatService.getGroupChat(fidOrGid)
       } else {
         console.error(`useChat: 未知的会话类型: ${chatType}`)
+        showError('未知的会话类型')
         return null
       }
 
@@ -75,9 +127,43 @@ export function useChat () {
 
       return chat
     } catch (error) {
-      console.error(`useChat: 创建/获取会话异常`, error)
+      console.error(`useChat: 创建/获取会话失败:`, error)
+      showError('创建会话失败，请重试')
       return null
     }
+  }
+
+  /**
+   * 切换会话置顶状态
+   *
+   * @param chatId 会话ID
+   * @param type 会话类型
+   * @param isPinned 是否置顶
+   */
+  const togglePinChat = async (
+    chatId: string,
+    type: ChatType,
+    isPinned: boolean,
+  ): Promise<void> => {
+    try {
+      // 调用Service更新置顶状态
+      await ChatService.updateIsPinned(chatId, type, isPinned)
+
+      // 更新本地状态
+      chatStore.updateIsPinned(chatId, isPinned)
+
+      showSuccess(isPinned ? '会话已置顶' : '已取消置顶')
+    } catch (error) {
+      console.error('更新置顶状态失败:', error)
+      showError('设置置顶失败，请重试')
+    }
+  }
+
+  /**
+   * 重置聊天状态（用于登出时）
+   */
+  const reset = (): void => {
+    chatStore.reset()
   }
 
   return {
@@ -88,7 +174,10 @@ export function useChat () {
     isLoading,
 
     // Actions
+    initializeChats, // 新增：初始化聊天列表
     selectChat,
     createChat,
+    togglePinChat, // 新增：切换置顶状态
+    reset, // 新增：重置状态
   }
 }

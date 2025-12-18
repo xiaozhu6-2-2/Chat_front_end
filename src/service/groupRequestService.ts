@@ -61,7 +61,7 @@ export const groupRequestService = {
       }
 
       // 调用 API
-      const response = await authApi.post('/auth/groups/send_group_request', params)
+      const response = await authApi.post('/groups/send_group_request', params)
 
       // 检查响应状态
       if (response.status === 200 && response.data) {
@@ -103,7 +103,7 @@ export const groupRequestService = {
 
     try {
       // 调用 API
-      const response = await authApi.get('/auth/groups/get_request_list')
+      const response = await authApi.get('/groups/get_request_list')
 
       // 检查响应状态
       if (response.status === 200 && response.data) {
@@ -149,7 +149,7 @@ export const groupRequestService = {
 
     try {
       // 调用新的 GET API
-      const response = await authApi.get('/auth/groups/group_request_list')
+      const response = await authApi.get('/groups/group_request_list')
 
       // 检查响应状态
       if (response.status === 200 && response.data) {
@@ -218,7 +218,7 @@ export const groupRequestService = {
       }
 
       // 调用 API
-      const response = await authApi.post('/auth/groups/respond', params)
+      const response = await authApi.post('/groups/respond', params)
 
       // 检查响应状态
       if (response.status === 200 && response.data) {

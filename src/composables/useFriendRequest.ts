@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useFriendRequestStore } from '@/stores/friendRequestStore'
 import { useFriendStore } from '@/stores/friendStore'
 import { transformFriendRequestFromApi } from '@/types/friendRequest'
+import { useFriend } from './useFriend' // 导入useFriend以获取fetchFriends
 
 /**
  * 好友请求管理 Composable
@@ -34,6 +35,7 @@ export function useFriendRequest () {
   const friendStore = useFriendStore()
   const authStore = useAuthStore()
   const { showSuccess, showError } = useSnackbar()
+  const { fetchFriends } = useFriend() // 获取fetchFriends方法
 
   // ========== 核心业务逻辑 ==========
 
@@ -128,7 +130,7 @@ export function useFriendRequest () {
       // 如果接受了好友请求，需要刷新好友列表以包含新好友
       if (action === 'accept') {
         console.log('useFriendRequest: 接受好友请求，刷新好友列表')
-        await friendStore.fetchFriends()
+        await fetchFriends(true) // 强制刷新好友列表
       }
 
       // 显示操作结果
@@ -185,16 +187,84 @@ export function useFriendRequest () {
     // 根据状态显示相应提示
     if (status === 'accepted') {
       showSuccess('好友请求已被接受')
-      friendStore.fetchFriends() // 刷新好友列表
+      fetchFriends(true) // 刷新好友列表
     } else if (status === 'rejected') {
       showSuccess('好友请求已被拒绝')
     }
+  }
+
+  /**
+   * 获取好友请求列表
+   *
+   * 执行流程：
+   * 1. 调用 friendRequestService 获取请求列表
+   * 2. 转换数据格式
+   * 3. 更新 friendRequestStore
+   * 4. 处理错误和用户反馈
+   *
+   * 数据流：
+   * - 输入：无参数
+   * - 输出：更新 store 中的请求列表
+   * - 副作用：发送 HTTP 请求，显示用户反馈
+   *
+   * @returns {Promise<void>}
+   */
+  const fetchFriendRequests = async (): Promise<void> => {
+    friendRequestStore.setLoading(true)
+    try {
+      const response = await friendRequestService.getFriendRequestList()
+      friendRequestStore.setRequestsFromApi(response)
+      console.log('useFriendRequest: 好友请求列表获取成功')
+    } catch (error) {
+      console.error('useFriendRequest: 获取好友请求列表失败', error)
+      showError('获取好友请求列表失败，请刷新重试')
+      throw error
+    } finally {
+      friendRequestStore.setLoading(false)
+    }
+  }
+
+  /**
+   * 重置好友请求模块状态
+   *
+   * 使用场景：
+   * - 用户登出时清理数据
+   */
+  const reset = (): void => {
+    friendRequestStore.reset()
+    console.log('useFriendRequest: 重置好友请求模块状态')
+  }
+
+  /**
+   * 初始化好友请求模块
+   *
+   * 执行流程：
+   * 1. 调用 fetchFriendRequests 获取请求列表
+   * 2. 处理初始化错误
+   *
+   * 使用场景：
+   * - 用户登录后初始化数据
+   *
+   * @param {boolean} force 是否强制初始化（默认true）
+   * @returns {Promise<void>}
+   */
+  const init = async (force = true): Promise<void> => {
+    // 如果不强制初始化且已有数据，可以跳过
+    if (!force && friendRequestStore.requests.length > 0) {
+      console.log('useFriendRequest: 好友请求列表已缓存，跳过初始化')
+      return
+    }
+
+    await fetchFriendRequests()
   }
 
   // ========== 返回接口 ==========
 
   return {
     // ========== 方法 ==========
+    fetchFriendRequests, // 新增：获取好友请求列表
+    init, // 新增：初始化好友请求模块
+    reset, // 新增：重置好友请求模块状态
     sendFriendRequest, // 发送好友请求
     respondFriendRequest, // 响应好友请求
     handleNewFriendRequest, // 处理新请求推送

@@ -65,6 +65,7 @@ Composable 层 (composables/useSearch.ts)
 Service 层应该没有 snackbar（因为不是直接由组件调用）
 snackbar和console可以同时使用。
 5、数据流：composable->params->Service:API->response->composable:转换函数->标准数据格式->store
+6、messageType和messageService是原先的临时代码，不应该引用，也不需要理会。
 
 架构统一要求：
    - 所有 Service 调用必须移到 Composable 层
@@ -75,4 +76,3 @@ snackbar和console可以同时使用。
    - 确保composable封装了用于login和logout的init（没有初始化拉取的不需要封装）和reset
 
 你需要完成的任务：
-    参考search模块实现的代码，封装一个localSearch模块，用来搜索前端缓存中的char、group和friend

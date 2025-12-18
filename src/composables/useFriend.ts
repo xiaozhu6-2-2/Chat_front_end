@@ -6,10 +6,7 @@ import { useSnackbar } from './useSnackbar'
 
 export function useFriend () {
   const friendStore = useFriendStore()
-
   const { showSuccess, showError } = useSnackbar()
-
-  // State
 
   // Computed properties
   // 获取非黑名单好友列表
@@ -17,6 +14,72 @@ export function useFriend () {
   const isLoading = computed(() => friendStore.isLoading)
   // 获取黑名单列表
   const blacklistedFriends = computed(() => friendStore.blacklistedFriends)
+
+  /**
+   * 获取好友列表
+   *
+   * 执行流程：
+   * 1. 检查是否需要强制刷新
+   * 2. 调用 friendService 获取好友列表
+   * 3. 转换数据格式（Service已完成转换）
+   * 4. 更新 friendStore
+   * 5. 处理错误和用户反馈
+   *
+   * 数据流：
+   * - 输入：forceRefresh参数
+   * - 输出：更新 store 中的好友列表
+   * - 副作用：发送 HTTP 请求，显示用户反馈
+   *
+   * @param {boolean} forceRefresh 是否强制刷新
+   * @returns {Promise<void>}
+   */
+  const fetchFriends = async (forceRefresh = false) => {
+    if (!forceRefresh && friendStore.friends.size > 0) {
+      console.log('useFriend: 好友列表已缓存，跳过获取')
+      return
+    }
+
+    friendStore.setLoading(true)
+    try {
+      const friendList = await friendService.getFriendsFromApi()
+      friendStore.setFriendsFromApi(friendList)
+      console.log('useFriend: 好友列表获取成功')
+    } catch (error) {
+      console.error('useFriend: 获取好友列表失败', error)
+      showError('获取好友列表失败，请刷新重试')
+      throw error
+    } finally {
+      friendStore.setLoading(false)
+    }
+  }
+
+  /**
+   * 重置好友模块状态
+   *
+   * 使用场景：
+   * - 用户登出时清理数据
+   */
+  const reset = (): void => {
+    friendStore.reset()
+    console.log('useFriend: 重置好友模块状态')
+  }
+
+  /**
+   * 初始化好友模块
+   *
+   * 执行流程：
+   * 1. 调用 fetchFriends 获取好友列表
+   * 2. 处理初始化错误
+   *
+   * 使用场景：
+   * - 用户登录后初始化数据
+   *
+   * @param {boolean} force 是否强制初始化（默认true）
+   * @returns {Promise<void>}
+   */
+  const init = async (force = true): Promise<void> => {
+    await fetchFriends(force)
+  }
 
   // 删除好友
   const removeFriend = async (friendId: string) => {
@@ -136,6 +199,9 @@ export function useFriend () {
     isLoading,
 
     // Actions
+    fetchFriends, // 新增：获取好友列表
+    init, // 新增：初始化好友模块
+    reset, // 新增：重置好友模块状态
     removeFriend,
     updateFriendProfile,
     checkUserRelation,

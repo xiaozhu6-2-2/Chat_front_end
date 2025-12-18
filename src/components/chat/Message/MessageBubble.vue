@@ -73,33 +73,33 @@
     <ContactCardModal
       v-if="showContactCard && selectedContactInfo"
       v-model="showContactCard"
-      :contact="selectedContactInfo"
       v-model="showContactCard"
-      @update-friend-profile="(fid, remark, isBlacklisted, tag) => friendStore.updateFriendProfile(fid,  remark, isBlacklisted, tag )"
+      :contact="selectedContactInfo"
+      @update-friend-profile="(fid, remark, isBlacklisted, tag) => friendStore.updateFriendProfile(fid, remark, isBlacklisted, tag )"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { ContentType, MessageType } from '../../../service/messageTypes'
-import type { MessageBubbleProps } from '../../../types/chat'
-import { useFriendStore } from '../../../stores/friendStore'
-import type { FriendWithUserInfo } from '../../../types/friend'
-import { useFriend } from '../../../composables/useFriend'
+  import type { MessageBubbleProps } from '../../../types/chat'
+  import type { FriendWithUserInfo } from '../../../types/friend'
+  import { computed, ref } from 'vue'
+  import { useFriend } from '../../../composables/useFriend'
+  import { ContentType, MessageType } from '../../../service/messageTypes'
+  import { useFriendStore } from '../../../stores/friendStore'
 
   const props = withDefaults(defineProps<MessageBubbleProps>(), {
     currentUserId: 'current-user',
   })
 
-const friendStore = useFriendStore()
-const { updateFriendProfile } = useFriend()
-const emit = defineEmits<{
-  imagePreview: [imageUrl: string]
-}>()
+  const friendStore = useFriendStore()
+  const { updateFriendProfile } = useFriend()
+  const emit = defineEmits<{
+    imagePreview: [imageUrl: string]
+  }>()
 
-const showContactCard = ref(false)
-const selectedContactInfo = ref<FriendWithUserInfo>()
+  const showContactCard = ref(false)
+  const selectedContactInfo = ref<FriendWithUserInfo>()
 
   const isOwnMessage = computed(() =>
     props.message.userIsSender || props.message.payload.senderId === props.currentUserId,
@@ -204,45 +204,45 @@ const selectedContactInfo = ref<FriendWithUserInfo>()
     }
   }
 
-// 处理头像点击事件
-const handleAvatarClick = () => {
-  const senderId = props.message.payload.senderId
+  // 处理头像点击事件
+  function handleAvatarClick () {
+    const senderId = props.message.payload.senderId
 
-  // 首先检查是否为好友
-  const friendInfo = senderId ? friendStore.getFriendByUid(senderId) : null
+    // 首先检查是否为好友
+    const friendInfo = senderId ? friendStore.getFriendByUid(senderId) : null
 
-  if (friendInfo) {
-    // 如果是好友，传递完整的 FriendWithUserInfo 数据
-    selectedContactInfo.value = friendInfo
-  } else {
-    // 如果是陌生人，构建不完整的数据
-    selectedContactInfo.value = getStrangerData()
-  }
-
-  showContactCard.value = true
-}
-
-// 处理自己头像点击事件
-const handleMyAvatarClick = () => {
-  // 自己的头像不查询好友关系，直接构建 UserProfile
-  selectedContactInfo.value = {
-    // TODO：考虑从 authStore 获取真实的用户数据
-    fid: '1111',
-    uid: 'current-user',
-    username: '我',
-    createdAt: new Date().toISOString(),
-    isBlacklisted: false,
-    avatar: currentUserAvatar.value,
-    bio: '这是我的个人信息',
-    info:{
-      account: '1111',
-      gender: 'male',
-      region: '11',
-      email: '111'
+    if (friendInfo) {
+      // 如果是好友，传递完整的 FriendWithUserInfo 数据
+      selectedContactInfo.value = friendInfo
+    } else {
+      // 如果是陌生人，构建不完整的数据
+      selectedContactInfo.value = getStrangerData()
     }
+
+    showContactCard.value = true
   }
-  showContactCard.value = true
-}
+
+  // 处理自己头像点击事件
+  function handleMyAvatarClick () {
+    // 自己的头像不查询好友关系，直接构建 UserProfile
+    selectedContactInfo.value = {
+      // TODO：考虑从 authStore 获取真实的用户数据
+      fid: '1111',
+      uid: 'current-user',
+      username: '我',
+      createdAt: new Date().toISOString(),
+      isBlacklisted: false,
+      avatar: currentUserAvatar.value,
+      bio: '这是我的个人信息',
+      info: {
+        account: '1111',
+        gender: 'male',
+        region: '11',
+        email: '111',
+      },
+    }
+    showContactCard.value = true
+  }
 </script>
 
 <style lang="scss" scoped>
