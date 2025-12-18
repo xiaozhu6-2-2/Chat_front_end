@@ -22,15 +22,87 @@ import { groupRequestService } from '@/service/groupRequestService'
 import { useAuthStore } from '@/stores/authStore'
 import { useGroupRequestStore } from '@/stores/groupRequestStore'
 import { useGroupStore } from '@/stores/groupStore'
-import { transformUserGroupRequestFromApi, transformGroupApprovalFromApi, transformGroupRequestFromApi } from '@/types/groupRequest'
+import { transformGroupApprovalFromApi, transformGroupRequestFromApi, transformUserGroupRequestFromApi } from '@/types/groupRequest'
 
-export function useGroupRequest() {
+export function useGroupRequest () {
   // ========== 依赖注入 ==========
 
   const groupRequestStore = useGroupRequestStore()
   const groupStore = useGroupStore()
   const authStore = useAuthStore()
   const { showSuccess, showError } = useSnackbar()
+
+  // ========== 数据获取方法 ==========
+
+  /**
+   * 获取用户发送的群聊申请记录
+   *
+   * 执行流程：
+   * 1. 调用 groupRequestService 获取用户申请列表
+   * 2. 转换数据格式
+   * 3. 更新 groupRequestStore
+   * 4. 处理错误和用户反馈
+   *
+   * 数据流：
+   * - 输入：无参数
+   * - 输出：更新 store 中的用户申请列表
+   * - 副作用：发送 HTTP 请求，显示用户反馈
+   *
+   * @returns {Promise<void>}
+   */
+  const fetchUserRequests = async (): Promise<void> => {
+    groupRequestStore.setLoading(true)
+    try {
+      console.log('useGroupRequest: 开始获取用户群聊申请记录')
+      const response = await groupRequestService.getUserGroupRequests()
+
+      // 更新本地状态
+      groupRequestStore.setUserRequestsFromApi(response)
+
+      console.log('useGroupRequest: 用户群聊申请记录获取成功')
+    } catch (error) {
+      console.error('useGroupRequest: 获取用户群聊申请记录失败', error)
+      showError('获取群聊申请记录失败，请刷新重试')
+      throw error
+    } finally {
+      groupRequestStore.setLoading(false)
+    }
+  }
+
+  /**
+   * 获取所有待审核的群聊申请列表
+   *
+   * 执行流程：
+   * 1. 调用 groupRequestService 获取待审核申请列表
+   * 2. 转换数据格式
+   * 3. 更新 groupRequestStore
+   * 4. 处理错误和用户反馈
+   *
+   * 数据流：
+   * - 输入：无参数
+   * - 输出：更新 store 中的待审核申请列表
+   * - 副作用：发送 HTTP 请求，显示用户反馈
+   *
+   * @returns {Promise<void>}
+   */
+  const fetchApprovalRequests = async (): Promise<void> => {
+    groupRequestStore.setLoadingApprovals(true)
+    try {
+      console.log('useGroupRequest: 开始获取待审核群聊申请列表')
+      const response = await groupRequestService.getAllPendingRequests()
+
+      // 更新本地状态
+      groupRequestStore.setApprovalRequestsFromApi(response)
+
+      console.log('useGroupRequest: 待审核群聊申请列表获取成功')
+    } catch (error) {
+      console.error('useGroupRequest: 获取待审核群聊申请列表失败', error)
+      showError('获取待审核申请列表失败，请刷新重试')
+      throw error
+    } finally {
+      groupRequestStore.setLoadingApprovals(false)
+    }
+  }
 
   // ========== 核心业务逻辑 ==========
 
@@ -107,7 +179,7 @@ export function useGroupRequest() {
   const respondGroupRequest = async (
     req_id: string,
     action: 'accept' | 'reject',
-    gid: string
+    gid: string,
   ): Promise<any> => {
     console.log('useGroupRequest: 开始响应群聊申请', { req_id, action, gid })
 
@@ -159,7 +231,7 @@ export function useGroupRequest() {
    * 使用场景：
    * - WebSocket 收到新申请通知
    * - 实时更新申请列表
-   * 
+   *
    * 注意：目前假设WS推送的新申请结构体与API一致
    *
    * @param {any} request - WebSocket 推送的申请数据
@@ -226,7 +298,7 @@ export function useGroupRequest() {
 
       // 3. 根据状态执行相应操作
       switch (status) {
-        case 'accepted':
+        case 'accepted': {
           if (isUserRequest) {
             // 发送的申请被通过，强制刷新群聊列表
             console.log('useGroupRequest: 用户发送的申请被接受，刷新群聊列表')
@@ -239,19 +311,23 @@ export function useGroupRequest() {
             }
           }
           break
-        case 'rejected':
+        }
+        case 'rejected': {
           if (isUserRequest) {
             showSuccess('群聊申请已被拒绝')
           }
           break
-        case 'expired':
+        }
+        case 'expired': {
           if (isUserRequest) {
             showSuccess('群聊申请已过期')
           }
           break
-        default:
+        }
+        default: {
           console.log('useGroupRequest: 未知的申请状态', { req_id, status })
           break
+        }
       }
 
       // 4. 记录更新日志
@@ -261,15 +337,62 @@ export function useGroupRequest() {
         isUserRequest,
         isApprovalRequest,
         gid: userRequest?.gid || approvalRequest?.gid,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       })
     } catch (error) {
       console.error('useGroupRequest: 处理群聊申请状态更新失败', {
         req_id,
         status,
-        error
+        error,
       })
     }
+  }
+
+  // ========== 初始化和重置方法 ==========
+
+  /**
+   * 初始化群组请求模块
+   *
+   * 执行流程：
+   * 1. 调用 fetchUserRequests 获取用户申请列表
+   * 2. 调用 fetchApprovalRequests 获取待审核申请列表
+   * 3. 处理初始化错误
+   *
+   * 使用场景：
+   * - 用户登录后初始化数据
+   *
+   * @param {boolean} force 是否强制初始化（默认true）
+   * @returns {Promise<void>}
+   */
+  const init = async (force = true): Promise<void> => {
+    if (!force && groupRequestStore.userRequests.length > 0) {
+      console.log('useGroupRequest: 群组请求列表已缓存，跳过获取')
+      return
+    }
+
+    try {
+      // 并行获取两种类型的申请列表
+      await Promise.all([
+        fetchUserRequests(),
+        fetchApprovalRequests(),
+      ])
+
+      console.log('useGroupRequest: 群组请求模块初始化成功')
+    } catch (error) {
+      console.error('useGroupRequest: 群组请求模块初始化失败', error)
+      throw error
+    }
+  }
+
+  /**
+   * 重置群组请求模块状态
+   *
+   * 使用场景：
+   * - 用户登出时清理数据
+   */
+  const reset = (): void => {
+    groupRequestStore.reset()
+    console.log('useGroupRequest: 重置群组请求模块状态')
   }
 
   // ========== 返回接口 ==========
@@ -279,8 +402,16 @@ export function useGroupRequest() {
     sendGroupRequest,
     respondGroupRequest,
 
+    // ========== 数据获取方法 ==========
+    fetchUserRequests,
+    fetchApprovalRequests,
+
+    // ========== 初始化和重置方法 ==========
+    init,
+    reset,
+
     // ========== WebSocket 事件处理 ==========
     handleNewGroupRequest,
-    handleGroupRequestUpdate
+    handleGroupRequestUpdate,
   }
 }

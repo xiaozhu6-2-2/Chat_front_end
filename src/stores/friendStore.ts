@@ -5,7 +5,6 @@ import type {
 import { defineStore } from 'pinia'
 // stores/friendStore.ts
 import { computed, ref } from 'vue'
-import { friendService } from '@/service/friendService'
 
 export const useFriendStore = defineStore('friend', () => {
   // State
@@ -128,28 +127,25 @@ export const useFriendStore = defineStore('friend', () => {
   }
 
   /**
-   * 从 API 获取好友列表并更新 store
-   * @param forceRefresh 是否强制刷新（即使已有数据）
+   * 从API响应设置好友列表
+   *
+   * 执行流程：
+   * 1. 接收好友列表数据
+   * 2. 统计活跃好友和黑名单数量
+   * 3. 更新store状态
+   * 4. 记录日志
+   *
+   * 数据流：
+   * - 输入：好友列表数组
+   * - 输出：更新store中的friends状态
+   *
+   * @param {FriendWithUserInfo[]} friendList 从API获取的好友列表
    */
-  const fetchFriends = async (forceRefresh = false) => {
-    // 如果已经有数据且不是强制刷新，可以跳过
-    if (!forceRefresh && friends.value.size > 0) {
-      return
-    }
-
-    setLoading(true)
-    try {
-      const friendList = await friendService.getFriendsFromApi()
-      const activeCount = friendList.filter(f => !f.isBlacklisted).length
-      const blacklistedCount = friendList.filter(f => f.isBlacklisted).length
-      console.log(`friendStore: 获取好友列表: ${activeCount} 个好友, ${blacklistedCount} 个黑名单`)
-      setFriends(friendList)
-    } catch (error) {
-      console.error('friendStore: 获取好友列表失败')
-      throw error // 重新抛出让上层处理
-    } finally {
-      setLoading(false)
-    }
+  const setFriendsFromApi = (friendList: FriendWithUserInfo[]) => {
+    const activeCount = friendList.filter(f => !f.isBlacklisted).length
+    const blacklistedCount = friendList.filter(f => f.isBlacklisted).length
+    console.log(`friendStore: 设置好友列表: ${activeCount} 个好友, ${blacklistedCount} 个黑名单`)
+    setFriends(friendList)
   }
 
   // 获取黑名单列表
@@ -181,11 +177,12 @@ export const useFriendStore = defineStore('friend', () => {
     updateFriend,
     updateFriendProfile,
     setFriends,
+    setFriendsFromApi, // 新增：从API响应设置好友列表
     reset,
     // 标签相关actions
     updateFriendTag,
     removeFriendTag,
     batchUpdateTags,
-    fetchFriends,
+    // 移除 fetchFriends
   }
 })

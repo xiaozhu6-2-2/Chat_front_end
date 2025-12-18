@@ -60,7 +60,7 @@
 </template>
 
   <script setup lang="ts">
-import type { GroupCardProps } from '../../types/group'
+  import type { GroupCardProps } from '../../types/group'
 
   defineProps<GroupCardProps>()
   </script>

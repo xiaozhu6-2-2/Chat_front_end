@@ -5,13 +5,9 @@
  * 不包含隐私设置、活跃度统计和搜索功能
  */
 
-import type { User, UserProfileUpdateOptions } from '@/types/user'
+import type { User } from '@/types/user'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
-import { useSnackbar } from '@/composables/useSnackbar'
-import { userService } from '@/service/userService'
-
-const { showSuccess } = useSnackbar()
+import { computed, readonly, ref } from 'vue'
 
 export const useUserStore = defineStore('user', () => {
   // State
@@ -59,54 +55,49 @@ export const useUserStore = defineStore('user', () => {
     console.log(`userStore: 清除用户信息`)
   }
 
-  // 从 API 获取当前用户信息
-  const fetchCurrentUser = async () => {
+  /**
+   * 设置用户信息（从API响应数据）
+   *
+   * 执行流程：
+   * 1. 接收API响应的用户数据
+   * 2. 更新currentUser状态
+   * 3. 记录操作日志
+   *
+   * 数据流：
+   * - 输入：API响应的用户数据
+   * - 输出：更新 currentUser 状态
+   *
+   * 使用场景：
+   * - Composable层获取用户数据后更新Store
+   *
+   * @param {User} user - API响应的用户数据
+   */
+  const setCurrentUserFromApi = (user: User): void => {
+    currentUser.value = user
+    console.log(`userStore: 设置当前用户`, { userId: user.id, username: user.name })
+  }
+
+  /**
+   * 更新用户资料（从API响应数据）
+   *
+   * 执行流程：
+   * 1. 接收API响应的用户更新数据
+   * 2. 合并到现有用户信息
+   * 3. 记录操作日志
+   *
+   * 数据流：
+   * - 输入：API响应的用户更新数据
+   * - 输出：更新 currentUser 状态
+   *
+   * 使用场景：
+   * - 用户资料更新API成功后更新本地状态
+   *
+   * @param {Partial<User>} updates - API响应的用户更新数据
+   */
+  const updateUserFromApi = (updates: Partial<User>): void => {
     if (currentUser.value) {
-      console.log(`userStore: 用户信息已存在，跳过获取`)
-      return currentUser.value
-    }
-
-    setLoading(true)
-    try {
-      const user = await userService.getCurrentUser()
-      setCurrentUser(user)
-      return user
-    } catch (error) {
-      console.error(`userStore: 获取用户信息失败`)
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // 强制刷新用户信息
-  const refreshCurrentUser = async () => {
-    setLoading(true)
-    try {
-      const user = await userService.getCurrentUser()
-      setCurrentUser(user)
-      console.log(`userStore: 刷新用户信息成功`)
-      showSuccess('刷新用户信息成功')
-      return user
-    } catch (error) {
-      console.error(`userStore: 刷新用户信息失败`)
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // 更新用户资料
-  const updateUserProfile = async (options: UserProfileUpdateOptions) => {
-    try {
-      const updatedUser = await userService.updateProfile(options)
-      updateCurrentUser(updatedUser)
-      console.log('userStore: 更新用户资料成功')
-      showSuccess('更新用户资料成功')
-      return updatedUser
-    } catch (error) {
-      console.error(`userStore: 更新用户资料失败`, { options }, error)
-      throw error
+      currentUser.value = { ...currentUser.value, ...updates }
+      console.log(`userStore: 更新用户资料`, { updates })
     }
   }
 
@@ -118,9 +109,9 @@ export const useUserStore = defineStore('user', () => {
   }
 
   return {
-    // State
-    currentUser,
-    isLoading,
+    // State (只读)
+    currentUser: readonly(currentUser),
+    isLoading: readonly(isLoading),
 
     // Computed
     isLoggedIn,
@@ -129,14 +120,17 @@ export const useUserStore = defineStore('user', () => {
     currentUserAvatar,
     currentAccount,
 
-    // Actions
+    // 状态管理
     setLoading,
     setCurrentUser,
     updateCurrentUser,
     clearCurrentUser,
-    fetchCurrentUser,
-    refreshCurrentUser,
-    updateUserProfile,
+
+    // 纯数据管理方法（新增）
+    setCurrentUserFromApi,
+    updateUserFromApi,
+
+    // 重置
     reset,
   }
 })

@@ -55,16 +55,14 @@ interface FriendUpdateOptions {
 
 // =================联系人相关组件props与emits===============
 
-
 /** 联系人卡片 Props */
 interface ContactCardProps {
-  contact: FriendWithUserInfo;
+  contact: FriendWithUserInfo
 }
 
-
 // =================结构体类型转换函数==================
-//将API的响应体转为好友列表的结构体
-function FriendApiToFriendWithUserInfo(apiData: FriendProfileFromApi): FriendWithUserInfo{
+// 将API的响应体转为好友列表的结构体
+function FriendApiToFriendWithUserInfo (apiData: FriendProfileFromApi): FriendWithUserInfo {
   const userInfo: UserInfo = {
     account: apiData.account,
     gender: apiData.gender,
@@ -102,15 +100,14 @@ function FriendApiToFriendWithUserInfo(apiData: FriendProfileFromApi): FriendWit
 
 // 基础数据类型导出
 export type {
+  ContactCardProps,
   FriendProfileFromApi,
   FriendUpdateOptions,
   FriendWithUserInfo,
   UpdateFriendProfileParams,
   UserInfo,
-  ContactCardProps,
-  UpdateFriendProfileParams
 }
-export  {
+export {
   FriendApiToFriendWithUserInfo,
 }
 
@@ -125,6 +122,6 @@ export const ContactCardDefaults = {
     email: '',
     phone: '',
     initial: '',
-    remark: ''
-  }
-};
+    remark: '',
+  },
+}

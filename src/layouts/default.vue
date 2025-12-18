@@ -109,23 +109,23 @@
   const showSettingsDialog = ref(false)
   const showContactCard = ref(false)
 
-// 当前用户信息
-//todo: 使用useauth
-const currentUser = ref({
-  uid: 'current-user-001',
-  username: '我',
-  account: 'me',
-  gender: 'other' as const,
-  region: '',
-  email: 'me@example.com',
-  create_time: new Date().toISOString(),
-  avatar: '@/assets/yxd.jpg',
-  bio: '这是我的个人简介'
-});
+  // 当前用户信息
+  // todo: 使用useauth
+  const currentUser = ref({
+    uid: 'current-user-001',
+    username: '我',
+    account: 'me',
+    gender: 'other' as const,
+    region: '',
+    email: 'me@example.com',
+    create_time: new Date().toISOString(),
+    avatar: '@/assets/yxd.jpg',
+    bio: '这是我的个人简介',
+  })
 
-const navigateTo = (path:string) => {
-  router.push(path);
-};
+  function navigateTo (path: string) {
+    router.push(path)
+  }
 </script>
 
 <style scoped>

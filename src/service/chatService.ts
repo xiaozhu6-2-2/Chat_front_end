@@ -1,95 +1,133 @@
 // ./service/chatService.ts
+/**
+ * 聊天服务层 - 纯数据访问层
+ *
+ * 职责：
+ * - 负责API调用
+ * - 数据转换
+ * - 错误抛出（不处理UI）
+ *
+ * 数据流：
+ * - 输入：请求参数
+ * - 输出：转换后的数据或错误
+ * - 副作用：发送HTTP请求
+ */
 
-import type { Chat } from '@/types/chat'
-import { useSnackbar } from '@/composables/useSnackbar'
+import type { ApiChat, Chat } from '@/types/chat'
 import { transformApiChat } from '@/types/chat'
 import { authApi } from './api'
 
-const { showError } = useSnackbar()
-
 export const ChatService = {
+  /**
+   * 获取聊天列表
+   *
+   * 执行流程：
+   * 1. 调用 /chat/list API
+   * 2. 验证响应格式
+   * 3. 转换数据格式
+   * 4. 返回转换后的数据
+   *
+   * @returns Promise<Chat[]> 聊天列表
+   * @throws Error API错误或数据格式错误
+   */
   async getChatList (): Promise<Chat[]> {
     try {
       const response = await authApi.get('/chat/list')
 
-      if (response.status === 200) {
-        const apiData = response.data
-
-        // 检查响应数据格式
-        if (!apiData || !Array.isArray(apiData.chats)) {
-          const error = new Error('API返回数据格式错误：缺少 chats 字段或不是数组格式')
-          console.error('ChatService:', error.message, apiData)
-          throw error
-        }
-
-        // 转换数据格式
-        const chatList = apiData.chats.map((chatItem: any) => {
-          return transformApiChat(chatItem)
-        })
-
-        console.log(`ChatService: 成功获取 ${chatList.length} 个聊天会话`)
-        return chatList
-      } else {
-        console.error(`ChatService: 获取聊天列表失败： ${response.status}`)
-        throw new Error(`获取聊天列表失败：${response.status}`)
+      if (response.status !== 200) {
+        throw new Error(`获取聊天列表失败：HTTP ${response.status}`)
       }
-    } catch {
-      showError('获取聊天列表失败')
-      return []
+
+      const apiData = response.data
+
+      // 验证响应数据格式
+      if (!apiData || !Array.isArray(apiData.chats)) {
+        throw new Error('API返回数据格式错误：缺少 chats 字段或不是数组格式')
+      }
+
+      // 转换数据格式
+      const chatList = apiData.chats.map((chatItem: ApiChat) => {
+        return transformApiChat(chatItem)
+      })
+
+      console.log(`ChatService: 成功获取 ${chatList.length} 个聊天会话`)
+      return chatList
+    } catch (error) {
+      console.error('ChatService.getChatList:', error)
+      throw error // 重新抛出，让上层处理
     }
   },
 
-  async getPrivateChat (friendId: string): Promise<Chat | null> {
+  /**
+   * 获取私聊会话
+   *
+   * @param friendId 好友ID
+   * @returns Promise<Chat> 私聊会话信息
+   * @throws Error API错误或数据错误
+   */
+  async getPrivateChat (friendId: string): Promise<Chat> {
     try {
       const response = await authApi.post('/chat/soloprivate', {
         fid: friendId,
       })
 
-      if (response.status === 200) {
-        // 检查响应数据
-        if (!response.data) {
-          throw new Error('API返回数据为空')
-        }
-
-        console.log(`ChatService: 成功获取与好友 ${friendId} 的私聊会话`)
-        return transformApiChat(response.data)
+      if (response.status !== 200) {
+        throw new Error(`获取私聊会话失败：HTTP ${response.status}`)
       }
 
-      throw new Error(`获取私聊会话失败：${response.status}`)
+      if (!response.data) {
+        throw new Error('API返回数据为空')
+      }
+
+      console.log(`ChatService: 成功获取与好友 ${friendId} 的私聊会话`)
+      return transformApiChat(response.data)
     } catch (error) {
-      console.error('ChatService: 获取私聊会话失败', error)
-      showError('获取私聊会话失败')
-      return null
+      console.error('ChatService.getPrivateChat:', error)
+      throw error
     }
   },
 
-  async getGroupChat (groupId: string): Promise<Chat | null> {
+  /**
+   * 获取群聊会话
+   *
+   * @param groupId 群组ID
+   * @returns Promise<Chat> 群聊会话信息
+   * @throws Error API错误或数据错误
+   */
+  async getGroupChat (groupId: string): Promise<Chat> {
     try {
       const response = await authApi.post('/chat/sologroup', {
         gid: groupId,
       })
 
-      if (response.status === 200) {
-        // 检查响应数据
-        if (!response.data) {
-          throw new Error('API返回数据为空')
-        }
-
-        console.log(`ChatService: 成功获取群聊 ${groupId} 的会话信息`)
-        return transformApiChat(response.data)
+      if (response.status !== 200) {
+        throw new Error(`获取群聊会话失败：HTTP ${response.status}`)
       }
 
-      throw new Error(`获取群聊会话失败：${response.status}`)
+      if (!response.data) {
+        throw new Error('API返回数据为空')
+      }
+
+      console.log(`ChatService: 成功获取群聊 ${groupId} 的会话信息`)
+      return transformApiChat(response.data)
     } catch (error) {
-      console.error('ChatService: 获取群聊会话失败', error)
-      showError('获取群聊会话失败')
-      return null
+      console.error('ChatService.getGroupChat:', error)
+      throw error
     }
   },
 
+  /**
+   * 更新会话置顶状态
+   *
+   * @param chatId 会话ID
+   * @param chatType 会话类型
+   * @param isPinned 是否置顶
+   * @returns Promise<boolean> 是否成功
+   * @throws Error API错误
+   */
   async updateIsPinned (chatId: string, chatType: 'private' | 'group', isPinned: boolean): Promise<boolean> {
     try {
-      const response = await authApi.post('/auth/chat/updateIsPinned', {
+      const response = await authApi.post('/chat/updateIsPinned', {
         id: chatId,
         type: chatType,
         is_pinned: isPinned,
@@ -98,13 +136,12 @@ export const ChatService = {
       if (response.status === 200 && response.data?.success) {
         console.log(`ChatService: 成功更新会话 ${chatId} 置顶状态为 ${isPinned}`)
         return true
-      } else {
-        console.error('ChatService: 更新置顶状态失败，响应异常', response.data)
-        return false
       }
+
+      throw new Error(response.data?.message || '更新置顶状态失败')
     } catch (error) {
-      console.error('ChatService: 更新置顶状态异常', error)
-      return false
+      console.error('ChatService.updateIsPinned:', error)
+      throw error
     }
   },
 }

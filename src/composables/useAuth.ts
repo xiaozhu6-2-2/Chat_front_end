@@ -1,21 +1,18 @@
-import type { AuthStorage, LoginResult } from '@/types/auth'
+import type { AuthStorage, LoginResult, RegisterData } from '@/types/auth'
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { useSnackbar } from '@/composables/useSnackbar'
-import { authApi, noauthApi } from '@/service/api'
-import { generateSecureCredentials } from '@/service/crypto'
-import { messageService } from '@/service/message'
+import { authService } from '@/service/authService'
 import { websocketService } from '@/service/websocket'
 import { useAuthStore } from '@/stores/authStore'
-import { useChatStore } from '@/stores/chatStore'
-import { useFriendRequestStore } from '@/stores/friendRequestStore'
-import { useFriendStore } from '@/stores/friendStore'
-import { useGroupRequestStore } from '@/stores/groupRequestStore'
-import { useUserStore } from '@/stores/userStore'
+import { useChat } from './useChat'
+import { useFriend } from './useFriend'
+import { useFriendRequest } from './useFriendRequest'
+import { useGroup } from './useGroup'
+import { useGroupRequest } from './useGroupRequest'
+import { useUser } from './useUser'
 
 export function useAuth () {
   const authStore = useAuthStore()
-  const router = useRouter()
   const { showSuccess, showError } = useSnackbar()
 
   // 计算属性 - 提供响应式的状态访问
@@ -48,8 +45,8 @@ export function useAuth () {
     }
 
     try {
-      const response = await authApi.get('/user/validate')
-      return response.data.valid
+      const response = await authService.validateToken(token.value)
+      return response.valid
     } catch (error) {
       throw error
     }
@@ -58,8 +55,8 @@ export function useAuth () {
   // 初始化服务
   const initializeServices = async () => {
     try {
-      await websocketService.connect(token.value, userId.value)
-      await messageService.init(token.value, userId.value)
+      // await websocketService.connect(token.value, userId.value)
+      // await messageService.init(token.value, userId.value)
 
       console.log('useAuth: 初始化服务')
     } catch (error) {
@@ -69,23 +66,25 @@ export function useAuth () {
 
     // 初始化store，提前拉取数据
     try {
-      const chatStore = useChatStore()
-      await chatStore.fetchChatList()
+      // 初始化用户信息
+      const { init: initUser } = useUser()
+      await initUser(true) // 登录时强制初始化
 
-      const friendStore = useFriendStore()
-      await friendStore.fetchFriends()
+      const { initializeChats, reset: resetChat } = useChat()
+      await initializeChats(true) // 登录时强制初始化
 
-      const friendRequestStore = useFriendRequestStore()
-      await friendRequestStore.fetchFriendRequests()
+      const { init: initFriend } = useFriend()
+      await initFriend(true) // 登录时强制初始化
+
+      const { init: initFriendRequest } = useFriendRequest()
+      await initFriendRequest(true) // 登录时强制初始化
+
+      const { init: initGroup } = useGroup()
+      await initGroup(true) // 登录时强制初始化
 
       // 初始化群聊申请记录
-      const groupRequestStore = useGroupRequestStore()
-      await groupRequestStore.fetchUserRequests()
-
-      // 初始化用户信息
-      const userStore = useUserStore()
-      await userStore.fetchCurrentUser()
-
+      const { init: initGroupRequest } = useGroupRequest()
+      await initGroupRequest(true) // 登录时强制初始化
       console.log('useAuth: 初始化store')
     } catch (error) {
       showError(`store初始化失败: ${error}`)
@@ -93,38 +92,100 @@ export function useAuth () {
   }
 
   // 从存储加载认证信息
-  const loadAuthFromStorage = async (storedAuth: AuthStorage | null) => {
+  const loadAuthFromStorage = (): AuthStorage | null => {
+    // 从本地读取
+    let storedAuth: AuthStorage | null = null
+
+    // 优先从 localStorage 读取（记住我状态）
+    const localAuth = getStoredAuth(localStorage)
+    if (localAuth?.token) {
+      storedAuth = { ...localAuth, rememberMe: true }
+    } else {
+      // 再从 sessionStorage 读取
+      const sessionAuth = getStoredAuth(sessionStorage)
+      if (sessionAuth?.token) {
+        storedAuth = { ...sessionAuth, rememberMe: false }
+      }
+    }
+
+    // 如果没有找到认证信息，返回 null
+    if (!storedAuth) {
+      return null
+    }
+
+    // 设置认证信息到 store
+    authStore.setAuth(storedAuth)
+
+    return storedAuth
+  }
+
+  // 初始化认证模块
+  // 在App.vue调用，true则跳转到home，false则跳转到login
+  const init = async (): Promise<boolean> => {
+    // 从存储加载认证信息
+    const storedAuth = loadAuthFromStorage()
+
+    // 如果没有找到认证信息，返回 false
     if (!storedAuth) {
       return false
     }
 
-    authStore.setAuth(storedAuth)
-
-    // 验证 token 是否仍然有效
+    // 如果获取成功，调用validate验证token有效性，失败则提示token失效，清理Storage, 返回false
     const isValid = await validateToken()
     if (!isValid) {
-      logout()
+      showError('Token 已失效，请重新登录')
+      // 清除所有存储
+      localStorage.removeItem('auth')
+      sessionStorage.removeItem('auth')
+      // 重置状态
+      authStore.clearAuthState()
       return false
     }
 
-    // 初始化服务
-    await initializeServices()
-    return true
+    // 如果认证成功，调用initializeServices，获取数据，失败则提示用户服务初始化失败，返回false
+    try {
+      await initializeServices()
+      return true
+    } catch (error) {
+      showError(`服务初始化失败: ${error}`)
+      // 清除所有存储
+      localStorage.removeItem('auth')
+      sessionStorage.removeItem('auth')
+      // 重置状态
+      authStore.clearAuthState()
+      return false
+    }
   }
 
-  // 初始化认证状态
-  const init = async () => {
-    // 优先从 localStorage 读取（记住我状态）
-    const localAuth = getStoredAuth(localStorage)
-    if (localAuth?.token) {
-      await loadAuthFromStorage({ ...localAuth, rememberMe: true })
-      return
-    }
+  // 注册
+  const register = async (userData: RegisterData): Promise<LoginResult> => {
+    authStore.setLoading(true)
 
-    // 再从 sessionStorage 读取
-    const sessionAuth = getStoredAuth(sessionStorage)
-    if (sessionAuth?.token) {
-      await loadAuthFromStorage({ ...sessionAuth, rememberMe: false })
+    try {
+      console.log('useAuth: 开始注册流程，调用 authService')
+
+      // 调用 authService 进行注册
+      const response = await authService.register(userData)
+
+      if (!response.success) {
+        return {
+          success: false,
+          error: response.message || '注册失败',
+          code: response.code,
+        }
+      }
+
+      showSuccess('注册成功，请登录')
+      return { success: true }
+    } catch (error: any) {
+      console.error('useAuth: 注册失败', error)
+      return {
+        success: false,
+        error: error.message || '注册失败，请重试',
+        code: error.code,
+      }
+    } finally {
+      authStore.setLoading(false)
     }
   }
 
@@ -137,35 +198,30 @@ export function useAuth () {
     authStore.setLoading(true)
 
     try {
-      // 加密账号密码
-      const { encryptedAccount, encryptedPassword } = await generateSecureCredentials(account, password)
-      if (!encryptedAccount || !encryptedPassword) {
-        return {
-          success: false,
-          error: '加密失败',
-        }
-      }
+      console.log('useAuth: 开始登录流程，调用 authService')
 
-      const response = await noauthApi.post('/auth/login', {
-        account: encryptedAccount,
-        password: encryptedPassword,
+      // 调用 authService 进行登录
+      const response = await authService.login({
+        account,
+        password,
       })
 
-      const { token, uid, username } = response.data
-
-      if (!token || !uid || !username) {
+      if (!response.success || !response.data) {
         return {
           success: false,
-          error: '服务器返回数据异常',
+          error: response.message || '登录失败',
+          code: response.code,
         }
       }
 
       const authInfo: AuthStorage = {
-        token,
-        userId: uid,
-        username,
+        token: response.data.token,
+        userId: response.data.userId,
+        username: response.data.username,
         rememberMe,
       }
+
+      console.log('useAuth: 登录成功，设置认证信息')
 
       // 设置认证信息
       authStore.setAuth(authInfo)
@@ -176,15 +232,19 @@ export function useAuth () {
       otherStorage.removeItem('auth') // 清除另一个存储
       storage.setItem('auth', JSON.stringify(authInfo))
 
+      console.log('useAuth: 开始初始化服务')
+
       // 初始化服务
       await initializeServices()
 
       showSuccess('登录成功')
       return { success: true }
-    } catch {
+    } catch (error: any) {
+      console.error('useAuth: 登录失败', error)
       return {
         success: false,
-        error: '网络错误，请重试',
+        error: error.message || '网络错误，请重试',
+        code: error.code,
       }
     } finally {
       authStore.setLoading(false)
@@ -192,7 +252,7 @@ export function useAuth () {
   }
 
   // 登出
-  const logout = () => {
+  const logout = async () => {
     // 断开 WebSocket
     websocketService.disconnect(false, 'logout')
 
@@ -204,15 +264,30 @@ export function useAuth () {
     authStore.clearAuthState()
 
     // 清除用户相关信息
-    const userStore = useUserStore()
-    userStore.reset()
+    const { reset: resetUser } = useUser()
+    resetUser()
+
+    // 重置聊天状态
+    const { reset: resetChat } = useChat()
+    resetChat()
+
+    // 重置好友状态
+    const { reset: resetFriend } = useFriend()
+    resetFriend()
+
+    // 重置好友请求状态
+    const { reset: resetFriendRequest } = useFriendRequest()
+    resetFriendRequest()
 
     // 重置群聊申请状态
-    const groupRequestStore = useGroupRequestStore()
-    groupRequestStore.reset()
+    const { reset: resetGroupRequest } = useGroupRequest()
+    resetGroupRequest()
 
-    router.push('/login')
+    // 重置群聊状态
+    const { reset: resetGroup } = useGroup()
+    resetGroup()
 
+    // 注意：路由跳转由调用方处理（例如在组件中调用后手动跳转）
     showSuccess('已退出登录')
   }
 
@@ -256,5 +331,6 @@ export function useAuth () {
     init,
     validateToken,
     updateRememberMe,
+    register,
   }
 }

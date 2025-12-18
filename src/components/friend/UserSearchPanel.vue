@@ -53,43 +53,36 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useFriend } from '@/composables/useFriend'
-import { useRequestAndSearch } from '@/composables/useRequestAndSearch'
-import UserSearchResultCard from './UserSearchResultCard.vue'
-import type { UserSearchResult } from '@/service/messageTypes'
+  import type { UserSearchResult } from '@/types/search'
+  import { useFriendRequest } from '@/composables/useFriendRequest'
+  import { useSearch } from '@/composables/useSearch'
+  import UserSearchResultCard from './UserSearchResultCard.vue'
 
-const {
-  searchQuery,
-  searchResults,
-  isLoading,
-  searchUsers,
-  debouncedSearch,
-  sendFriendRequest
-} = useRequestAndSearch()
+  const { search, results, isLoading, query } = useSearch()
+  const { sendFriendRequest } = useFriendRequest()
 
-  // 搜索防抖
+  // 变量映射以保持兼容性
+  const searchQuery = query
+  const searchResults = results
+
+  // 搜索输入处理（使用 useSearch 内置的防抖）
   function handleSearchInput () {
-    if (searchQuery.value) {
-      debouncedSearch(searchQuery.value)
-    } else {
-      searchUsers('')
-    }
+    search(searchQuery.value)
   }
 
-  // 执行搜索（回车时）
+  // 执行搜索（回车时，立即执行不防抖）
   function performSearch () {
     if (searchQuery.value) {
-      searchUsers(searchQuery.value)
+      search(searchQuery.value, true) // immediate = true 立即执行
     }
   }
 
   // 发送好友请求
-  async function handleSendRequest (user: UserSearchResult, message?: string, tags?: string[]) {
+  async function handleSendRequest (user: UserSearchResult, message?: string) {
     try {
-      await sendFriendRequest(user.uid, message, tags)
+      await sendFriendRequest(user.uid, message || '想和你成为好友')
       // 这里可以添加成功提示
-      console.log('好友请求发送成功', { tags })
+      console.log('好友请求发送成功')
     } catch (error) {
       console.error('发送好友请求失败:', error)
     // 这里可以添加错误提示

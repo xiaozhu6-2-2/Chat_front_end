@@ -25,7 +25,7 @@ export enum GroupRequestStatus {
   PENDING = 'pending',
   ACCEPTED = 'accepted',
   REJECTED = 'rejected',
-  EXPIRED = 'expired'
+  EXPIRED = 'expired',
 }
 
 /**
@@ -72,7 +72,6 @@ export interface RespondGroupRequestParams {
   /** 操作类型：accept 同意，reject 拒绝 */
   action: 'accept' | 'reject'
 }
-
 
 /**
  * 发送群聊申请响应
@@ -173,7 +172,7 @@ export interface RespondGroupRequestResponse {
  * @param data API响应数据
  * @returns GroupRequest 转换后的申请对象
  */
-export function transformUserGroupRequestFromApi(data: any): GroupRequest {
+export function transformUserGroupRequestFromApi (data: any): GroupRequest {
   return {
     req_id: data.req_id,
     gid: data.gid,
@@ -184,8 +183,8 @@ export function transformUserGroupRequestFromApi(data: any): GroupRequest {
     groupProfile: {
       id: data.gid,
       name: data.group_name,
-      avatar: data.group_avatar || ''
-    }
+      avatar: data.group_avatar || '',
+    },
   }
 }
 
@@ -201,7 +200,7 @@ export function transformUserGroupRequestFromApi(data: any): GroupRequest {
  * @param data API响应数据
  * @returns GroupRequest 转换后的申请对象
  */
-export function transformGroupApprovalFromApi(data: any): GroupRequest {
+export function transformGroupApprovalFromApi (data: any): GroupRequest {
   return {
     req_id: data.req_id,
     gid: data.gid,
@@ -212,13 +211,13 @@ export function transformGroupApprovalFromApi(data: any): GroupRequest {
     groupProfile: {
       id: data.gid,
       name: data.group_name,
-      avatar: data.group_avatar || ''
+      avatar: data.group_avatar || '',
     },
     userProfile: {
       id: data.sender_uid,
       name: data.sender_name,
-      avatar: data.sender_avatar || ''
-    }
+      avatar: data.sender_avatar || '',
+    },
   }
 }
 
@@ -228,7 +227,7 @@ export function transformGroupApprovalFromApi(data: any): GroupRequest {
  * @param data API响应数据
  * @returns SendGroupRequestResponse 转换后的响应对象
  */
-export function transformSendGroupRequestResponse(data: any): SendGroupRequestResponse {
+export function transformSendGroupRequestResponse (data: any): SendGroupRequestResponse {
   return {
     req_id: data.req_id,
     gid: data.gid,
@@ -237,7 +236,7 @@ export function transformSendGroupRequestResponse(data: any): SendGroupRequestRe
     sender_uid: data.sender_uid,
     apply_text: data.apply_text,
     create_time: data.create_time,
-    status: data.status
+    status: data.status,
   }
 }
 
@@ -250,16 +249,18 @@ export function transformSendGroupRequestResponse(data: any): SendGroupRequestRe
  * @param type 数据类型：'user' | 'approval' | 'send'
  * @returns GroupRequest 转换后的申请对象
  */
-export function transformGroupRequestFromApi(
+export function transformGroupRequestFromApi (
   data: any,
-  type: 'user' | 'approval' | 'send'
+  type: 'user' | 'approval' | 'send',
 ): GroupRequest {
   switch (type) {
-    case 'user':
+    case 'user': {
       return transformUserGroupRequestFromApi(data)
-    case 'approval':
+    }
+    case 'approval': {
       return transformGroupApprovalFromApi(data)
-    case 'send':
+    }
+    case 'send': {
       return {
         req_id: data.req_id,
         gid: data.gid,
@@ -270,10 +271,12 @@ export function transformGroupRequestFromApi(
         groupProfile: {
           id: data.gid,
           name: data.group_name,
-          avatar: data.group_avatar || ''
-        }
+          avatar: data.group_avatar || '',
+        },
       }
-    default:
+    }
+    default: {
       throw new Error(`Unknown transformation type: ${type}`)
+    }
   }
 }

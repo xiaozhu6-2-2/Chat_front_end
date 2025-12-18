@@ -1,7 +1,6 @@
 import type { FriendRequest, FriendRequestStatus } from '@/types/friendRequest'
 import { defineStore } from 'pinia'
 import { computed, readonly, ref } from 'vue'
-import { friendRequestService } from '@/service/friendRequestService'
 import { useAuthStore } from '@/stores/authStore'
 import { transformFriendRequestFromApi } from '@/types/friendRequest'
 
@@ -99,41 +98,41 @@ export const useFriendRequestStore = defineStore('friendRequest', () => {
   // ========== Actions ==========
 
   /**
-   * 从服务器获取好友请求列表
+   * 从API响应设置好友请求列表
    *
-   * 使用场景：
-   * - 应用启动时初始化数据
-   * - 下拉刷新请求列表
-   * - 从其他页面返回时更新数据
+   * 执行流程：
+   * 1. 接收API响应数据
+   * 2. 合并发送和接收的请求
+   * 3. 转换数据格式
+   * 4. 按时间排序并更新状态
+   * 5. 记录日志
    *
-   * @throws {Error} 当网络请求失败时抛出错误
+   * 数据流：
+   * - 输入：API响应数据（包含requests和receives）
+   * - 输出：更新store中的requests状态
+   *
+   * @param {any} response API响应数据
    */
-  async function fetchFriendRequests () {
-    isLoading.value = true
-    try {
-      // 调用API获取好友请求
-      const response = await friendRequestService.getFriendRequestList()
+  function setRequestsFromApi (response: any) {
+    // 合并发送和接收的请求到一个列表
+    const allRequests = [
+      ...response.requests.map(r => transformFriendRequestFromApi(r)),
+      ...response.receives.map(r => transformFriendRequestFromApi(r)),
+    ]
 
-      // 合并发送和接收的请求到一个列表
-      const allRequests = [
-        ...response.requests.map(r =>
-          transformFriendRequestFromApi(r),
-        ),
-        ...response.receives.map(r =>
-          transformFriendRequestFromApi(r),
-        ),
-      ]
+    // 按创建时间倒序排列（最新的在前）
+    requests.value = allRequests.sort((a, b) => b.create_time - a.create_time)
 
-      // 按创建时间倒序排列（最新的在前）
-      requests.value = allRequests.sort((a, b) => b.create_time - a.create_time)
+    console.log(`friendRequestStore: 设置好友请求列表 - 总数: ${allRequests.length}`)
+  }
 
-      console.log(`friendRequestStore: 获取好友请求列表 - 总数: ${allRequests.length}`)
-    } catch (error) {
-      console.error('friendRequestStore: 获取好友请求列表失败', error)
-      throw error
-    } finally {
-      isLoading.value = false
-    }
+  /**
+   * 设置加载状态
+   *
+   * @param {boolean} loading 加载状态
+   */
+  function setLoading (loading: boolean) {
+    isLoading.value = loading
   }
 
   /**
@@ -230,10 +229,12 @@ export const useFriendRequestStore = defineStore('friendRequest', () => {
     totalPending, // 待处理总数
 
     // 方法
-    fetchFriendRequests, // 获取请求列表
+    setRequestsFromApi, // 从API响应设置请求列表
+    setLoading, // 设置加载状态
     addRequest, // 添加/更新请求
     updateRequestStatus, // 更新请求状态
     removeRequest, // 删除请求
     reset, // 重置状态
+    // 移除 fetchFriendRequests
   }
 })

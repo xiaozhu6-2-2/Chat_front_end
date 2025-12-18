@@ -4,13 +4,12 @@
 // - 管理当前选中的聊天
 // - 管理聊天列表
 // - 管理UI状态（加载、在线面板等）
+// - 纯粹的状态管理，不调用Service，不处理UI反馈
 // 注意：消息数据由 messageService 管理，不在本 store 中存储
 
 import type { Chat, ChatType } from '@/types/chat'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { useSnackbar } from '@/composables/useSnackbar'
-import { ChatService } from '@/service/chatService'
 
 export const useChatStore = defineStore('chat', () => {
   // State
@@ -28,21 +27,18 @@ export const useChatStore = defineStore('chat', () => {
   })
 
   // Actions
-  // 用户登录后，获取会话列表（已在useAuth调用）
-  const fetchChatList = async () => {
-    setLoading(true)
-    console.log('chatStore: 开始获取聊天列表')
-
-    try {
-      const chats = await ChatService.getChatList()
-      updateChatList(chats)
-      console.log(`chatStore: 成功获取并更新 ${chats.length} 个聊天会话`)
-    } catch (error) {
-      console.error('chatStore: 获取聊天列表失败', error)
-    } finally {
-      setLoading(false)
-      console.log('chatStore: 聊天列表获取流程完成')
-    }
+  /**
+   * 设置聊天列表
+   *
+   * 执行流程：
+   * 1. 更新聊天列表
+   * 2. 执行排序
+   *
+   * @param chats 聊天列表数据
+   */
+  const setChatList = (chats: Chat[]) => {
+    updateChatList(chats)
+    console.log(`chatStore: 成功设置 ${chats.length} 个聊天会话`)
   }
 
   // 设置活跃会话
@@ -166,8 +162,18 @@ export const useChatStore = defineStore('chat', () => {
     updateChatUnreadCount(chatId, 0)
   }
 
-  // 更新会话置顶状态
-  const updateIsPinned = async (chatId: string, type: ChatType, isPinned: boolean) => {
+  /**
+   * 更新会话置顶状态
+   *
+   * 执行流程：
+   * 1. 查找会话
+   * 2. 更新本地状态
+   * 3. 重新排序
+   *
+   * @param chatId 会话ID
+   * @param isPinned 是否置顶
+   */
+  const updateIsPinned = (chatId: string, isPinned: boolean) => {
     console.log(`chatStore: 开始设置会话 ${chatId} 置顶状态为 ${isPinned}`)
 
     const chat = chatList.value.find((c: Chat) => c.id === chatId)
@@ -176,29 +182,13 @@ export const useChatStore = defineStore('chat', () => {
       return
     }
 
-    try {
-      // 调用 Service 层 API
-      const success = await ChatService.updateIsPinned(chatId, type, isPinned)
+    // 更新本地状态
+    chat.isPinned = isPinned
 
-      if (success) {
-        // 更新本地状态
-        chat.isPinned = isPinned
+    // 重新排序（置顶的会话会移动到相应位置）
+    sortChatList()
 
-        // 重新排序（置顶的会话会移动到相应位置）
-        sortChatList()
-
-        // 成功提示
-        const { showSuccess } = useSnackbar()
-        showSuccess(isPinned ? '会话已置顶' : '已取消置顶')
-
-        console.log(`chatStore: 会话 ${chatId} 置顶状态更新成功`)
-      }
-    } catch (error) {
-      console.error('chatStore: 设置置顶状态失败', error)
-      // 错误提示
-      const { showError } = useSnackbar()
-      showError('设置置顶失败')
-    }
+    console.log(`chatStore: 会话 ${chatId} 置顶状态更新成功`)
   }
 
   const setOnlineBoardVisible = (visible: boolean) => {
@@ -228,7 +218,7 @@ export const useChatStore = defineStore('chat', () => {
     chatById,
 
     // Actions
-    fetchChatList,
+    setChatList, // 新增：设置聊天列表
     setActiveChat,
     getChatByid,
     deleteChatByid,

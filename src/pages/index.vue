@@ -1,7 +1,5 @@
 <template>
-  <div>
-    这里写索引页
-  </div>
+  <div />
 </template>
 
 <route lang="yaml">
