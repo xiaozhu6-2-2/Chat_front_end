@@ -87,9 +87,9 @@ import { useChat } from "../../composables/useChat";
 import { useMessageInput } from "../../composables/useMessageInput";
 import { useChatStore } from "../../stores/chatStore";
 import { messageService } from "../../service/message";
+import { useUserStore } from"../../stores/userStore"
 import type { ChatType, Chat, ChatAreaProps } from "../../types/chat";
 import Avatar from "../../components/global/Avatar.vue";
-import ContactCardModal from "../../components/global/ContactCardModal.vue";
 import OnlineBoard from "./onlineBoard.vue";
 import echatInput from "./echatInput.vue";
 
@@ -98,9 +98,9 @@ import type { LocalMessage } from "../../service/messageTypes";
 
 const props = defineProps<ChatAreaProps>();
 
-  const emit = defineEmits<{
-    imagePreview: [imageUrl: string]
-  }>()
+const emit = defineEmits<{
+  imagePreview: [imageUrl: string]
+}>()
 
 // Store and composables
 const chatStore = useChatStore();
@@ -113,35 +113,39 @@ const {
   toggleEmojiPicker,
   scrollToBottom,
 } = useMessageInput();
-
-  // Local state
-  const showOnlineBoard = ref(false)
-  const showContactCard = ref(false)
-  // const isTyping = ref(false)
-  const isSending = ref(false)
-  const typingTimeout = ref<number>()
-  const virtualMessageList = ref()
+const {
+  currentUser,
+  currentUserId
+} = useUserStore()
+// Local state
+const showOnlineBoard = ref(false)
+const showContactCard = ref(false)
+// const isTyping = ref(false)
+const isSending = ref(false)
+const typingTimeout = ref<number>()
+const virtualMessageList = ref()
 
 // 当前聊天联系人信息
 const currentChatContact = computed(() => {
   if (!props.chat) return null;
-  return {
-    //TODO: 改用useauth中的缓存
-    uid: props.chat.id,
-    username: props.chat.name,
-    account: props.chat.name.toLowerCase().replace(/\s+/g, "_"),
-    gender: "other" as const,
-    region: "",
-    email: `${props.chat.name.toLowerCase()}@example.com`,
-    create_time: new Date().toISOString(),
-    avatar: props.chat.avatar,
-    bio: `${props.chat.name}的聊天`,
-  };
+  return currentUser
+  // {
+  //   //OK: 改用useauth中的缓存
+  //   uid: props.chat.id,
+  //   username: props.chat.name,
+  //   account: props.chat.name.toLowerCase().replace(/\s+/g, "_"),
+  //   gender: "other" as const,
+  //   region: "",
+  //   email: `${props.chat.name.toLowerCase()}@example.com`,
+  //   create_time: new Date().toISOString(),
+  //   avatar: props.chat.avatar,
+  //   bio: `${props.chat.name}的聊天`,
+  // };
 });
 
 // 虚拟滚动配置
-//todo ：改用useauth缓存
-const currentUserId = ref("current-user");
+// OK ：改用useauth缓存
+// const currentUserId = ref("current-user");
 const autoScroll = ref(true);
 const containerHeight = computed(() => {
   // 计算容器高度，减去头部、输入框等高度
@@ -197,7 +201,7 @@ watch(
       isSending.value = false
     }
   }
-};
+
 
 const toggleOnlineBoard = () => {
   showOnlineBoard.value = !showOnlineBoard.value;

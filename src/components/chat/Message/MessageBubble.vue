@@ -73,10 +73,10 @@
     <ContactCardModal
       v-if="showContactCard && selectedContactInfo"
       v-model="showContactCard"
-      v-model="showContactCard"
       :contact="selectedContactInfo"
-      @update-friend-profile="(fid, remark, isBlacklisted, tag) => friendStore.updateFriendProfile(fid, remark, isBlacklisted, tag )"
-    />
+      @update-friend-profile="(fid, remark, isBlacklisted, tag) => updateFriendProfile(fid, {remark, isBlacklisted, tag} )"
+      @edit-profile=""
+      />
   </div>
 </template>
 
@@ -87,13 +87,18 @@
   import { useFriend } from '../../../composables/useFriend'
   import { ContentType, MessageType } from '../../../service/messageTypes'
   import { useFriendStore } from '../../../stores/friendStore'
-
-  const props = withDefaults(defineProps<MessageBubbleProps>(), {
-    currentUserId: 'current-user',
-  })
+  import { useUserStore } from '../../../stores/userStore'
+  const props = defineProps<MessageBubbleProps>()
 
   const friendStore = useFriendStore()
   const { updateFriendProfile } = useFriend()
+  const { 
+    currentUser,
+    currentUserAvatar,
+    currentUserId,
+    currentUsername,
+    currentAccount
+   } = useUserStore()
   const emit = defineEmits<{
     imagePreview: [imageUrl: string]
   }>()
@@ -102,7 +107,7 @@
   const selectedContactInfo = ref<FriendWithUserInfo>()
 
   const isOwnMessage = computed(() =>
-    props.message.userIsSender || props.message.payload.senderId === props.currentUserId,
+    props.message.userIsSender || props.message.payload.senderId === currentUserId,
   )
 
   const messageClasses = computed(() => ({
@@ -118,17 +123,16 @@
 
   const senderName = computed(() => {
     // 这里可以根据需要从用户服务中获取用户名
+    // todo 消息发送者的name
     return props.message.payload.senderId || '未知用户'
   })
 
   const senderAvatar = computed(() => {
     // 这里可以根据需要从用户服务中获取用户头像
+    // todo 消息发送者的头像
     return '/src/assets/default-avatar.png'
   })
 
-  const currentUserAvatar = computed(() =>
-    '/src/assets/yxd.jpg', // This should come from user store
-  )
 
   const statusIcon = computed(() => {
     switch (props.message.sendStatus) {
@@ -215,7 +219,7 @@
       // 如果是好友，传递完整的 FriendWithUserInfo 数据
       selectedContactInfo.value = friendInfo
     } else {
-      // 如果是陌生人，构建不完整的数据
+      // TODO 如果是陌生人，构建不完整的数据
       selectedContactInfo.value = getStrangerData()
     }
 
@@ -226,19 +230,19 @@
   function handleMyAvatarClick () {
     // 自己的头像不查询好友关系，直接构建 UserProfile
     selectedContactInfo.value = {
-      // TODO：考虑从 authStore 获取真实的用户数据
-      fid: '1111',
-      uid: 'current-user',
-      username: '我',
+      // OK：考虑从 authStore 获取真实的用户数据
+      id: currentUserId,
+      fid: 'default',
+      name: '我',
       createdAt: new Date().toISOString(),
       isBlacklisted: false,
-      avatar: currentUserAvatar.value,
+      avatar: currentUserAvatar,
       bio: '这是我的个人信息',
       info: {
-        account: '1111',
-        gender: 'male',
-        region: '11',
-        email: '111',
+        account: currentAccount,
+        gender: currentUser?.gender,
+        region: currentUser?.region,
+        email: currentUser?.email,
       },
     }
     showContactCard.value = true

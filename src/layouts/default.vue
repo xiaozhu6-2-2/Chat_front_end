@@ -6,17 +6,22 @@
         <v-navigation-drawer class="sidebar" permanent width="80">
           <!-- 头像区域 -->
           <div class="avatar-container">
-            <ContactCardModal v-model="showContactCard" :contact="currentUser">
+            <ContactCardModal v-model="showContactCard" :contact= LoginUser @edit-profile="handleEditProfile">
               <template #activator="{ props }">
                 <Avatar
                   :clickable="true"
-                  :name="currentUser.username"
+                  :name="currentUser!.name"
                   :size="56"
-                  :url="currentUser.avatar"
+                  :url="currentUser!.avatar"
                   v-bind="props"
                 />
               </template>
             </ContactCardModal>
+            <!-- 新增的 UserProfileEditModal -->
+            <UserProfileEditModal
+              v-model="showProfileEditModal"
+              :user-id="currentUser?.id"
+            />
           </div>
 
           <!-- 导航按钮区域 -->
@@ -90,39 +95,35 @@
 </template>
 
 <script setup lang="ts">
-  import { reactive, ref } from 'vue'
+  import { computed, reactive, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
+  import { useUserStore } from '../stores/userStore'
   import Avatar from '../components/global/Avatar.vue'
   import ContactCardModal from '../components/global/ContactCardModal.vue'
+  import UserProfileEditModal from '../components/global/UserProfileEditModal.vue'
 
   const router = useRouter()
   const $route = useRoute()
-
+  const { currentUser } = useUserStore()
   // 模拟未读消息数量
   const unreadCount = reactive({
-    chat: 3,
-    contact: 1,
+    chat: 0,
+    contact: 0,
     settings: 0,
   })
 
   // 默认设置页关闭
   const showSettingsDialog = ref(false)
   const showContactCard = ref(false)
-
+  // 控制模态框显示
+  const showProfileEditModal = ref(false)
   // 当前用户信息
   // todo: 使用useauth
-  const currentUser = ref({
-    uid: 'current-user-001',
-    username: '我',
-    account: 'me',
-    gender: 'other' as const,
-    region: '',
-    email: 'me@example.com',
-    create_time: new Date().toISOString(),
-    avatar: '@/assets/yxd.jpg',
-    bio: '这是我的个人简介',
-  })
-
+  const LoginUser = computed(() => currentUser)
+  // 处理编辑资料事件
+  function handleEditProfile() {
+    showProfileEditModal.value = true
+  }
   function navigateTo (path: string) {
     router.push(path)
   }

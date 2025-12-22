@@ -108,6 +108,10 @@ export function useUser () {
       const apiOptions = {
         bio: options.bio ?? null,
         avatar: options.avatar ?? null,
+        username: options.username?? null,
+        gender: options.gender?? null,
+        region: options.region?? null,
+        email: options.email?? null,
       }
 
       const updatedUser = await userService.updateProfile(apiOptions)

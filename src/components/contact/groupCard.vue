@@ -5,11 +5,15 @@
       <v-card-item>
         <div class="group-header">
           <div class="group-avatar-large">
-            <v-icon color="white" icon="mdi-account-group" size="28" />
+            <v-img 
+              v-if="groupDetail?.avatar" 
+              :src="groupDetail.avatar" 
+              alt="群头像"
+            />
           </div>
           <div class="group-info">
-            <v-card-title>{{ group.name }}</v-card-title>
-            <v-card-subtitle>群聊 ID: {{ group.id }}</v-card-subtitle>
+            <v-card-title>{{ formattedData?.groupName }}</v-card-title>
+            <v-card-subtitle>群聊 ID: {{ formattedData?.groupId }}</v-card-subtitle>
           </div>
         </div>
       </v-card-item>
@@ -17,27 +21,28 @@
       <v-card-text>
         <div class="group-details">
           <v-list lines="two">
-            <v-list-item prepend-icon="mdi-account-group" title="群成员">
+            <v-list-item prepend-icon="mdi-account" title="群主">
               <template #subtitle>
-                12 名成员
+                群主uid: {{ formattedData?.groupManager }}
               </template>
             </v-list-item>
 
             <v-list-item prepend-icon="mdi-calendar" title="创建时间">
               <template #subtitle>
-                2024年1月创建
+                {{ formattedData?.createTime }}
               </template>
             </v-list-item>
 
             <v-list-item prepend-icon="mdi-information" title="群公告">
               <template #subtitle>
-                欢迎加入{{ group.name }}，请遵守群规
+                {{ formattedData?.groupIntro }}
               </template>
             </v-list-item>
           </v-list>
         </div>
 
-        <div class="group-members">
+        <!-- todo：展示群成员头像 -->
+        <!-- <div class="group-members">
           <h4>群成员</h4>
           <div class="member-list">
             <div v-for="n in 6" :key="n" class="member-item">
@@ -47,11 +52,11 @@
               <span class="member-name">用户{{ n }}</span>
             </div>
           </div>
-        </div>
+        </div> -->
       </v-card-text>
 
       <v-card-actions>
-        <v-btn color="primary" prepend-icon="mdi-message">
+        <v-btn color="primary" prepend-icon="mdi-message" @click="handleEnterGroupChat">
           进入群聊
         </v-btn>
       </v-card-actions>
@@ -59,11 +64,87 @@
   </div>
 </template>
 
-  <script setup lang="ts">
-  import type { GroupCardProps } from '../../types/group'
+<script setup lang="ts">
+  import type { GetGroupCardParams, GroupCard, GroupCardProps } from '../../types/group'
+  import { useGroup } from '../../composables/useGroup';
+  import { useChat } from '../../composables/useChat';
+  import { useRouter } from 'vue-router';
+  import { computed, onMounted, ref, watch } from 'vue';
+  import type { ChatType } from '../../types/chat';
 
-  defineProps<GroupCardProps>()
-  </script>
+  const props = defineProps<GroupCardProps>()
+  const { getGroupCard } = useGroup()
+  const { createChat, selectChat } = useChat()
+  const router = useRouter()
+
+  // 进入群聊处理函数
+  const handleEnterGroupChat = async () => {
+    if (!props.group?.id) return
+
+    try {
+      // 创建群聊
+      const chat = await createChat(props.group.id, 'group' as ChatType)
+      if (chat) {
+        // 设置为活跃聊天
+        selectChat(chat.id)
+        // 跳转到聊天页面
+        await router.push('/chat')
+      }
+    } catch (error) {
+      console.error('创建群聊失败:', error)
+    }
+  }
+  // 存储详细的群组数据
+  const groupDetail = ref<GroupCard | null>(null)
+  const loading = ref(false)
+
+// 计算属性格式化显示数据
+const formattedData = computed(() => {
+  if (!groupDetail.value) return null
+
+  return {
+    groupManager: groupDetail.value.manager_uid,
+    createTime: new Date(groupDetail.value.created_at).toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long'
+    }),
+    groupName: groupDetail.value.name,
+    groupId: groupDetail.value.id,
+    groupIntro: groupDetail.value.group_intro || '暂无群介绍'
+  }
+})
+
+// 获取群组详细数据的函数
+const fetchGroupDetail = async (groupId: string) => {
+  if (!groupId) return
+
+  loading.value = true
+  try {
+    const params: GetGroupCardParams = {
+      gid: groupId
+    }
+    groupDetail.value = await getGroupCard(params)
+  } catch (error) {
+    console.error('获取群组详情失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 组件挂载时获取详细数据
+onMounted(() => {
+  if (props.group?.id) {
+    fetchGroupDetail(props.group.id)
+  }
+})
+
+// 监听群聊ID的变化，当切换群聊时重新获取数据
+watch(() => props.group?.id, (newGroupId) => {
+  if (newGroupId) {
+    fetchGroupDetail(newGroupId)
+  }
+}, { immediate: false })
+</script>
 
   <style scoped>
   .group-card {

@@ -103,7 +103,7 @@
             <!-- 邮箱 -->
             <v-list-item prepend-icon="mdi-email" title="邮箱">
               <template #subtitle>
-                {{ contactInfo.email || `${contactInfo.name.toLowerCase()}@example.com` }}
+                {{ contactInfo.email}}
               </template>
             </v-list-item>
 
@@ -197,18 +197,7 @@
         <template v-else>
           <!-- 好友模式的操作按钮 -->
           <template v-if="isFriendContact">
-            <!-- 如果是当前用户且是好友（自己），显示编辑资料按钮 -->
             <v-btn
-              v-if="isCurrentUser"
-              color="primary"
-              prepend-icon="mdi-account-edit"
-              @click="handleEditProfile"
-            >
-              编辑资料
-            </v-btn>
-            <!-- 如果不是当前用户，显示发送消息按钮 -->
-            <v-btn
-              v-else
               color="primary"
               prepend-icon="mdi-message"
               @click="sendMessage"
@@ -251,6 +240,7 @@
   import { computed, reactive, ref } from 'vue'
 
   import { useFriend } from '../../composables/useFriend'
+  import { useUserStore } from '../../stores/userStore'
 
   // 作用是为这个 Vue 组件设置名称为 "ContactCardModal"
   defineOptions({
@@ -259,7 +249,7 @@
 
   // 使用 useFriend composable
   const { checkUserRelation } = useFriend()
-
+  const { currentUser } = useUserStore()
   // modelValue 是默认的 v-model 绑定属性
   const props = withDefaults(defineProps<ContactCardModalProps>(), {
     modelValue: false,
@@ -304,7 +294,7 @@
 
   // 判断是否为好友
   const isFriendContact = computed(() => {
-    return props.contact && checkUserRelation(props.contact.uid).isFriend
+    return props.contact && checkUserRelation(props.contact.id).isFriend
   })
 
   // 根据联系人类型获取显示信息
@@ -315,12 +305,12 @@
       const friend = props.contact as FriendWithUserInfo
       return {
         // 好友
-        id: friend.uid,
-        name: friend.username,
+        id: friend.id,
+        name: friend.name,
         avatar: friend.avatar,
         email: friend.info?.email,
         remark: friend.remark,
-        initial: friend.username.charAt(0).toUpperCase(),
+        initial: friend.name.charAt(0).toUpperCase(),
         isBlacklist: friend.isBlacklisted,
         tag: friend.tag,
         fid: friend.fid,
@@ -330,16 +320,29 @@
         gender: friend.info?.gender,
         bio: friend.bio,
       }
+    } else if(isCurrentUser){
+      return {
+        id: currentUser?.id,
+        name: currentUser?.name,
+        avatar: currentUser?.avatar,
+        email: currentUser?.email,
+        initial: currentUser?.name.charAt(0).toUpperCase(),
+        createTime: currentUser?.createdAt,
+        account: currentUser?.account,
+        region: currentUser?.region,
+        gender: currentUser?.gender,
+        bio: currentUser?.bio,
+      }
     } else {
       // UserProfile
       // 非好友
       const profile = props.contact as FriendWithUserInfo
       return {
-        id: profile.uid,
-        name: profile.username,
+        id: profile.id,
+        name: profile.name,
         avatar: profile.avatar,
         email: profile.info?.email,
-        initial: (profile.username || '').charAt(0).toUpperCase(),
+        initial: (profile.name || '').charAt(0).toUpperCase(),
         account: profile.info?.account,
         gender: profile.info?.gender,
         region: profile.info?.region,
@@ -349,15 +352,20 @@
     }
   })
 
-  // 计算属性控制card是陌生人 or 好友 or 自己
+  // 计算属性控制card是陌生人 or 好友
   const isContactFriend = computed(() => {
-    return props.contact && checkUserRelation(props.contact.uid).isFriend
+    return props.contact && checkUserRelation(props.contact.id).isFriend
   })
 
   // 判断是否是当前用户
-  // todo：使用authstore
+  // OK：使用authstore
   const isCurrentUser = computed(() => {
-    return props.contact?.uid === 'current-user' || props.contact?.uid === 'test-user-001'
+    if(currentUser){
+      return props.contact?.id === currentUser.id
+    }
+    else{
+      console.error("ContactCardModal.vue:currentUser 为空!")
+    }
   })
 
   // 格式化日期

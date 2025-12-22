@@ -64,24 +64,24 @@
 </template>
 
 <script setup lang="ts">
-  import type { FriendRequest } from '@/service/messageTypes'
+  import type { FriendRequest } from '../../types/friendRequest'
   import { onMounted, ref } from 'vue'
-  import { useFriend } from '@/composables/useFriend'
+  import { useFriendRequest } from '../../composables/useFriendRequest'
   import FriendRequestItem from './FriendRequestItem.vue'
 
   const {
     pendingRequests,
     sentRequests,
-    loadPendingRequests,
-    respondToFriendRequest,
-  } = useFriend()
+    respondFriendRequest,
+    init
+  } = useFriendRequest()
 
   const activeTab = ref<'received' | 'sent'>('received')
 
   // 处理接受好友请求
   async function handleAcceptRequest (request: FriendRequest) {
     try {
-      await respondToFriendRequest(request.req_id, 'accepted')
+      await respondFriendRequest(request.req_id, 'accept')
       console.log('好友请求已接受:', request.req_id)
     } catch (error) {
       console.error('接受好友请求失败:', error)
@@ -91,7 +91,7 @@
   // 处理拒绝好友请求
   async function handleRejectRequest (request: FriendRequest) {
     try {
-      await respondToFriendRequest(request.req_id, 'rejected')
+      await respondFriendRequest(request.req_id, 'reject')
       console.log('好友请求已拒绝:', request.req_id)
     } catch (error) {
       console.error('拒绝好友请求失败:', error)
@@ -101,7 +101,7 @@
   // 页面挂载时加载数据
   onMounted(async () => {
     try {
-      await loadPendingRequests()
+      await init()
     } catch (error) {
       console.error('加载好友请求失败:', error)
     }
@@ -126,5 +126,10 @@
 .request-list {
   max-height: 500px;
   overflow-y: auto;
+}
+
+.v-badge{
+  position: relative;
+  top: -12px;
 }
 </style>

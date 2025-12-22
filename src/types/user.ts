@@ -1,3 +1,4 @@
+import type { FriendWithUserInfo } from './friend'
 import type { BaseProfile } from './global'
 
 // ==================== 基础数据类型 ====================

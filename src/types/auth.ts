@@ -26,7 +26,7 @@ export interface RegisterData {
   account: string
   password: string
   username: string
-  gender?: number // 1: 男, 2: 女
+  gender?: string
   region?: string
   bio?: string
   avatar?: string
@@ -103,7 +103,7 @@ export interface EncryptedRegisterParams {
   account: string
   password: string
   username: string
-  gender: number | null
+  gender: string | null
   region: string | null
   bio: string | null
   avatar: string
@@ -185,8 +185,6 @@ export function transformTokenValidationResponse (response: any): TokenValidatio
   if (response && response.data) {
     return {
       valid: response.data.valid,
-      userId: response.data.userId,
-      username: response.data.username,
     }
   }
 

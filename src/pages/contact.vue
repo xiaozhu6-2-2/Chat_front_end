@@ -18,19 +18,21 @@
       <contactCard
         v-else-if="activeItem.type === 'contact'"
         :contact="activeItem.data"
+        v-model="showContactCard"
       />
 
       <!-- 群聊详情 -->
       <groupCard
         v-else-if="activeItem.type === 'group'"
         :group="activeItem.data"
+        v-model="showGroupCard"
       />
     </template>
   </maincontent>
 </template>
 
 <script lang="ts" setup>
-  import type { GroupProfile } from '../../service/messageTypes'
+  import type { GroupProfile } from '../types/group'
   import type { FriendWithUserInfo } from '../types/friend'
   import { ref } from 'vue'
   import { useRouter } from 'vue-router'
@@ -47,14 +49,23 @@
   const activeItem = ref<ActiveItem | null>(null)
   const showUserCard = ref(false)
   const showContactCard = ref(false)
+  const showGroupCard = ref(false)
   const showEditProfile = ref(false)
 
   function handleItemClick (type: 'contact' | 'group', data: FriendWithUserInfo | GroupProfile) {
     if (type === 'contact') {
-      activeItem.value = { type, data: data as FriendWithUserInfo }
+      const contact = data as FriendWithUserInfo
+      // 数据完整性验证
+      if (!contact || !contact.fid || !contact.id) {
+        console.error('无效的好友数据:', contact)
+        // 可以显示错误提示
+        return
+      }
+      activeItem.value = { type, data: contact }
       showContactCard.value = true
     } else {
       activeItem.value = { type, data: data as GroupProfile }
+      showGroupCard.value = true
     }
   }
 

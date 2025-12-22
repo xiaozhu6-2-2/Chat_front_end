@@ -8,7 +8,7 @@ interface FriendWithUserInfo extends BaseProfile {
   bio?: string
   remark?: string // 备注
   tag?: string // 分组标签
-  createdAt: string // 添加时间
+  createdAt?: string // 添加时间
   isBlacklisted: boolean // 是否黑名单
   info?: UserInfo // 用户详细资料, 点击查看时获取
 }

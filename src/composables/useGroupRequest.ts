@@ -22,14 +22,21 @@ import { groupRequestService } from '@/service/groupRequestService'
 import { useAuthStore } from '@/stores/authStore'
 import { useGroupRequestStore } from '@/stores/groupRequestStore'
 import { useGroupStore } from '@/stores/groupStore'
+import { useGroup } from '@/composables/useGroup'
 import { transformGroupApprovalFromApi, transformGroupRequestFromApi, transformUserGroupRequestFromApi } from '@/types/groupRequest'
 
 export function useGroupRequest () {
   // ========== 依赖注入 ==========
 
   const groupRequestStore = useGroupRequestStore()
+  console.log('useGroupRequest - groupRequestStore methods available:', {
+    setLoading: typeof groupRequestStore.setLoading,
+    setLoadingApprovals: typeof groupRequestStore.setLoadingApprovals,
+    allMethods: Object.getOwnPropertyNames(Object.getPrototypeOf(groupRequestStore)).filter(name => typeof groupRequestStore[name] === 'function')
+  })
   const groupStore = useGroupStore()
   const authStore = useAuthStore()
+  const { getGroupMembers } = useGroup()
   const { showSuccess, showError } = useSnackbar()
 
   // ========== 数据获取方法 ==========
@@ -195,7 +202,7 @@ export function useGroupRequest () {
       if (action === 'accept') {
         console.log('useGroupRequest: 接受群聊申请，刷新群聊信息', { gid })
         try {
-          await groupStore.fetchGroupMembers(gid, true)
+          await getGroupMembers({ gid }, true)
         } catch (error) {
           console.error('useGroupRequest: 刷新群成员失败', error)
           // 不抛出错误，因为申请已经处理成功

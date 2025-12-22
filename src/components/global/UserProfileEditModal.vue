@@ -22,14 +22,14 @@
       <v-card-text class="pa-6">
         <v-form v-model="formValid" @submit.prevent="handleSubmit">
           <!-- 头像上传区域 -->
-          <div class="avatar-upload-section mb-6">
-            <div class="d-flex align-center">
+          <div class="avatar-upload-section mb-6 d-flex">
+            <div class="d-flex">
               <!-- 头像预览 -->
               <div class="avatar-preview-wrapper">
                 <Avatar
                   avatar-class="profile-avatar"
                   clickable
-                  :name="form.username || '用户'"
+                  :name="form.name || '用户'"
                   :size="100"
                   :url="form.avatar"
                   @click="triggerFileInput"
@@ -54,7 +54,6 @@
                   @click="removeAvatar"
                 />
               </div>
-
               <!-- 头像上传说明 -->
               <div class="ml-6 flex-grow-1">
                 <h3 class="text-h6 mb-2">头像</h3>
@@ -102,7 +101,7 @@
             <!-- 用户名 -->
             <v-col cols="12" md="6">
               <v-text-field
-                v-model="form.username"
+                v-model="form.name"
                 clearable
                 counter
                 density="compact"
@@ -219,7 +218,10 @@
   import type { FriendWithUserInfo } from '../../types/friend'
   import { computed, reactive, ref, watch } from 'vue'
   import { useAuthStore } from '../../stores/authStore'
+  import { useUserStore } from '../../stores/userStore'
+  import { useUser } from '../../composables/useUser'
   import Avatar from './Avatar.vue'
+import type { UserProfileUpdateOptions } from '../../types/user'
 
   defineOptions({
     name: 'UserProfileEditModal',
@@ -253,8 +255,8 @@
 
   // 表单数据
   const form = reactive({
-    uid: '',
-    username: '',
+    id: '',
+    name: '',
     account: '',
     gender: 'other' as 'male' | 'female' | 'other',
     region: '',
@@ -266,7 +268,7 @@
 
   // 原始数据备份
   const originalForm = reactive({
-    username: '',
+    name: '',
     gender: 'other' as 'male' | 'female' | 'other',
     region: '',
     email: '',
@@ -320,7 +322,7 @@
 
   const hasChanges = computed(() => {
     return (
-      form.username !== originalForm.username
+      form.name !== originalForm.name
       || form.gender !== originalForm.gender
       || form.region !== originalForm.region
       || form.email !== originalForm.email
@@ -332,37 +334,47 @@
   // 方法
   async function loadUserData () {
     const authStore = useAuthStore()
-
+    const userStore = useUserStore()
     const userId = authStore.userId
-    const profile = await getCurrentUserInfo()
+    const profile = userStore.currentUser
 
     // 转换为FriendWithUserInfo格式
     const userInfo: FriendWithUserInfo = {
       fid: '', // 当前用户不是好友，fid为空
-      uid: profile.uid || userId,
-      username: profile.username,
-      avatar: profile.avatar || '',
-      bio: profile.bio,
-      createdAt: profile.create_time,
+      id: userId,
+      name: profile!.name,
+      avatar: profile!.avatar,
+      bio: profile?.bio,
+      createdAt: profile?.createdAt,
       isBlacklisted: false,
       info: {
-        account: profile.account,
-        gender: profile.gender,
-        region: profile.region,
-        email: profile.email,
+        account: profile?.account,
+        gender: profile?.gender,
+        region: profile?.region,
+        email: profile?.email,
       },
     }
     // 加载用户数据到表单
-    Object.assign(form, profile)
+    Object.assign(form, {
+      id: profile!.id,
+      name: profile!.name,
+      account: profile!.account,
+      gender: profile!.gender,
+      region: profile!.region,
+      email: profile!.email,
+      avatar: profile!.avatar,
+      bio: profile!.bio,
+      createdAt: profile!.createdAt,
+    })
 
     // 备份原始数据
     Object.assign(originalForm, {
-      username: profile.username,
-      gender: profile.gender,
-      region: profile.region || '',
-      email: profile.email || '',
-      avatar: profile.avatar || '',
-      bio: profile.bio || '',
+      name: profile!.name,
+      gender: profile!.gender,
+      region: profile!.region,
+      email: profile!.email,
+      avatar: profile!.avatar,
+      bio: profile!.bio,
     })
   }
 
@@ -419,13 +431,13 @@
 
   async function handleSubmit () {
     if (!formValid.value) return
-
+    const User = useUser()
     saving.value = true
 
     try {
       // 准备更新数据
-      const updates: Partial<FriendWithUserInfo> = {
-        username: form.username,
+      const updates: UserProfileUpdateOptions = {
+        username: form.name,
         gender: form.gender,
         region: form.region,
         email: form.email,
@@ -433,23 +445,20 @@
         bio: form.bio,
       }
 
+      console.log(updates)
       // 更新用户资料 todo
 
-      // const success = await userStore.updateProfile(updates)
-      const success = true
+      const success = await User.updateUserProfile(updates)
       if (success) {
         // 更新原始数据备份
         Object.assign(originalForm, {
-          username: form.username,
+          name: form.name,
           gender: form.gender,
           region: form.region,
           email: form.email,
           avatar: form.avatar,
           bio: form.bio,
         })
-
-        // 发出更新事件
-        // emit('profile-updated', userStore.currentUser)
 
         // 关闭对话框
         dialog.value = false
@@ -493,7 +502,7 @@
 }
 
 .avatar-upload-section {
-  background-color: #f5f5f5;
+  /* background-color: #f5f5f5; */
   border-radius: 8px;
   padding: 20px;
 }
@@ -501,11 +510,13 @@
 .avatar-preview-wrapper {
   position: relative;
   display: inline-block;
+  flex-grow: 1 ;
 }
 
 .profile-avatar {
   cursor: pointer;
   transition: all 0.3s ease;
+  background-color: aliceblue;
 }
 
 .profile-avatar:hover {

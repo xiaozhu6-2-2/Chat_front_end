@@ -27,6 +27,11 @@
             <div class="contact-name">{{ group.name }}</div>
           </div>
         </v-list-item>
+        <div v-if="allGroups.length === 0" class="no-results">
+          <v-icon class="mb-2" icon="mdi-account-off" size="24" />
+          <p>暂未加入群聊</p>
+          <p class="text-caption text-grey">加入群聊后，即可在此查看</p>
+        </div>
       </v-list-group>
 
       <!-- 联系人分组 -->
@@ -76,7 +81,7 @@
                 <div class="contact-name">{{ contact.name }}</div>
                 <v-chip
                   v-if="groupBy === 'tag' && contact.tag"
-                  class="mt-1"
+                  class="mt-1 ma-2"
                   :color="getTagColor(contact.tag)"
                   size="x-small"
                   variant="tonal"
@@ -108,6 +113,19 @@
           <div class="contact-name">新的朋友</div>
         </div>
       </v-list-item>
+
+      <!-- 创建群聊 -->
+      <v-list-item
+        class="contact-item create-group-item"
+        @click="navigateToCreateGroup"
+      >
+        <div class="contact_content">
+          <div class="contact-avatar create-group-avatar">
+            <v-icon color="white" icon="mdi-account-multiple" />
+          </div>
+          <div class="contact-name">创建群聊</div>
+        </div>
+      </v-list-item>
     </v-list>
   </div>
 </template>
@@ -117,13 +135,15 @@
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { useFriend } from '../../composables/useFriend'
+  import { useSnackbar } from '../../composables/useSnackbar'
+  import { useGroup } from '../../composables/useGroup'
   // 定义 emits
 
   const emit = defineEmits<ContactListEmits>()
 
   // Router 实例
   const router = useRouter()
-
+  const { allGroups } = useGroup()
   // 用于展示在contactlist中的结构体
   // 该结构体只再这个组件内使用，未泄露
   interface Contact {
@@ -150,16 +170,10 @@
 
   // 使用 useFriend composable
   const { activeFriends, getFriendByUid } = useFriend()
+  const { showError } = useSnackbar()
 
-  // 静态群聊数据
-  const groups: Group[] = [
-    { id: 'g1', name: '前端开发交流群' },
-    { id: 'g2', name: 'Vue技术讨论组' },
-    { id: 'g3', name: '全家桶学习小组' },
-    { id: 'g4', name: '项目协作群' },
-    { id: 'g5', name: '设计资源分享' },
-    { id: 'g6', name: '产品经理交流' },
-  ]
+  // 从usegroup拿到所在的群聊
+  const groups = allGroups 
 
   // 将好友数据转换为联系人格式
   const contacts = computed(() => {
@@ -182,7 +196,7 @@
 
   // 计算属性 - 排序后的群聊
   const sortedGroups = computed(() => {
-    return [...groups].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+    return [...groups.value].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
   })
 
   // 计算属性 - 排序后的联系人
@@ -237,25 +251,33 @@
     router.push('/AddFriend')
   }
 
+  // 导航到创建群聊页面
+  function navigateToCreateGroup () {
+    router.push('/CreateGroup')
+  }
+
   // 修改 setActiveItem 方法
   function setActiveItem (id: string) {
     activeItemId.value = id
 
     // 查找并发射对应数据
     // 只检查id来判断是群聊还是私聊
-    let found = groups.find(g => g.id === id)
-    if (found) {
-      emit('itemClick', 'group', found)
+    const groupFound = groups.value.find((g: Group) => g.id === id)
+    if (groupFound) {
+      emit('itemClick', 'group', groupFound)
       return
     }
 
-    found = contacts.value.find(c => c.id === id)
-    if (found) {
+    const contactFound = contacts.value.find((c: Contact) => c.id === id)
+    if (contactFound) {
       // 从 activeFriends 中获取完整的 FriendWithUserInfo 数据
-      // 已进行类型转换，报错忽略
-      const friendData = getFriendByUid(found.id)
+      const friendData = getFriendByUid(contactFound.uid)
       if (friendData) {
         emit('itemClick', 'contact', friendData)
+      } else {
+        console.error('找不到好友数据:', contactFound)
+        // 显示错误提示
+        showError('无法获取联系人信息')
       }
       return
     }
@@ -319,6 +341,14 @@
 
 .add-friend-item:hover {
   background-color: rgba(25, 118, 210, 0.1);
+}
+
+.create-group-avatar {
+  background-color: #9c27b0;
+}
+
+.create-group-item:hover {
+  background-color: rgba(156, 39, 176, 0.1);
 }
 
 .contact-name {
