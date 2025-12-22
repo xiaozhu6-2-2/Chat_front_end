@@ -1,4 +1,4 @@
-import type { UserProfileUpdateOptions, User } from '@/types/user'
+import type { User, UserProfileUpdateOptions } from '@/types/user'
 import { userService } from '@/service/userService'
 import { useUserStore } from '@/stores/userStore'
 import { useSnackbar } from './useSnackbar'
@@ -179,7 +179,7 @@ export function useUser () {
    * @param {boolean} force 是否强制初始化（默认true）
    * @returns {Promise<void>}
    */
-  const init = async (force: boolean = true): Promise<void> => {
+  const init = async (force = true): Promise<void> => {
     if (!force && userStore.isLoggedIn) {
       console.log('useUser: 用户已登录，跳过获取用户信息')
       return
@@ -199,6 +199,36 @@ export function useUser () {
     console.log('useUser: 重置用户模块状态')
   }
 
+  // ========== 便捷访问方法 ==========
+
+  /**
+   * 获取当前用户ID
+   */
+  const getCurrentUserId = (): string => {
+    return userStore.currentUserId || ''
+  }
+
+  /**
+   * 获取当前用户名
+   */
+  const getCurrentUsername = (): string => {
+    return userStore.currentUsername || ''
+  }
+
+  /**
+   * 获取当前用户头像
+   */
+  const getCurrentUserAvatar = (): string => {
+    return userStore.currentUserAvatar || ''
+  }
+
+  /**
+   * 获取完整的当前用户信息
+   */
+  const getCurrentUser = (): User | null => {
+    return userStore.currentUser
+  }
+
   // ========== 返回接口 ==========
 
   return {
@@ -207,6 +237,12 @@ export function useUser () {
     refreshCurrentUser,
     updateUserProfile,
     uploadAvatar,
+
+    // 便捷访问方法
+    getCurrentUserId,
+    getCurrentUsername,
+    getCurrentUserAvatar,
+    getCurrentUser,
 
     // 初始化和重置
     init,

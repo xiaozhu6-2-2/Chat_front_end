@@ -85,7 +85,7 @@
   import type { FriendWithUserInfo } from '../../../types/friend'
   import { computed, ref } from 'vue'
   import { useFriend } from '../../../composables/useFriend'
-  import { ContentType, MessageType } from '../../../service/messageTypes'
+  import { ContentType, MessageType } from '../../../types/message'
   import { useFriendStore } from '../../../stores/friendStore'
   import { useUserStore } from '../../../stores/userStore'
   const props = defineProps<MessageBubbleProps>()

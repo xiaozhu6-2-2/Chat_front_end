@@ -5,7 +5,7 @@
 | [🔐 auth](#1-auth-认证模块) | 用户认证与登录 | ✅ 已符合 |
 | [👤 user](#2-user-用户模块) | 用户信息管理 | ✅ **已完成调整** |
 | [💬 chat](#3-chat-会话模块) | 会话列表管理 | ✅ **已完成调整** |
-| [📧 message](#4-message-消息模块) | 消息发送与接收 | ⚠️ 临时实现 |
+| [📧 message](#4-message-消息模块) | 消息发送与接收 | ✅ **已完成调整** |
 | [🤝 friend](#5-friend-好友模块) | 好友关系管理 | ✅ **已完成调整** |
 | [👥 group](#6-group-群组模块) | 群组管理 | ✅ **已完成调整** |
 | [📨 FriendRequest](#7-friendrequest-好友请求模块) | 好友请求处理 | ✅ **已完成调整** |
@@ -18,6 +18,7 @@
 
 ### ✅ 已完成四层架构调整的模块
 - **Chat模块**: Service层纯API调用 → Store层纯数据管理 → Composable层统一门面
+- **Message模块**: 完全重构四层架构 → WebSocket+HTTP API协调 → 事件驱动通信模式
 - **Friend模块**: 移除Store层Service调用 → 增强Composable层错误处理 → 标准化init/reset
 - **FriendRequest模块**: Service层保持纯净 → Store层纯数据管理 → Composable层业务逻辑
 - **Group模块**: 移除11处Store层snackbar调用 → 重构7个API方法到Composable → 统一门面模式
@@ -358,21 +359,146 @@
 
 ### 4. 📧 `message` 消息模块 <a id="4-message-消息模块"></a>
 
-#### Service 职责
+#### 整体概述：
+消息模块是即时通讯的核心功能，负责消息的发送、接收、存储和展示。采用四层架构设计，支持私聊、群聊、系统通知等多种消息类型。通过 WebSocket 实现实时通信，HTTP API 负责历史消息拉取和状态更新。用户登录后通过 useMessage 初始化消息监听，支持消息发送、接收、已读状态管理、历史消息加载等功能。
 
-* 负责消息的 API 交互 和 **实时通信**。
+#### Service 职责 (`src/service/messageService.ts`)
 
-#### Store 职责
+作为纯数据访问层，负责所有消息相关的 API 交互：
+- **API 方法**：
+  - `fetchHistoryPrivateMessages(pid, limit, offset)`: 获取私聊历史消息，API 端点 `POST /auth/message/private_history`
+  - `fetchHistoryGroupMessages(gid, limit, offset)`: 获取群聊历史消息，API 端点 `POST /auth/message/group_history`
+  - `markMessagesAsRead(chatId, type, timestamp)`: 标记消息为已读，API 端点 `POST /auth/message/read`
+  - `getGroupReadStatus(gid, messageIds)`: 获取群聊消息已读状态，API 端点 `POST /auth/message/read_count`
+- **WebSocket 方法**（调用 websocketService）：
+  - `sendMessage(localMessage)`: 通过 WebSocket 发送消息
+  - `resendMessage(messageId)`: 重新发送失败的消息
+- **消息处理**：
+  - `processIncomingMessage(wsMessage)`: 处理接收到的 WebSocket 消息
+  - `processMessageAck(ackData)`: 处理消息确认（ACK）
+- **错误处理**：抛出错误供上层处理，不包含任何 UI 反馈
+- **注释规范**：每个方法都有详细的 JSDoc 注释说明执行流程
 
-* 负责消息的 **存储和状态管理**。
+#### Store 职责 (`src/stores/messageStore.ts`)
 
-#### Composable 职责
+纯粹的状态管理层，管理所有消息的本地存储：
+- **数据存储**：
+  - `privateMessages`: 私聊消息 Map (chatId -> LocalMessage[])
+  - `groupMessages`: 群聊消息 Map (chatId -> LocalMessage[])
+  - `notificationMessages`: 通知消息 Map (type -> LocalMessage[])
+  - `systemMessages`: 系统消息 Map (type -> LocalMessage[])
+  - `pagination`: 分页信息 Map (chatId -> PaginationInfo)
+  - `loadingStates`: 加载状态 Map (chatId -> boolean)
+  - `unreadCounts`: 未读消息数 Map (chatId -> number)
+- **核心操作方法**：
+  - `addMessage(chatId, message, type)`: 添加单条消息
+  - `updateMessage(messageId, updates)`: 更新消息
+  - `addHistoryMessages(chatId, messages, type, prepend)`: 批量添加历史消息
+  - `updateMessageStatus(messageId, status)`: 更新消息发送状态
+  - `markMessagesAsRead(chatId, messageIds)`: 标记消息为已读
+  - `updatePagination(chatId, pagination)`: 更新分页信息
+  - `setLoading(chatId, isLoading)`: 设置加载状态
+  - `clearMessages(chatId, type)`: 清空指定类型的消息
+  - `clearAllMessages()`: 清空所有消息
+- **Getters（计算属性）**：
+  - `getMessages(chatId, type)`: 获取消息列表
+  - `getMessageById(messageId)`: 根据 ID 查找消息
+  - `getUnreadCount(chatId)`: 获取未读消息数
+  - `hasMoreMessages(chatId)`: 检查是否有更多消息
+  - `isLoading(chatId)`: 获取加载状态
+  - `getLastMessage(chatId, type)`: 获取最后一条消息
+  - `getTotalUnreadCount()`: 获取总未读消息数
 
-* 封装消息的 **发送和展示逻辑**。
+#### Composable 职责 (`src/composables/useMessage.ts`)
 
-#### Types
+作为业务逻辑层和唯一门面，封装所有消息相关的操作：
+- **核心消息功能**：
+  - `sendMessage(chatId, content, type, contentType)`: 发送消息（生成临时 ID、状态跟踪）
+  - `loadHistoryMessages(chatId, type, loadMore)`: 加载历史消息（支持分页）
+  - `markAsRead(chatId, beforeTimestamp)`: 标记消息为已读（500ms 防抖）
+  - `resendMessage(messageId)`: 重新发送失败的消息
+- **消息接收处理**：
+  - `handleIncomingMessage(wsMessage)`: 处理 WebSocket 消息
+  - `handleMessageAck(ackData)`: 处理消息确认
+- **初始化管理**：
+  - `init()`: 初始化消息模块（从 authStore 获取用户信息，设置事件监听）
+  - `reset()`: 重置消息状态（用于登出）
+- **业务逻辑**：
+  - 生成临时消息 ID（时间戳 + 随机数）
+  - 处理发送失败重试
+  - 防抖标记已读（500ms 防抖，避免频繁 API 调用）
+  - 错误处理和 snackbar 用户反馈
+- **状态暴露**：
+  - `messages`: 当前聊天消息列表
+  - `isLoading`: 加载状态
+  - `hasMore`: 是否有更多消息
+  - `unreadCount`: 未读消息数
 
-* 消息相关的数据结构体。
+#### Types (`src/types/message.ts`)
+
+消息相关的数据结构定义：
+- **BasePayload**: 基础消息载荷接口
+  ```typescript
+  interface BasePayload {
+    messageId?: string;        // 消息唯一ID
+    chatId?: string;          // 会话ID
+    timestamp?: number;       // 时间戳
+    senderId?: string;        // 发送者ID
+    senderName?: string;      // 发送者姓名（发送时记录）
+    senderAvatar?: string;    // 发送者头像（发送时记录）
+    receiverId?: string;      // 接收者ID
+    contentType?: string;     // 内容类型（text/file/img）
+    detail?: string;          // 消息内容
+    isAnnouncement?: boolean; // 是否是群公告
+    mentionedUids?: string[]; // @的用户列表
+    quoteMsgId?: string;      // 引用的消息ID
+  }
+  ```
+- **WSMessage**: WebSocket 通信消息
+  ```typescript
+  class WSMessage {
+    type: MessageType;        // 消息类型
+    payload?: BasePayload;    // 消息载荷
+  }
+  ```
+- **ApiMessage**: API 拉取消息（继承 WSMessage）
+  ```typescript
+  class ApiMessage extends WSMessage {
+    isRevoked?: boolean;      // 撤回状态
+    is_read?: string;         // 是否已读
+    readCount?: number;       // 已读人数（群聊）
+  }
+  ```
+- **LocalMessage**: 前端显示消息（继承 ApiMessage）
+  ```typescript
+  class LocalMessage extends ApiMessage {
+    sendStatus?: MessageStatus; // 发送状态
+    userIsSender?: boolean;    // 用户是否为发送者
+  }
+  ```
+- **数据转换函数**：
+  - `wsToApiMessage(wsMessage, backendFields)`: WebSocket 消息转 API 消息
+  - `apiMessageToLocal(apiMessage, currentUserId)`: API 消息转本地消息
+  - `localToWS(localMessage)`: 本地消息转 WebSocket 消息
+  - `batchApiToLocal(apiMessages, currentUserId)`: 批量转换
+- **辅助函数**：
+  - `createTextMessage(chatId, content, senderId)`: 创建文本消息
+  - `createImageMessage(chatId, imageUrl, senderId)`: 创建图片消息
+  - `createFileMessage(chatId, fileInfo, senderId)`: 创建文件消息
+  - `createSystemNotification(content)`: 创建系统通知
+
+#### 架构合规性
+
+✅ 完全符合四层架构要求：
+- Service 层不包含任何 UI 调用
+- Store 层只管理数据，不调用 Service
+- Composable 层作为唯一门面，调用 Service 并处理错误
+- 数据流向：Composable → Service → Store → UI
+- 错误处理：Service 抛出 → Composable 捕获 + snackbar 反馈
+- **WebSocket 与 HTTP API 协调**：
+  - 实时消息（发送/接收）通过 WebSocket
+  - 历史消息和状态更新通过 HTTP API
+  - 完美的离线消息同步机制
 
 ### 5. 🤝 `friend` 好友模块 <a id="5-friend-好友模块"></a>
 

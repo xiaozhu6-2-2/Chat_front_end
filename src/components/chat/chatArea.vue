@@ -94,7 +94,7 @@ import OnlineBoard from "./onlineBoard.vue";
 import echatInput from "./echatInput.vue";
 
 import VirtualMessageList from "./VirtualMessageList.vue";
-import type { LocalMessage } from "../../service/messageTypes";
+import type { LocalMessage } from "../../types/message";
 
 const props = defineProps<ChatAreaProps>();
 

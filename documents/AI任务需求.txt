@@ -76,3 +76,243 @@ snackbar和console可以同时使用。
    - 确保composable封装了用于login和logout的init（没有初始化拉取的不需要封装）和reset
 
 你需要完成的任务：
+根据上面的要求，参考其他模块的文档，将message模块重构为四层架构，有不确定的内容，需要选择的设计，缺少的资料都可以先询问我。
+注意：1, message模块需要和chat模块配合，未读消息数在chat模块维护，当前会话由chat维护等等，而不是在message模块又维护一次
+2，目前受旧有文件的影响，会错误引用废弃的文件，注意，message模块相关的文件只有types/message, service/messageService, store/messageStore, composable/useMessage
+3，types/message的消息结构payload缺少API中的部分字段
+
+
+新的message结构体如下：
+关于消息结构体__用于私聊和群聊
+0、Payload
+interface BasePayload {
+  // 消息元数据
+  messageid?: string;               // 消息ID
+  chatId?: string;                  // pid 或 gid
+  timestamp?: number;               // send_time 的毫秒时间戳
+  // 发送者信息
+  senderId?: string;                // sender_uid
+  senderName?: string;              // 发送时记录
+  senderAvatar?: string;            // 发送时记录
+  
+  // 接收者信息
+  receiverId?: string;              // 接收者ID
+  
+  contentType?: string;             // text/file/img
+  detail?: string;                  // 消息文本或url
+  // 实时消息状态
+  isAnnouncement?: boolean;         // 是否是群公告
+  mentionedUids?: string[];         // 可选，@的用户列表，对应 mentioned_uids，前端发送时解析@
+  quoteMsgId?: string;              // 可选，引用的消息ID，对应quote_msg_id
+}
+1、WSMessage
+用于websocket通信，前端收到时需要通过API查询”后端维护的消息状态“，转换为message
+class WSMessage {
+  // 消息类型（私聊/群聊/系统）
+  type: MessageType;
+  // 实时消息状态
+  payload?: BasePayload;
+}
+2、Message
+用于API拉取
+class ApiMessage extends WSMessage {
+  // 后端维护的消息状态，全部可选
+  isRevoked?: boolean;              // 撤回状态，可选
+  is_read?: string;                 // 是否已读，可选
+  readCount?: number;               // 已读人数，可选
+}
+3、localMessage
+用于前端messageList存储和聊天界面显示的消息
+class LocalMessage extends Message {
+  // 前端使用的字段，全部可选
+  sendStatus?: MessageStatus;        // 发送状态，可选
+  userIsSender?: boolean;            // 用户是否为发送者，可选
+}
+
+这是API文档
+14. 获取私聊会话历史消息（√√√）
+- URL: /auth/message/private_history
+- 方法：POST
+- 场景：1、用户选取一个私聊时，获取该私聊历史消息，存储在chatstore.messages数组中。2、获取会话列表后。初次拉取并统计未读消息数有两个方案：1、每页100条（未读消息数最为99+比较合适，但是会话一多会消耗资源），统计带未读标签的数量；2、再设计一个API，拉取每个会话的未读消息并由前端计数，缩短初次加载时间，但是已经拉取的消息数量不统一，后续分页拉取需要处理一下；从而得到未读消息数。
+请求头：
+Authorization: Bearer {token}
+请求体：
+{
+  "pid": "chat_67890",
+  "limit": 50,//返回的数目限制
+  "offset": 0,//页数，前50页。。。50-100页等等
+}
+
+响应体：
+成功响应（200 OK）：
+{
+    "total_pages": 55,//总页数
+    "current_page": 55,//当前页数
+    "total_items": 1100,//总条目
+    "messages": [
+      {
+            "type": "Private",
+            "payload": {
+                "message_id": "789376418453655552",
+                "chat_id": "789376146465624064",
+                "timestamp": 1766038804,
+                "sender_id": "788394119729778688",
+                "sender_name": "林奕俊",
+                "sender_avatar": "",
+                "receiver_id": "788394516913590272",
+                "content_type": "text",
+                "detail": "你好",
+                "quote_msg_id": null
+            },
+            "is_revoked": false,
+            "is_read": false
+        },
+        {
+            "type": "Private",
+            "payload": {
+                "message_id": "789376602340331520",
+                "chat_id": "789376146465624064",
+                "timestamp": 1766038847,
+                "sender_id": "788394119729778688",
+                "sender_name": "林奕俊",
+                "sender_avatar": "",
+                "receiver_id": "788394516913590272",
+                "content_type": "image",
+                "detail": "789372367498383360",
+                "quote_msg_id": null
+            },
+            "is_revoked": false,
+            "is_read": false
+        },
+      {
+        "type": "Private",
+        "payload": {
+           // 消息元数据
+          "message_id": "msg_001",
+          "chat_id": "chat_67890",
+          "timestamp": "timestamp",
+           // 发送者信息
+          "sender_id": "user_12345",
+          "sender_name": "yxd",
+          "sender_avatar": "url",
+          // 接收者信息
+          "receiver_id": "user_67890",
+          // 消息内容
+          "content_type": "text",
+          "detail": "Hey! How are you?",
+          // 实时消息状态
+          "quote_msg_id": "msg_id"
+        },
+        // 后端维护的消息状态，全部可选
+        "is_revoked": false,
+        "is_read": false
+      }
+    ]
+}
+15. 获取群聊会话历史消息（√√√）
+- URL: /auth/message/group_history
+- 方法：POST
+- 场景：用户选取一个群聊时，获取该群聊历史消息，存储在chatstore.messages数组中。初次拉取数量有两个方案：1、每页100条（未读消息数最为99+比较合适，但是会话一多会消耗资源），统计带未读标签的数量；2、再设计一个API，拉取每个会话的未读消息并由前端计数，缩短初次加载时间，但是已经拉取的消息数量不统一，后续分页拉取需要处理一下；从而得到未读消息数。
+请求体：
+{
+  "gid": "789370704574287872",
+  "limit": 50,
+  "offset": 0
+}
+
+响应体：
+{
+    "total_pages": 55,//总页数
+    "current_page": 55,//当前页数
+    "total_items": 1100,//总条目
+    "messages": [
+      {
+            "type": "Group",
+            "payload": {
+                "message_id": "789374956562550784",
+                "chat_id": "789370704574287872",
+                "timestamp": 1766038455,
+                "sender_id": "788394119729778688",
+                "sender_name": "林奕俊",
+                "sender_avatar": "",
+                "receiver_id": "789370704574287872",
+                "content_type": "image",
+                "detail": "789372367498383360",
+                "is_announcement": false,
+                "mentioned_uids": [],
+                "quote_msg_id": null
+            },
+            "is_revoked": false,
+            "is_read": false,
+            "read_count": 0
+        },
+      {
+        "type": "Group",
+        "payload": {
+          "message_id": "msg_001",
+          "chat_id": "chat_67890",
+          "timestamp": "timestamp",
+          
+          "sender_id": "user_12345",
+          "sender_name": "yxd",
+          "sender_avatar": "url",
+          
+          "receiver_id": "user_67890",
+          
+          "content_type": "text",
+          "detail": "Hey! How are you?",
+          
+          "is_announcement": false,
+          "mentioned_uids": [
+              "uid1",
+              "uid2",
+          ],
+          "quote_msg_id": "msg_id"
+        },
+        "is_revoked": false,
+        "is_read": false,
+        "read_count": 213
+      }
+    ]
+}
+16. 标记消息为已读（√√√）
+- URL: /auth/message/read
+- 方法：POST
+- 场景：1、用户进入会话界面时，标记该会话时间戳之前该接收者未读的消息为已读；2、用户在当前会话收到新消息，标记该会话时间戳之前该接收者未读的消息为已读(前端需要防抖)。在线状态的消息通过websocket通知对方。
+请求头
+Authorization: Bearer {token}
+Content-Type: application/json
+请求体:
+{
+  "chat_id": "chat_67890",//会话ID
+  "type" : "private/group",//标记类型为私聊
+  "timestamp" : "timestamp"//时间戳
+}
+
+成功响应（200 OK）
+{
+    "success": true
+}
+17. 获取群聊消息已读状态（√√√）
+- URL: /auth/message/read_count
+- 方法：POST
+- 场景：只显示用户发送的群聊消息的已读人数。1、消息即将进入视窗时，调用API并显示已读人数； 2、按时间轮询，对于当前视窗的消息，调用API获取已读人数。为避免频繁调用，前端需要在pinia缓存消息的已读状态。
+请求体：
+{
+    "gid": "112",
+    "message_ids": ["msgid1", "msgid2", "msgid3", ...]
+}
+
+响应体：
+{
+    "read_counts": [
+        {
+           "message_id": "66",
+           "read_count": 44,
+        },
+        {
+           "message_id": "67",
+           "read_count": 44,
+        }
+    ]
+}

@@ -10,6 +10,7 @@ import { useFriendRequest } from './useFriendRequest'
 import { useGroup } from './useGroup'
 import { useGroupRequest } from './useGroupRequest'
 import { useUser } from './useUser'
+import { useMessage } from './useMessage'
 
 export function useAuth () {
   const authStore = useAuthStore()
@@ -55,8 +56,14 @@ export function useAuth () {
   // 初始化服务
   const initializeServices = async () => {
     try {
-      // await websocketService.connect(token.value, userId.value)
-      // await messageService.init(token.value, userId.value)
+      // WebSocket 连接（如果尚未连接）
+      if (!websocketService.isConnected) {
+        await websocketService.connect(token.value, userId.value)
+      }
+
+      // 初始化消息模块（在初始化其他模块之前）
+      const { init: initMessage } = useMessage()
+      await initMessage()
 
       console.log('useAuth: 初始化服务')
     } catch (error) {
@@ -158,7 +165,7 @@ export function useAuth () {
   }
 
   // 注册
-  const register = async (userData: RegisterData): Promise<LoginResult> => {
+  const register = async (userData: RegisterData): Promise<LoginResult & { token?: string }> => {
     authStore.setLoading(true)
 
     try {
@@ -175,8 +182,11 @@ export function useAuth () {
         }
       }
 
-      showSuccess('注册成功，请登录')
-      return { success: true }
+      showSuccess('注册成功')
+      return {
+        success: true,
+        token: response.token  // 返回注册后获得的临时token
+      }
     } catch (error: any) {
       console.error('useAuth: 注册失败', error)
       return {
@@ -255,6 +265,10 @@ export function useAuth () {
   const logout = async () => {
     // 断开 WebSocket
     websocketService.disconnect(false, 'logout')
+
+    // 重置消息模块（在重置其他模块之前）
+    const { reset: resetMessage } = useMessage()
+    resetMessage()
 
     // 清除所有存储
     localStorage.removeItem('auth')

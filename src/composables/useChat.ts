@@ -2,8 +2,8 @@ import type { Chat, ChatType } from '@/types/chat'
 import { computed, ref } from 'vue'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { ChatService } from '@/service/chatService'
-import { messageService } from '@/service/message'
 import { useChatStore } from '@/stores/chatStore'
+import { useMessage } from './useMessage'
 
 export function useChat () {
   const chatStore = useChatStore()
@@ -16,6 +16,12 @@ export function useChat () {
   // 当前选中的聊天
   const activeChat = computed(() => {
     return chatStore.chatById(chatStore.activeChatId)
+  })
+
+  // 当前聊天类型
+  const activeChatType = computed(() => {
+    if (!activeChat.value) return 'private' as ChatType
+    return activeChat.value.type
   })
 
   // Actions
@@ -70,8 +76,13 @@ export function useChat () {
     // 3. 重置未读数
     chatStore.resetUnreadCount(chatId)
 
-    // 4.通知后端将会话的消息标记为已读
-    useMessage.markMessagesAsRead()
+    // 4. 加载历史消息
+    const { loadHistoryMessages } = useMessage()
+    loadHistoryMessages(chatId, chat.type)
+
+    // 5. 标记消息为已读
+    const { markCurrentChatAsRead } = useMessage()
+    markCurrentChatAsRead()
 
     console.log(`useChat: 会话 ${chatId} 未读数已重置`)
 
@@ -170,6 +181,7 @@ export function useChat () {
     // State
     activeChatId,
     activeChat,
+    activeChatType,
     chatList,
     isLoading,
 

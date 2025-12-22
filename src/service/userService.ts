@@ -6,6 +6,7 @@
 import type { User, UserProfileUpdateOptions } from '@/types/user'
 import { UserApiToUser } from '@/types/user'
 import { authApi } from './api'
+import axios from 'axios'
 
 export const userService = {
   /**
@@ -109,6 +110,66 @@ export const userService = {
       }
     } catch (error) {
       console.error('userService: 上传头像失败', error)
+      throw error
+    }
+  },
+
+  /**
+   * 使用文件ID更新用户头像
+   * @param fileId 上传后的文件ID
+   * @returns 更新结果
+   */
+  async updateUserAvatar (fileId: string): Promise<{ success: boolean }> {
+    try {
+      console.log('userService: 更新用户头像', fileId)
+      const response = await authApi.post('/user/update-user-avatar', {
+        file_id: fileId
+      })
+
+      if (response.status === 200 && response.data?.success) {
+        console.log('userService: 更新头像成功')
+        return { success: true }
+      } else {
+        throw new Error(response.data?.message || '更新头像失败')
+      }
+    } catch (error) {
+      console.error('userService: 更新头像失败', error)
+      throw error
+    }
+  },
+
+  /**
+   * 使用临时token更新用户头像（用于注册等特殊场景）
+   * @param fileId 上传后的文件ID
+   * @param token 临时认证token
+   * @returns 更新结果
+   */
+  async updateUserAvatarWithTempToken (fileId: string, token: string): Promise<{ success: boolean }> {
+    try {
+      console.log('userService: 使用临时token更新用户头像', fileId)
+
+      // 创建临时API实例
+      const baseURL = import.meta.env.VITE_API_BASE_URL
+      const tempAuthApi = axios.create({
+        baseURL: `${baseURL}/auth`,
+        timeout: 10_000,
+      })
+
+      // 设置认证头
+      tempAuthApi.defaults.headers.common['Authorization'] = `Bearer ${token}`
+
+      const response = await tempAuthApi.post('/user/update-user-avatar', {
+        file_id: fileId
+      })
+
+      if (response.status === 200 && response.data?.success) {
+        console.log('userService: 更新头像成功')
+        return { success: true }
+      } else {
+        throw new Error(response.data?.message || '更新头像失败')
+      }
+    } catch (error) {
+      console.error('userService: 更新头像失败', error)
       throw error
     }
   },

@@ -170,10 +170,20 @@
                             </v-icon>
                           </div>
                         </v-avatar>
+
+                        <!-- 上传中指示器 -->
+                        <div v-if="avatarUploading" class="upload-indicator">
+                          <v-progress-circular
+                            indeterminate
+                            size="24"
+                            width="2"
+                            color="white"
+                          />
+                        </div>
                       </div>
 
                       <v-btn
-                        v-if="registerForm.avatarPreview"
+                        v-if="registerForm.avatarPreview && !avatarUploading"
                         class="mt-2"
                         color="error"
                         size="small"
@@ -412,10 +422,13 @@ meta:
   import { useRouter } from 'vue-router'
   import { useAuth } from '@/composables/useAuth'
   import { useSnackbar } from '@/composables/useSnackbar'
+  import { useFile } from '@/composables/useFile'
+  import { userService } from '@/service/userService'
 
   const router = useRouter()
-  const { showError, showSuccess } = useSnackbar()
+  const { showError, showSuccess, showInfo } = useSnackbar()
   const { register, isLoading } = useAuth()
+  const { uploadFileWithTempToken, formatFileSize } = useFile()
 
   // 表单数据
   const registerForm = reactive({
@@ -441,18 +454,9 @@ meta:
   // 头像相关状态
   const avatarError = ref('')
   const avatarInput = ref<HTMLInputElement | null>(null)
-  const avatarRules = [
-    (file: File) => {
-      if (!file) return true // Avatar is optional
-      if (!file.type.startsWith('image/')) {
-        return '请选择图片文件'
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        return '图片大小不能超过5MB'
-      }
-      return true
-    },
-  ]
+  const avatarUploading = ref(false)
+  const avatarUploadProgress = ref(0)
+  const uploadedAvatarFileId = ref('') // 存储已上传头像的file_id
 
   // 性别选项
   const genderOptions = [
@@ -551,6 +555,7 @@ meta:
     registerForm.avatar = null
     registerForm.avatarPreview = ''
     avatarError.value = ''
+    uploadedAvatarFileId.value = '' // 清除已上传的头像ID
   }
 
   // 触发文件选择对话框
@@ -582,9 +587,14 @@ meta:
     }
 
     // 验证文件
-    const validation = avatarRules[0]!(file)
-    if (validation !== true) {
-      avatarError.value = validation as string
+    if (!file.type.startsWith('image/')) {
+      avatarError.value = '请选择图片文件'
+      clearAvatar()
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      avatarError.value = '图片大小不能超过5MB'
       clearAvatar()
       return
     }
@@ -592,21 +602,15 @@ meta:
     // 保存文件对象并创建预览
     registerForm.avatar = file
     registerForm.avatarPreview = URL.createObjectURL(file)
+    // 注册时不自动上传，等注册成功后再上传
   }
 
-  // 格式化文件大小
-  function formatFileSize (bytes: number): string {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
-
+  
   // 步骤 4: 执行注册
   async function step4Click () {
+    // 检查头像错误
     if (registerForm.avatar && avatarError.value) {
-      showError('头像上传错误，请重试')
+      showError('头像有错误，请重新选择')
       return
     }
 
@@ -615,7 +619,7 @@ meta:
     try {
       console.log('Register: 开始注册流程，调用 useAuth.register')
 
-      // 准备注册数据
+      // 准备注册数据（注册时头像设置为默认值）
       const userData = {
         account: registerForm.email,
         password: registerForm.password,
@@ -623,15 +627,52 @@ meta:
         gender: registerForm.gender,
         region: registerForm.region || undefined,
         bio: registerForm.bio || undefined,
-        avatar: '1', // 默认头像
+        avatar: '1', // 注册时使用默认头像
       }
+
+      console.log('Register: 注册数据', userData)
 
       // 调用 useAuth 的 register 方法
       const result = await register(userData)
 
       if (result.success) {
-        currentStep.value = 5 // 跳转到注册成功页面
-        showSuccess('注册成功，请登录')
+        // 2. 如果用户选择了头像且返回了token，上传并更新头像
+        if (registerForm.avatar && !avatarError.value && result.token) {
+          try {
+            showInfo('正在上传头像...')
+            avatarUploading.value = true
+
+            // 使用注册返回的token上传头像
+            const uploadResult = await uploadFileWithTempToken(
+              registerForm.avatar,
+              result.token,
+              {
+                fileName: `avatar_${registerForm.username}_${Date.now()}`,
+                fileType: 'image',
+                context: { type: 'avatar' }
+              }
+            )
+
+            // 3. 调用API更新用户头像
+            await userService.updateUserAvatarWithTempToken(uploadResult.file_id, result.token)
+
+            // 更新预览URL
+            registerForm.avatarPreview = uploadResult.url || registerForm.avatarPreview
+            uploadedAvatarFileId.value = uploadResult.file_id
+
+            showSuccess('头像设置成功')
+          } catch (error: any) {
+            console.error('头像处理失败:', error)
+            showError('头像上传失败，您可以稍后在个人资料中设置头像')
+            // 头像失败不影响注册流程，继续执行
+          } finally {
+            avatarUploading.value = false
+          }
+        }
+
+        // 4. 注册完成，跳转到成功页面
+        currentStep.value = 5
+        showSuccess('注册成功！')
       } else {
         showError(result.error || '注册失败')
       }
@@ -751,6 +792,7 @@ meta:
 
 .avatar-clickable-area {
   cursor: pointer;
+  position: relative;
 
   .avatar-preview {
     border: 2px dashed rgba(255, 255, 255, 0.3);
@@ -761,6 +803,20 @@ meta:
       transform: scale(1.02);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
+  }
+
+  .upload-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 
