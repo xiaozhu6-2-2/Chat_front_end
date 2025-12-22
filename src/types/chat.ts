@@ -70,7 +70,6 @@ interface ChatAreaEmits {
 /** 消息气泡 Props */
 interface MessageBubbleProps {
   message: LocalMessage
-  currentUserId?: string
 }
 
 /** 消息气泡 Emits */

@@ -1,15 +1,24 @@
 <template>
-  <v-card class="friend-request-item mb-3" elevation="1">
+  <v-card class="group-request-item mb-3" elevation="1">
     <v-card-text class="pa-4">
       <div class="d-flex align-start">
-        <!-- 用户头像 -->
-        <v-avatar class="mr-3 flex-shrink-0" :image="getUserAvatar()" size="48">
-          <v-icon v-if="!getUserAvatar()" icon="mdi-account" size="24" />
-        </v-avatar>
+        <!-- 左侧图标：群聊或用户 -->
+        <div class="mr-3 flex-shrink-0">
+          <!-- 收到的申请：显示申请人头像 -->
+          <v-avatar v-if="type === 'received'" :image="getUserAvatar() || undefined" size="48">
+            <v-icon v-if="!getUserAvatar()" icon="mdi-account" size="24" />
+          </v-avatar>
+
+          <!-- 发送的申请：显示群聊头像 -->
+          <v-avatar v-else :image="getGroupAvatar() || undefined" size="48">
+            <v-icon v-if="!getGroupAvatar()" icon="mdi-account-group" size="24" />
+          </v-avatar>
+        </div>
 
         <!-- 请求信息 -->
         <div class="flex-grow-1">
           <div class="d-flex align-center mb-2">
+            <!-- 显示名称 -->
             <h3 class="text-subtitle-1 font-weight-medium mr-2">
               {{ getDisplayName() }}
             </h3>
@@ -28,6 +37,25 @@
           <p v-if="request.apply_text" class="text-body-2 text-grey-darken-1 mb-2">
             {{ request.apply_text }}
           </p>
+
+          <!-- 关联信息 -->
+          <div class="d-flex align-center mb-2">
+            <!-- 收到的申请：显示群聊信息 -->
+            <div v-if="type === 'received'" class="d-flex align-center">
+              <v-icon class="mr-1" icon="mdi-account-group" size="16" />
+              <span class="text-body-2 text-grey-darken-1">
+                申请加入：{{ request.groupProfile?.name || `群聊${request.gid}` }}
+              </span>
+            </div>
+
+            <!-- 发送的申请：显示申请人信息 -->
+            <div v-else class="d-flex align-center">
+              <v-icon class="mr-1" icon="mdi-account" size="16" />
+              <span class="text-body-2 text-grey-darken-1">
+                申请人：{{ request.userProfile?.name || `用户${request.sender_uid}` }}
+              </span>
+            </div>
+          </div>
 
           <!-- 请求时间 -->
           <p class="text-caption text-grey mb-3">
@@ -97,26 +125,51 @@
 </template>
 
 <script setup lang="ts">
-  import type { FriendRequestItemEmits, FriendRequestItemProps } from '../../types/friendRequest'
+  import type { GroupRequest } from '../../types/groupRequest'
+  import type { GroupRequestStatus } from '../../types/groupRequest'
 
-  const props = defineProps<FriendRequestItemProps>()
-  const emit = defineEmits<FriendRequestItemEmits>()
+  interface GroupRequestItemProps {
+    request: GroupRequest
+    type: 'received' | 'sent'
+  }
 
-  // 获取用户显示名称
-  function getDisplayName () {
-    return props.type === 'received' ? props.request.userProfile?.name || `用户${props.request.sender_uid}` : `用户${props.request.receiver_uid}`
+  interface GroupRequestItemEmits {
+    (e: 'accept', request: GroupRequest): void
+    (e: 'reject', request: GroupRequest): void
+  }
+
+  const props = defineProps<GroupRequestItemProps>()
+  const emit = defineEmits<GroupRequestItemEmits>()
+
+  // 获取显示名称
+  function getDisplayName() {
+    if (props.type === 'received') {
+      // 收到的申请：显示申请人名称
+      return props.request.userProfile?.name || `用户${props.request.sender_uid}`
+    } else {
+      // 发送的申请：显示群聊名称
+      return props.request.groupProfile?.name || `群聊${props.request.gid}`
+    }
   }
 
   // 获取用户头像
-  function getUserAvatar () {
-    if (props.type === 'received') {
-      return props.request.userProfile?.avatar
+  function getUserAvatar() {
+    if (props.type === 'received' && props.request.userProfile) {
+      return props.request.userProfile.avatar
+    }
+    return null
+  }
+
+  // 获取群聊头像
+  function getGroupAvatar() {
+    if (props.type === 'sent' && props.request.groupProfile) {
+      return props.request.groupProfile.avatar
     }
     return null
   }
 
   // 获取状态颜色
-  function getStatusColor () {
+  function getStatusColor() {
     switch (props.request.status) {
       case 'pending': {
         return 'warning'
@@ -137,7 +190,7 @@
   }
 
   // 获取状态变体
-  function getStatusVariant () {
+  function getStatusVariant() {
     switch (props.request.status) {
       case 'pending': {
         return 'elevated'
@@ -149,7 +202,7 @@
   }
 
   // 获取状态文本
-  function getStatusText () {
+  function getStatusText() {
     switch (props.request.status) {
       case 'pending': {
         return props.type === 'sent' ? '等待处理' : '待处理'
@@ -170,7 +223,7 @@
   }
 
   // 获取状态图标
-  function getStatusIcon () {
+  function getStatusIcon() {
     switch (props.request.status) {
       case 'pending': {
         return 'mdi-clock-outline'
@@ -191,7 +244,7 @@
   }
 
   // 格式化请求时间
-  function formatRequestTime () {
+  function formatRequestTime() {
     const date = new Date(props.request.create_time)
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
@@ -209,7 +262,7 @@
   }
 
   // 格式化处理时间
-  function formatHandleTime () {
+  function formatHandleTime() {
     if (!props.request.create_time) return ''
 
     const date = new Date(props.request.create_time)
@@ -223,11 +276,11 @@
 </script>
 
 <style scoped>
-.friend-request-item {
+.group-request-item {
   transition: transform 0.2s ease;
 }
 
-.friend-request-item:hover {
+.group-request-item:hover {
   transform: translateY(-1px);
 }
 

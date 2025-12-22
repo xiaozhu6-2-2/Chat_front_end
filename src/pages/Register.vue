@@ -620,7 +620,7 @@ meta:
         account: registerForm.email,
         password: registerForm.password,
         username: registerForm.username,
-        gender: registerForm.gender === 'male' ? 1 : (registerForm.gender === 'female' ? 2 : undefined),
+        gender: registerForm.gender,
         region: registerForm.region || undefined,
         bio: registerForm.bio || undefined,
         avatar: '1', // 默认头像

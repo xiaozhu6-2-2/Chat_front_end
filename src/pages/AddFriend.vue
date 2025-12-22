@@ -23,6 +23,16 @@
               :content="totalPending"
             />
           </v-tab>
+          <v-tab value="group-requests">
+            <v-icon class="mr-2" icon="mdi-account-group" />
+            群聊请求
+            <v-badge
+              v-if="totalPendingGroupRequests > 0"
+              class="ml-2"
+              color="error"
+              :content="totalPendingGroupRequests"
+            />
+          </v-tab>
         </v-tabs>
 
         <v-window v-model="selectedTab">
@@ -35,6 +45,11 @@
           <v-window-item value="requests">
             <FriendRequestPanel />
           </v-window-item>
+
+          <!-- 群聊请求标签页 -->
+          <v-window-item value="group-requests">
+            <GroupRequestPanel />
+          </v-window-item>
         </v-window>
       </v-card-text>
     </v-card>
@@ -42,16 +57,21 @@
 </template>
 
 <script setup lang="ts">
-  import { onMounted } from 'vue'
+  import { computed, ref } from 'vue'
   import { useFriendRequest } from '@/composables/useFriendRequest'
+  import { useGroupRequestStore } from '@/stores/groupRequestStore'
   import FriendRequestPanel from '../components/friend/FriendRequestPanel.vue'
+  import GroupRequestPanel from '../components/friend/GroupRequestPanel.vue'
   import UserSearchPanel from '../components/friend/UserSearchPanel.vue'
-  import { useFriend } from '../composables/useFriend'
 
-  const selectedTab = 'search'
+  const selectedTab = ref('search')
 
   // 待处理的请求的总数
   const { totalPending } = useFriendRequest()
+
+  // 获取群聊请求store
+  const groupRequestStore = useGroupRequestStore()
+  const totalPendingGroupRequests = computed(() => groupRequestStore.totalPendingApprovals)
 
 </script>
 
@@ -77,5 +97,10 @@
 
 .v-window-item {
   height: 100%;
+}
+
+.v-badge{
+  position: relative;
+  top: -12px;
 }
 </style>

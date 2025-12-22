@@ -41,6 +41,11 @@
         </template>
       </v-list-item>
     </v-list>
+    <div v-if="chatList.length === 0" class="no-results">
+          <v-icon class="mb-2" icon="mdi-comment-off" size="24" />
+          <p>暂无聊天</p>
+          <p class="text-caption text-grey">与好友或群聊开始聊天后，可以在此查看</p>
+        </div>
   </div>
 </template>
 
@@ -166,5 +171,12 @@
 .chat-time {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.5);
+}
+
+.no-results {
+  padding: 16px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
 }
 </style>

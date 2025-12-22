@@ -12,12 +12,12 @@
             {{ user.username }}
           </h3>
           <p class="text-caption text-grey mb-1">
-            @{{ user.account }}
+            @{{ user.uid }}
           </p>
-          <p v-if="user.region" class="text-caption text-grey">
+          <!-- <p v-if="user.region" class="text-caption text-grey">
             <v-icon class="mr-1" icon="mdi-map-marker" size="14" />
             {{ user.region }}
-          </p>
+          </p> -->
         </div>
 
         <!-- 性别图标 -->
@@ -37,7 +37,7 @@
       <!-- 操作按钮 -->
       <div class="d-flex gap-2">
         <v-btn
-          v-if="!user.is_friend && !user.request_sent"
+          v-if="!checkUserRelation(user.uid).isFriend"
           class="ma-3"
           color="primary"
           size="small"
@@ -49,19 +49,7 @@
         </v-btn>
 
         <v-btn
-          v-else-if="user.request_sent"
-          class="ma-3"
-          color="grey"
-          disabled
-          size="small"
-          variant="outlined"
-        >
-          <v-icon class="mr-1" icon="mdi-clock-outline" />
-          已发送请求
-        </v-btn>
-
-        <v-btn
-          v-else-if="user.is_friend"
+          v-else
           class="ma-3"
           color="success"
           disabled
@@ -70,18 +58,6 @@
         >
           <v-icon class="mr-1" icon="mdi-account-check" />
           已是好友
-        </v-btn>
-
-        <v-btn
-          v-else-if="user.request_received"
-          class="ma-3"
-          color="info"
-          size="small"
-          variant="outlined"
-          @click="$emit('handle-request', user)"
-        >
-          <v-icon class="mr-1" icon="mdi-message-reply-text" />
-          处理请求
         </v-btn>
 
         <v-btn
@@ -193,33 +169,13 @@
         <v-card-text>
           <v-list>
             <v-list-item>
-              <v-list-item-title>账号</v-list-item-title>
-              <v-list-item-subtitle>{{ user.account }}</v-list-item-subtitle>
-            </v-list-item>
-
-            <v-list-item v-if="user.email">
-              <v-list-item-title>邮箱</v-list-item-title>
-              <v-list-item-subtitle>{{ user.email }}</v-list-item-subtitle>
-            </v-list-item>
-
-            <v-list-item v-if="user.region">
-              <v-list-item-title>地区</v-list-item-title>
-              <v-list-item-subtitle>{{ user.region }}</v-list-item-subtitle>
-            </v-list-item>
-
-            <v-list-item>
               <v-list-item-title>性别</v-list-item-title>
-              <v-list-item-subtitle>{{ getGenderText(user.gender) }}</v-list-item-subtitle>
+              <v-list-item-subtitle>{{ user.gender }}</v-list-item-subtitle>
             </v-list-item>
 
             <v-list-item v-if="user.bio">
               <v-list-item-title>个人简介</v-list-item-title>
               <v-list-item-subtitle>{{ user.bio }}</v-list-item-subtitle>
-            </v-list-item>
-
-            <v-list-item>
-              <v-list-item-title>注册时间</v-list-item-title>
-              <v-list-item-subtitle>{{ formatDate(user.create_time) }}</v-list-item-subtitle>
             </v-list-item>
           </v-list>
         </v-card-text>
@@ -236,7 +192,9 @@
 </template>
 
 <script setup lang="ts">
-  import type { UserSearchResultCardEmits, UserSearchResultCardProps } from '../../types/searchAndRequest'
+  import type { UserSearchResultCardEmits, UserSearchResultCardProps } from '../../types/friendRequest'
+  import { useFriend } from '../../composables/useFriend';
+  const { checkUserRelation } = useFriend() 
   import { ref } from 'vue'
 
   const props = defineProps<UserSearchResultCardProps>()
@@ -284,21 +242,6 @@
       }
       default: {
         return 'grey'
-      }
-    }
-  }
-
-  // 获取性别文本
-  function getGenderText (gender: string) {
-    switch (gender) {
-      case 'male': {
-        return '男'
-      }
-      case 'female': {
-        return '女'
-      }
-      default: {
-        return '其他'
       }
     }
   }

@@ -316,6 +316,25 @@ export const useGroupRequestStore = defineStore('groupRequest', () => {
   }
 
   /**
+   * 设置加载状态
+   *
+   * @param {boolean} loading - 加载状态
+   */
+  function setLoading (loading: boolean): void {
+    console.log('groupRequestStore.setLoading called with:', loading)
+    isLoading.value = loading
+  }
+
+  /**
+   * 设置审批加载状态
+   *
+   * @param {boolean} loading - 审批加载状态
+   */
+  function setLoadingApprovals (loading: boolean): void {
+    isLoadingApprovals.value = loading
+  }
+
+  /**
    * 重置所有状态
    *
    * 执行流程：
@@ -367,6 +386,8 @@ export const useGroupRequestStore = defineStore('groupRequest', () => {
     updateRequestStatus,
     removeApprovalRequest,
     getPendingRequestsByGroup,
+    setLoading,
+    setLoadingApprovals,
     reset,
   }
 })

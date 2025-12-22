@@ -183,7 +183,7 @@ export const authService = {
         timeout: 10_000,
       })
 
-      const response = await tempApi.get('/validate', {
+      const response = await tempApi.get('/user/validate', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -191,11 +191,9 @@ export const authService = {
 
       console.log('authService: Token 验证响应', response.data)
 
-      return response.data && response.data.success
+      return response.data && response.data.valid
         ? {
             valid: true,
-            userId: response.data.data.userId,
-            username: response.data.data.username,
           }
         : {
             valid: false,

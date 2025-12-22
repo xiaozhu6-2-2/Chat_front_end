@@ -72,8 +72,8 @@
   })
 
   const menuItems = ref([
-    { title: '创建群聊', action: 'createGroup' },
-    { title: '添加朋友', action: 'addFriend' },
+    { title: '创建群聊', action: '/CreateGroup' },
+    { title: '添加朋友', action: '/AddFriend' },
   ])
 </script>
 

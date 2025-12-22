@@ -51,34 +51,54 @@ export const friendService = {
     blacklist: any[]
   }): FriendWithUserInfo[] {
     // 处理普通好友（已排除黑名单）
-    const friends = apiResponse.friends.map(friend => ({
-      fid: friend.fid,
-      // BaseProfile 字段
-      id: friend.uid,
-      name: friend.username,
-      avatar: friend.avatar || '',
-      // FriendWithUserInfo 特有字段
-      remark: friend.remark || friend.username,
-      bio: friend.bio || '',
-      tag: friend.groupBy || friend.group_by || 'default',
-      isBlacklisted: false, // friends 列表中的都是非黑名单用户
-      createdAt: friend.createdAt || friend.created_at || new Date().toISOString(),
-    }))
+    const friends = apiResponse.friends.map(friend => {
+      const userInfo = {
+        account: friend.account,
+        gender: friend.gender,
+        region: friend.region,
+        email: friend.email,
+      }
+
+      return {
+        fid: friend.fid,
+        // BaseProfile 字段
+        id: friend.uid,
+        name: friend.username,
+        avatar: friend.avatar || '',
+        // FriendWithUserInfo 特有字段
+        remark: friend.remark || friend.username,
+        bio: friend.bio || '',
+        tag: friend.groupBy || friend.group_by || 'default',
+        isBlacklisted: false, // friends 列表中的都是非黑名单用户
+        createdAt: friend.createdAt || friend.created_at || new Date().toISOString(),
+        info: userInfo, // 添加 info 对象
+      }
+    })
 
     // 处理黑名单用户
-    const blacklist = apiResponse.blacklist.map(friend => ({
-      fid: friend.fid,
-      // BaseProfile 字段
-      id: friend.uid,
-      name: friend.username,
-      avatar: friend.avatar || '',
-      // FriendWithUserInfo 特有字段
-      remark: friend.remark || friend.username,
-      bio: friend.bio || '',
-      tag: friend.groupBy || friend.group_by || 'default',
-      isBlacklisted: true, // 黑名单用户
-      createdAt: friend.createdAt || friend.created_at || new Date().toISOString(),
-    }))
+    const blacklist = apiResponse.blacklist.map(friend => {
+      const userInfo = {
+        account: friend.account,
+        gender: friend.gender,
+        region: friend.region,
+        email: friend.email,
+      }
+
+      return {
+        fid: friend.fid,
+        // BaseProfile 字段
+        id: friend.uid,
+        name: friend.username,
+        avatar: friend.avatar || '',
+        // FriendWithUserInfo 特有字段
+        remark: friend.remark || friend.username,
+        bio: friend.bio || '',
+        tag: friend.groupBy || friend.group_by || 'default',
+        isBlacklisted: true, // 黑名单用户
+        createdAt: friend.createdAt || friend.created_at || new Date().toISOString(),
+        info: userInfo, // 添加 info 对象
+      }
+    })
 
     // 合并所有好友（包括黑名单）
     return [...friends, ...blacklist]
