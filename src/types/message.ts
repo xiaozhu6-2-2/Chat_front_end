@@ -1,0 +1,377 @@
+/**
+ * Message type definitions for the chat application
+ * Provides base interfaces and classes for different message types
+ */
+
+// 消息类型定义
+export enum MessageType {
+  PRIVATE = 'Private', // 私聊消息
+  GROUP = 'Group', // 群聊消息
+  NOTIFICATION = 'Notification', // 系统通知
+  SYSTEM = 'System', // 系统消息
+  PING = 'Ping', // 心跳包
+  PONG = 'Pong', // 心跳响应
+  ACK = 'Ack', // 消息确认
+}
+
+// 消息内容类型定义
+export enum ContentType {
+  TEXT = 'text',
+  IMAGE = 'image',
+  FILE = 'file',
+  VOICE = 'voice',
+  VIDEO = 'video',
+  SYSTEM = 'system',
+  FRIEND = 'friend',
+}
+
+// 消息状态定义
+export enum MessageStatus {
+  PENDING = 'pending', // 等待发送
+  SENDING = 'sending', // 发送中
+  SENT = 'sent', // 已发送
+  DELIVERED = 'delivered', // 已送达
+  READ = 'read', // 已读
+  FAILED = 'failed', // 发送失败
+}
+
+/**
+ * 基础消息载荷接口
+ * Base payload interface for all messages
+ * 字段命名采用下划线风格，与 API 保持一致
+ */
+export interface BasePayload {
+  // 消息元数据
+  message_id?: string               // 消息ID
+  chat_id?: string                  // pid 或 gid
+  timestamp?: number               // send_time 的毫秒时间戳
+
+  // 发送者信息
+  sender_id?: string                // sender_id
+  sender_name?: string              // 发送时记录
+  sender_avatar?: string            // 发送时记录
+
+  // 接收者信息
+  receiver_id?: string              // 接收者ID
+
+  // 消息内容
+  content_type?: string             // text/file/img
+  detail?: string                  // 消息文本或url
+
+  // 实时消息状态
+  is_announcement?: boolean         // 是否是群公告
+  mentioned_uids?: string[]         // 可选，@的用户列表，对应 mentioned_uids，前端发送时解析@
+  quote_msg_id?: string              // 可选，引用的消息ID，对应quote_msg_id
+}
+
+/**
+ * WebSocket 消息类
+ * Base class for WebSocket messages
+ */
+export class WSMessage {
+  type: MessageType
+  payload: BasePayload
+
+  constructor (type: MessageType, payload: BasePayload) {
+    this.type = type
+    this.payload = { ...payload }
+
+    // 自动生成 message_id
+    if (!this.payload.message_id) {
+      this.payload.message_id = `${Date.now()}${Math.floor(Math.random() * 10_000)}`
+    }
+
+    // 自动生成 timestamp
+    if (!this.payload.timestamp) {
+      this.payload.timestamp = Date.now()
+    }
+  }
+
+  
+  /**
+   * 打印消息信息
+   */
+  print (): void {
+    console.log(`WSMessage - type: ${this.type}, payload:`, this.payload)
+  }
+
+  /**
+   * 验证消息完整性
+   */
+  validate (): boolean {
+    const requiredFields = [
+      this.type,
+      this.payload.message_id,
+      this.payload.timestamp,
+    ]
+    return requiredFields.every(field => field != null && field !== '')
+  }
+}
+
+/**
+ * API 消息类（继承 WSMessage）
+ * 用于API拉取，包含后端维护的消息状态
+ */
+export class ApiMessage extends WSMessage {
+  // 后端维护的消息状态，全部可选
+  is_revoked?: boolean              // 撤回状态
+  is_read?: boolean                // 是否已读 (true=已读, false/undefined=未读)
+  read_count?: number               // 已读人数（群聊）
+
+  constructor (type: MessageType, payload: BasePayload) {
+    super(type, payload)
+  }
+
+  /**
+   * 从 API 响应创建实例
+   */
+  static fromApiResponse (response: Record<string, any>): ApiMessage {
+    const message = new ApiMessage(response.type, response.payload)
+    // 设置后端维护的状态
+    message.is_revoked = response.is_revoked
+    message.is_read = response.is_read
+    message.read_count = response.read_count
+    return message
+  }
+}
+
+/**
+ * 本地消息类（继承 ApiMessage）
+ * Local message class for frontend usage
+ */
+export class LocalMessage extends ApiMessage {
+  //前端字段
+  sendStatus?: MessageStatus
+  userIsSender?: boolean
+
+  constructor (
+    type: MessageType,
+    payload: BasePayload,
+    sendStatus?: MessageStatus,
+    userIsSender?: boolean,
+  ) {
+    super(type, payload)
+    this.sendStatus = sendStatus || MessageStatus.PENDING
+    this.userIsSender = userIsSender || false
+  }
+
+  /**
+   * 更新发送状态
+   */
+  updateSendStatus (status: MessageStatus, failedReason?: string): void {
+    this.sendStatus = status
+  }
+
+  /**
+   * 检查是否可以重发
+   */
+  canRetry (): boolean {
+    return this.sendStatus === MessageStatus.FAILED
+  }
+
+  /**
+   * 保存前检查
+   */
+  saveCheck (): boolean {
+    const baseValidation = this.validate()
+    const requiredLocalFields = [
+      this.payload.sender_id,
+      this.payload.chat_id,
+    ]
+    return baseValidation && requiredLocalFields.every(field => field != null && field !== '')
+  }
+
+  /**
+   * 打印本地消息信息
+   */
+  print (): void {
+    console.log('LocalMessage:', {
+      type: this.type,
+      payload: this.payload,
+      sendStatus: this.sendStatus,
+      userIsSender: this.userIsSender,
+    })
+  }
+}
+
+/**
+ * 数据转换函数：WSMessage 转 ApiMessage
+ * Convert WebSocket message to API message
+ */
+export function wsToApiMessage (wsMessage: WSMessage): ApiMessage {
+  return new ApiMessage(
+    wsMessage.type,
+    wsMessage.payload,
+  )
+}
+
+/**
+ * 数据转换函数：ApiMessage 转 LocalMessage
+ * Convert API message to local message
+ */
+export function apiMessageToLocal (
+  apiMessage: ApiMessage,
+  sendStatus?: MessageStatus,
+  userIsSender?: boolean,
+): LocalMessage {
+  return new LocalMessage(
+    apiMessage.type,
+    apiMessage.payload,
+    sendStatus || MessageStatus.SENT,
+    userIsSender || false,
+  )
+}
+
+/**
+ * 数据转换函数：LocalMessage 转 WSMessage
+ * Convert local message to WebSocket message
+ */
+export function localToWS (localMessage: LocalMessage): WSMessage {
+  const wsMessage = new WSMessage(localMessage.type, localMessage.payload)
+  // 保留原有的 message_id 和 timestamp
+  wsMessage.payload.message_id = localMessage.payload.message_id
+  wsMessage.payload.timestamp = localMessage.payload.timestamp
+  return wsMessage
+}
+
+/**
+ * 批量转换：API 消息数组转本地消息数组
+ */
+export function batchApiToLocal (
+  apiMessages: ApiMessage[],
+  currentUserId: string,
+): LocalMessage[] {
+  return apiMessages.map(apiMsg =>
+    apiMessageToLocal(
+      apiMsg,
+      MessageStatus.SENT,
+      apiMsg.payload.sender_id === currentUserId,
+    ),
+  )
+}
+
+/**
+ * API 响应转换为 LocalMessage
+ * 用于将后端 API 返回的消息数据转换为前端使用的 LocalMessage
+ *
+ * @param apiResponse API 返回的原始消息数据
+ * @param currentUserId 当前用户ID，用于判断是否为发送者
+ * @returns LocalMessage 实例
+ */
+export function apiResponseToLocalMessage(
+  apiResponse: any,
+  currentUserId: string
+): LocalMessage {
+  // 创建 ApiMessage 实例
+  const apiMessage = new ApiMessage(
+    apiResponse.type as MessageType,
+    apiResponse.payload as BasePayload
+  )
+
+  // 设置后端维护的状态
+  apiMessage.is_revoked = apiResponse.is_revoked
+  apiMessage.is_read = apiResponse.is_read
+  apiMessage.read_count = apiResponse.read_count
+
+  // 转换为 LocalMessage
+  return apiMessageToLocal(
+    apiMessage,
+    MessageStatus.SENT,
+    apiResponse.payload?.sender_id === currentUserId
+  )
+}
+
+/**
+ * 批量转换 API 响应到 LocalMessage 数组
+ * 用于处理历史消息列表的批量转换
+ *
+ * @param apiResponses API 返回的消息数组
+ * @param currentUserId 当前用户ID
+ * @returns LocalMessage 数组
+ */
+export function batchApiResponseToLocalMessages(
+  apiResponses: any[],
+  currentUserId: string
+): LocalMessage[] {
+  return apiResponses.map(apiResponse =>
+    apiResponseToLocalMessage(apiResponse, currentUserId)
+  )
+}
+
+/**
+ * 创建文本消息的便捷函数
+ * 注意：message_id 和 timestamp 会自动生成
+ */
+export function createTextMessage (
+  type: MessageType.PRIVATE | MessageType.GROUP,
+  sender_id: string,
+  sender_name: string,
+  sender_avatar: string,
+  receiver_id: string,
+  content: string,
+  chat_id: string,
+  userIsSender?: boolean,
+  is_announcement?: boolean,
+  mentioned_uids?: string[],
+  quote_msg_id?: string,
+): LocalMessage {
+  const payload: BasePayload = {
+    sender_id,
+    sender_name,
+    sender_avatar,
+    receiver_id,
+    chat_id,
+    content_type: ContentType.TEXT,
+    detail: content,
+    is_announcement,
+    mentioned_uids,
+    quote_msg_id,
+  }
+
+  return new LocalMessage(type, payload, MessageStatus.PENDING, userIsSender)
+}
+
+/**
+ * 创建心跳消息的便捷函数
+ * Helper function to create ping message
+ */
+export function createPingMessage (sender_id: string): WSMessage {
+  return new WSMessage(MessageType.PING, { sender_id })
+}
+
+/**
+ * 创建心跳响应消息的便捷函数
+ * Helper function to create pong message
+ */
+export function createPongMessage (sender_id: string): WSMessage {
+  return new WSMessage(MessageType.PONG, { sender_id })
+}
+
+/**
+ * 创建 ACK 确认消息的便捷函数
+ * Helper function to create ACK message
+ */
+export function createAckMessage (originalMessageId: string, receiver_id: string): WSMessage {
+  return new WSMessage(MessageType.ACK, {
+    detail: originalMessageId,
+    receiver_id,
+  })
+}
+
+/**
+ * Ping 心跳消息类
+ */
+export class PingMessage extends WSMessage {
+  constructor(sender_id: string) {
+    super(MessageType.PING, { sender_id })
+  }
+}
+
+/**
+ * Pong 心跳响应消息类
+ */
+export class PongMessage extends WSMessage {
+  constructor(sender_id: string) {
+    super(MessageType.PONG, { sender_id })
+  }
+}

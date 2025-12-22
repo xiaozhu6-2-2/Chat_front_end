@@ -11,12 +11,10 @@
 // 消息队列未完善
 // 事件处理器未完善
 
-import type { FriendNotificationDetail, LocalMessage, Message } from './messageTypes'
+import type { LocalMessage, WSMessage } from '@/types/message'
+import { MessageType, PingMessage, PongMessage } from '@/types/message'
 
 import { ref, type Ref } from 'vue'
-import { useFriendStore } from '@/stores/friendStore'
-import { messageService } from './message'
-import { MessagePing, MessagePong, MessageStatus, MessageType } from './messageTypes'
 
 /**
  * WebSocket服务配置接口
@@ -28,14 +26,25 @@ interface WebSocketConfig {
   maxReconnectAttempts: number // 最大重连次数
   timeout: number // 连接超时(ms)
   aliveTimeout: number // 心跳检测超时(ms)
-  messageQueueTimeout: number // 缓冲队列轮询间隔
-  ackTimeout: number
 }
 
 /**
  * WebSocket连接状态类型
  */
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
+
+/**
+ * WebSocket事件类型
+ */
+type WebSocketEventType = 'message' | 'messageAck' | 'error' | 'connected' | 'disconnected'
+
+/**
+ * Message ACK 事件数据
+ */
+interface MessageAckEvent {
+  tempId: string
+  realId: string
+}
 
 class WebSocketService {
   // ========== 核心属性 ==========
@@ -66,9 +75,6 @@ class WebSocketService {
   /** 心跳检测超时计时器 */
   private aliveTimer: number | undefined = undefined
 
-  /* 消息缓冲队列轮询计时器 */
-  private messageQueueTimer: number | undefined = undefined
-
   // ========== 状态管理 ==========
 
   /** 是否手动断开连接 */
@@ -77,11 +83,8 @@ class WebSocketService {
   /** 当前重连尝试次数 */
   private reconnectAttempts = 0
 
-  /** 消息队列（连接断开时缓存消息） */
-  private messageQueue: Array<LocalMessage> = []
-
   /** 事件处理器映射表 */
-  private eventHandlers: Map<string, Function[]> = new Map()
+  private eventHandlers: Map<WebSocketEventType, Function[]> = new Map()
 
   // ========== 响应式状态（供Vue组件使用） ==========
 
@@ -105,8 +108,6 @@ class WebSocketService {
       maxReconnectAttempts: 5,
       timeout: 90_000,
       aliveTimeout: 90_000,
-      messageQueueTimeout: 1000,
-      ackTimeout: 5000,
       ...config,
     }
   }
@@ -192,10 +193,6 @@ class WebSocketService {
   disconnect (reconnectFlag: boolean, reason: string): void {
     if (reconnectFlag) {
       this.isManualDisconnect = true
-    } else {
-      // 立即重发消息队列，清空队列
-      this.flushMessageQueue()
-      this.messageQueue = []
     }
 
     this.connectionState.value = 'disconnected'
@@ -247,25 +244,11 @@ class WebSocketService {
     if (this.isConnected) {
       // 连接正常，直接发送
       this.ws?.send(JSON.stringify(message))
-      // 群聊/私聊/通知入列，等待ACK确认
-      switch (message.type) {
-        case 'Group':
-        case 'Private':
-        case 'Notification': {
-          message.sendStatus = MessageStatus.SENDING
-          this.messageQueue.push(message)
-          break
-        }
-        default: { break
-        }
-      }
       console.log(`WS发送消息: ${message.type} ${message.payload}`)
     } else {
-      // 连接断开，加入消息队列
-      // 不需要检测type，重发的时候发现是pending，直接重发并出列
-      message.sendStatus = MessageStatus.PENDING
-      this.messageQueue.push(message)
-      console.log('WS未连接, 消息已加入缓冲队列')
+      // 连接断开，抛出异常，由调用方处理
+      console.error('WebSocket未连接，无法发送消息')
+      throw new Error('WebSocket未连接，无法发送消息')
     }
   }
 
@@ -284,7 +267,7 @@ class WebSocketService {
   /**
    * 注册事件处理器
    */
-  on (event: string, handler: Function): void {
+  on (event: WebSocketEventType, handler: Function): void {
     if (!this.eventHandlers.has(event)) {
       this.eventHandlers.set(event, [])
     }
@@ -294,7 +277,7 @@ class WebSocketService {
   /**
    * 移除事件处理器
    */
-  off (event: string, handler?: Function): void {
+  off (event: WebSocketEventType, handler?: Function): void {
     if (handler) {
       const handlers = this.eventHandlers.get(event)
       if (handlers) {
@@ -355,14 +338,8 @@ class WebSocketService {
       console.error('WS心跳启动失败')
     }
 
-    // 发送积压的消息
-    this.flushMessageQueue()
-
-    // 开始轮询缓冲队列
-    this.checkMessageQueue()
-
     // 触发连接成功事件
-    // this.dispatchEvent('connected');
+    this.dispatchEvent('connected');
   }
 
   /**
@@ -413,7 +390,7 @@ class WebSocketService {
       console.error('未获取到userId，无法发送心跳')
       throw new Error('未获取到userId，无法发送心跳')
     }
-    const messagePing: MessagePing = new MessagePing(this.senderId)
+    const messagePing: PingMessage = new PingMessage(this.senderId!)
 
     this.heartbeatTimer = setInterval(() => {
       if (this.ws && this.isConnected && this.ws?.readyState === WebSocket.OPEN) {
@@ -439,7 +416,7 @@ class WebSocketService {
    */
   private handleMessage (rawData: string): void {
     try {
-      const message: Message = JSON.parse(rawData)
+      const message: WSMessage = JSON.parse(rawData)
 
       // 更新最后活动时间
       this.lastActivity.value = new Date()
@@ -462,7 +439,7 @@ class WebSocketService {
         case 'Ping': {
           try {
             if (this.senderId) {
-              const messagePong: Message = new MessagePong(this.senderId)
+              const messagePong: PongMessage = new PongMessage(this.senderId!)
               if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                 this.ws.send(JSON.stringify(messagePong))
               }
@@ -473,34 +450,32 @@ class WebSocketService {
           break
         }
         case 'Ack': { // Ack消息确认
-          const tempId = message.payload.messageId
+          const tempId = message.payload.message_id
           const realId = message.payload.detail
-          if (tempId && realId) {
-            for (const m of this.messageQueue) {
-              if (m.payload.messageId === tempId) {
-                m.payload.messageId = realId
-                m.sendStatus = MessageStatus.SENT
-              }
-            }
-          }
+          // 触发 ACK 事件，由useMessage处理
+          this.dispatchEvent('messageAck', {
+            tempId,
+            realId
+          })
           break
         }
         case 'Notification': {
-          // 处理好友相关通知
-          if (message.payload.contentType === 'friend') {
-            this.handleFriendNotification(message)
-          } else {
-            // 其他类型的通知消息
-            messageService.updateMessage(message)
-          }
+          // 触发 message 事件，让 useMessage 处理
+          this.dispatchEvent('message', message)
           break
         }
-        // todo private group消息在这里扩展websocket
+        // Private 和 Group 消息处理
+        case 'Private':
+        case 'Group': {
+          // 触发 message 事件
+          this.dispatchEvent('message', message)
+          break
+        }
         default: {
           // 处理其他未明确的消息类型
           if (!Object.values(MessageType).includes(message.type as MessageType)) {
-            // 直接调用消息处理器
-            messageService.updateMessage(message)
+            // 触发 message 事件
+            this.dispatchEvent('message', message)
           }
           break
         }
@@ -511,91 +486,11 @@ class WebSocketService {
     }
   }
 
-  /**
-   * 处理好友相关的通知消息
-   */
-  private handleFriendNotification (message: Message): void {
-    try {
-      const friendStore = useFriendStore()
-
-      if (!message.payload.detail) {
-        console.warn('Friend notification missing detail')
-        return
-      }
-
-      const notificationDetail: FriendNotificationDetail = JSON.parse(message.payload.detail)
-
-      console.log('Processing friend notification:', notificationDetail)
-
-      switch (notificationDetail.action) {
-        case 'friend_request': {
-          // 收到好友请求
-          if (notificationDetail.sender_uid && notificationDetail.req_id) {
-            const friendRequest = {
-              req_id: notificationDetail.req_id,
-              sender_uid: notificationDetail.sender_uid,
-              receiver_uid: notificationDetail.receiver_uid || this.senderId || '',
-              status: 'pending' as const,
-              apply_text: notificationDetail.apply_text,
-              create_time: new Date().toISOString(),
-              sender_info: notificationDetail.user_info,
-            }
-
-            friendStore.addPendingRequest(friendRequest)
-            console.log('Friend request added to pending:', friendRequest)
-          }
-          break
-        }
-
-        case 'friend_response': {
-          // 好友请求响应
-          if (notificationDetail.req_id && notificationDetail.status) {
-            friendStore.updateRequestStatus(
-              notificationDetail.req_id,
-              notificationDetail.status,
-              new Date().toISOString(),
-            )
-
-            // 如果接受了请求，可能需要更新好友列表
-            if (notificationDetail.status === 'accepted') {
-              // TODO: 可以在这里触发好友列表刷新
-              console.log('Friend request accepted:', notificationDetail.req_id)
-            }
-          }
-          break
-        }
-
-        case 'friend_added': {
-          // 好友添加成功
-          console.log('Friend added successfully')
-          // TODO: 刷新好友列表
-          break
-        }
-
-        case 'friend_removed': {
-          // 好友被删除
-          console.log('Friend removed')
-          // TODO: 更新好友状态
-          break
-        }
-
-        default: {
-          console.warn('Unknown friend notification action:', notificationDetail.action)
-          break
-        }
-      }
-
-      // 将消息加入通知消息队列
-      messageService.updateMessage(message)
-    } catch (error) {
-      console.error('Failed to process friend notification:', error)
-    }
-  }
-
+  
   /**
    * 分发事件到处理器
    */
-  private dispatchEvent (event: string, data?: any): void {
+  private dispatchEvent (event: WebSocketEventType, data?: any): void {
     const handlers = this.eventHandlers.get(event)
     if (handlers) {
       for (const handler of handlers) {
@@ -632,51 +527,7 @@ class WebSocketService {
     }, delay) as unknown as number
   }
 
-  /**
-   * 发送积压的消息队列
-   */
-  private flushMessageQueue (): void {
-    if (!this.isConnected || this.messageQueue.length === 0) {
-      return
-    }
-
-    console.log(`正在发送 ${this.messageQueue.length} 条队列消息`)
-
-    while (this.messageQueue.length > 0) {
-      const message = this.messageQueue.shift()
-      if (message) {
-        this.send(message)
-      }
-    }
-  }
-
-  // 轮询检测消息队列
-  private checkMessageQueue (): void {
-    this.messageQueueTimer = setInterval(() => {
-      for (const message of this.messageQueue) {
-        if (message.sendStatus === 'pending') {
-          this.send(message)
-        } else if (message.sendStatus === 'sending') {
-          const timestamp = message.payload.timestamp
-          if (timestamp) {
-            if (Date.now() - timestamp! > this.config.ackTimeout) {
-              // 发送超时
-              message.sendStatus = MessageStatus.FAILED
-            } else {
-              this.send(message)
-            }
-          } else {
-            console.warn('消息缓冲队列出现缺少时间戳的消息')
-          }
-        }
-      }
-      // pending和failed的消息重发后马上出列
-      this.messageQueue = this.messageQueue.filter(
-        message => message.sendStatus !== 'pending' && message.sendStatus !== 'failed',
-      )
-    }, this.config.messageQueueTimeout)
-  }
-
+  
   /**
    * 清理所有计时器
    */
@@ -696,11 +547,6 @@ class WebSocketService {
       this.aliveTimer = undefined
     }
 
-    if (this.messageQueueTimer) {
-      clearTimeout(this.messageQueueTimer)
-      this.messageQueueTimer = undefined
-    }
-
     this.stopHeartbeat()
   }
 
@@ -711,7 +557,6 @@ class WebSocketService {
     this.cleanupTimers()
     this.isManualDisconnect = false
     this.reconnectAttempts = 0
-    this.messageQueue = []
     this.removeEvents()
     this.ws = undefined
   }
