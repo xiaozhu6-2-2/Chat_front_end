@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-  import type { LocalMessage } from '../../service/messageTypes'
+  import type { LocalMessage } from '../../types/message'
   import type { VirtualMessageListProps } from '../../types/chat'
   import { computed, nextTick, onMounted, ref, watch } from 'vue'
   import MessageBubble from './Message/MessageBubble.vue'

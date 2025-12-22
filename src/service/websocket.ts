@@ -102,7 +102,7 @@ class WebSocketService {
 
   constructor (config: Partial<WebSocketConfig> = {}) {
     this.config = {
-      url: 'ws://localhost:3000/connection/ws',
+      url: 'ws://localhost:3000/auth/connection/ws',
       heartbeatInterval: 1000,
       reconnectDelay: 1000,
       maxReconnectAttempts: 5,

@@ -75,7 +75,7 @@ export function useFriendRequest () {
       const response = await friendRequestService.sendFriendRequest(receiver_id, message)
 
       // 转换并添加到本地状态
-      const newRequest = transformFriendRequestFromApi(response)
+      const newRequest = transformFriendRequestFromApi(response, 'sent')
       friendRequestStore.addRequest(newRequest)
 
       // 显示成功提示
@@ -145,7 +145,7 @@ export function useFriendRequest () {
   // ========== WebSocket 推送处理 ==========
 
   /**
-   * 处理新的好友请求（WebSocket 推送）
+   * 处理WebSocket 推送的新的好友请求
    *
    * 使用场景：
    * - 接收到新的好友请求推送
@@ -158,7 +158,7 @@ export function useFriendRequest () {
     console.log('useFriendRequest: 处理新的好友请求', request)
 
     // 转换并添加到请求列表
-    const friendRequest = transformFriendRequestFromApi(request)
+    const friendRequest = transformFriendRequestFromApi(request, 'received')
     friendRequestStore.addRequest(friendRequest)
 
     // 如果是接收到的请求，显示通知
@@ -168,7 +168,7 @@ export function useFriendRequest () {
   }
 
   /**
-   * 处理好友请求状态更新（WebSocket 推送）
+   * 处理Websocket好友请求状态更新
    *
    * 使用场景：
    * - 对方处理了我的好友请求

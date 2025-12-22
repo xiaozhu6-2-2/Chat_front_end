@@ -165,7 +165,7 @@ export function useAuth () {
   }
 
   // 注册
-  const register = async (userData: RegisterData): Promise<LoginResult> => {
+  const register = async (userData: RegisterData): Promise<LoginResult & { token?: string }> => {
     authStore.setLoading(true)
 
     try {
@@ -182,8 +182,11 @@ export function useAuth () {
         }
       }
 
-      showSuccess('注册成功，请登录')
-      return { success: true }
+      showSuccess('注册成功')
+      return {
+        success: true,
+        token: response.token  // 返回注册后获得的临时token
+      }
     } catch (error: any) {
       console.error('useAuth: 注册失败', error)
       return {

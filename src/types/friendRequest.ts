@@ -41,7 +41,26 @@ export interface FriendRequestListResponse {
 }
 
 // 转换 API 数据
-export function transformFriendRequestFromApi (data: any): FriendRequest {
+export function transformFriendRequestFromApi (data: any, type: 'sent' | 'received'): FriendRequest {
+  // 根据类型决定userProfile应该包含谁的信息
+  let userProfile: BaseProfile
+
+  if (type === 'sent') {
+    // 如果是发送的请求，userProfile应该包含接收者的信息
+    userProfile = {
+      id: data.receiver_uid,
+      name: data.receiver_name || `用户${data.receiver_uid}`,
+      avatar: data.receiver_avatar || ''
+    }
+  } else {
+    // 如果是接收的请求，userProfile应该包含发送者的信息
+    userProfile = {
+      id: data.sender_uid,
+      name: data.sender_name || `用户${data.sender_uid}`,
+      avatar: data.sender_avatar || ''
+    }
+  }
+
   return {
     req_id: data.req_id,
     sender_uid: data.sender_uid,
@@ -49,7 +68,7 @@ export function transformFriendRequestFromApi (data: any): FriendRequest {
     apply_text: data.apply_text,
     create_time: data.create_time,
     status: data.status,
-    userProfile: data.userProfile, // 添加用户资料缓存
+    userProfile, // 根据类型设置用户资料缓存
   }
 }
 //--------------------------------组件props和emit---------------------------------------

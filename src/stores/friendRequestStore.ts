@@ -116,8 +116,8 @@ export const useFriendRequestStore = defineStore('friendRequest', () => {
   function setRequestsFromApi (response: any) {
     // 合并发送和接收的请求到一个列表
     const allRequests = [
-      ...response.requests.map(r => transformFriendRequestFromApi(r)),
-      ...response.receives.map(r => transformFriendRequestFromApi(r)),
+      ...response.requests.map(r => transformFriendRequestFromApi(r, 'sent')), // 发送的请求
+      ...response.receives.map(r => transformFriendRequestFromApi(r, 'received')), // 接收的请求
     ]
 
     // 按创建时间倒序排列（最新的在前）

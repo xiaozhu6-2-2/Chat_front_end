@@ -8,7 +8,6 @@ import { useMessage } from './useMessage'
 export function useChat () {
   const chatStore = useChatStore()
   const { showError, showSuccess } = useSnackbar()
-  const { loadHistoryMessages, markCurrentChatAsRead } = useMessage()
 
   // Computed properties
   const chatList = computed(() => chatStore.chatList)
@@ -78,10 +77,12 @@ export function useChat () {
     chatStore.resetUnreadCount(chatId)
 
     // 4. 加载历史消息
-    // TODO: 调用 loadHistoryMessages(chatId, chat.type)
+    const { loadHistoryMessages } = useMessage()
+    loadHistoryMessages(chatId, chat.type)
 
     // 5. 标记消息为已读
-    // TODO: 调用 markCurrentChatAsRead()
+    const { markCurrentChatAsRead } = useMessage()
+    markCurrentChatAsRead()
 
     console.log(`useChat: 会话 ${chatId} 未读数已重置`)
 
