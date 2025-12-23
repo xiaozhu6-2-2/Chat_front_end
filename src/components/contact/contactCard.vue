@@ -87,7 +87,7 @@
 
   <script setup lang="ts">
   import type { ContactCardProps, FriendWithUserInfo } from '../../types/friend'
-  import { onMounted, ref } from 'vue'
+  import { onMounted, ref, watch } from 'vue'
   import { useFriend } from '../../composables/useFriend'
   import { useSnackbar } from '../../composables/useSnackbar'
   import { useChat } from '../../composables/useChat'
@@ -105,8 +105,8 @@
     if (!detailedProfile.value?.id) return
 
     try {
-      // 创建私聊
-      const chat = await createChat(detailedProfile.value.id, 'private' as ChatType)
+      // 创建私聊（传入 fid 而非 id，因为后端 API 需要好友关系 ID）
+      const chat = await createChat(detailedProfile.value.fid, 'private' as ChatType)
       if (chat) {
         // 设置为活跃聊天
         selectChat(chat.id)
@@ -162,6 +162,17 @@
     fetchDetailedProfile()
     console.log(detailedProfile)
   })
+
+  // 监听联系人ID的变化，当切换联系人时重新获取数据
+  watch(() => props.contact?.id, (newContactId, oldContactId) => {
+    console.log('contactCard.vue: 联系人ID变化', { old: oldContactId, new: newContactId })
+    if (newContactId && newContactId !== oldContactId) {
+      // 重置状态
+      detailedProfile.value = null
+      // 重新获取数据
+      fetchDetailedProfile()
+    }
+  }, { immediate: false })
   </script>
 
   <style scoped>

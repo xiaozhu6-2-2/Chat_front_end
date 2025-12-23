@@ -238,6 +238,7 @@
   import type { ContactCardModalEmits, ContactCardModalProps } from '../../types/global'
 
   import { computed, reactive, ref } from 'vue'
+  import { storeToRefs } from 'pinia'
 
   import { useFriend } from '../../composables/useFriend'
   import { useUserStore } from '../../stores/userStore'
@@ -249,7 +250,8 @@
 
   // 使用 useFriend composable
   const { checkUserRelation } = useFriend()
-  const { currentUser } = useUserStore()
+  const userStore = useUserStore()
+  const { currentUser } = storeToRefs(userStore)
   // modelValue 是默认的 v-model 绑定属性
   const props = withDefaults(defineProps<ContactCardModalProps>(), {
     modelValue: false,
@@ -322,16 +324,16 @@
       }
     } else if(isCurrentUser){
       return {
-        id: currentUser?.id,
-        name: currentUser?.name,
-        avatar: currentUser?.avatar,
-        email: currentUser?.email,
-        initial: currentUser?.name.charAt(0).toUpperCase(),
-        createTime: currentUser?.createdAt,
-        account: currentUser?.account,
-        region: currentUser?.region,
-        gender: currentUser?.gender,
-        bio: currentUser?.bio,
+        id: currentUser.value?.id,
+        name: currentUser.value?.name,
+        avatar: currentUser.value?.avatar,
+        email: currentUser.value?.email,
+        initial: currentUser.value?.name?.charAt(0)?.toUpperCase() || '',
+        createTime: currentUser.value?.createdAt,
+        account: currentUser.value?.account,
+        region: currentUser.value?.region,
+        gender: currentUser.value?.gender,
+        bio: currentUser.value?.bio,
       }
     } else {
       // UserProfile
@@ -360,11 +362,12 @@
   // 判断是否是当前用户
   // OK：使用authstore
   const isCurrentUser = computed(() => {
-    if(currentUser){
-      return props.contact?.id === currentUser.id
+    if(currentUser.value){
+      return props.contact?.id === currentUser.value.id
     }
     else{
       console.error("ContactCardModal.vue:currentUser 为空!")
+      return false
     }
   })
 

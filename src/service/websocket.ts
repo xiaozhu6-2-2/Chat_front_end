@@ -12,7 +12,7 @@
 // 事件处理器未完善
 
 import type { LocalMessage, WSMessage } from '@/types/message'
-import { MessageType, PingMessage, PongMessage } from '@/types/message'
+import { MessageType, PingMessage, PongMessage, localToWS } from '@/types/message'
 
 import { ref, type Ref } from 'vue'
 
@@ -242,9 +242,11 @@ class WebSocketService {
    */
   send (message: LocalMessage): void {
     if (this.isConnected) {
-      // 连接正常，直接发送
-      this.ws?.send(JSON.stringify(message))
-      console.log(`WS发送消息: ${message.type} ${message.payload}`)
+      // 将 LocalMessage 转换为 WSMessage 格式后发送
+      const wsMessage = localToWS(message)
+      this.ws?.send(JSON.stringify(wsMessage))
+      console.log(wsMessage)
+      console.log(`WS发送消息: ${wsMessage.type} ${wsMessage.payload}`)
     } else {
       // 连接断开，抛出异常，由调用方处理
       console.error('WebSocket未连接，无法发送消息')

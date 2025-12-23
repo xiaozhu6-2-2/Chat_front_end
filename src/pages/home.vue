@@ -54,15 +54,19 @@ async function handleButtonClick() {
     useSnackbar().showInfo('不知道该和谁聊天吗？点击我，我来帮你挑个朋友开始聊天吧')
   } else if (clickCount.value === 2) {
     // 第二次点击：检查好友情况并执行相应操作
-    const friends = activeFriends
+    const friends = activeFriends.value
 
-    if (friends.length === 0) {
+    console.log('home.vue: activeFriends.value =', friends)
+    console.log('home.vue: friends.length =', friends?.length)
+
+    if (!friends || friends.length === 0) {
       // 没有好友的情况
       useSnackbar().showInfo('没有好友的话就去加好友吧')
       // 保持 clickCount 为 2，准备处理第三次点击
     } else {
       // 有好友：随机选择一个并开始聊天
       const randomFriend = friends[Math.floor(Math.random() * friends.length)]
+      console.log('home.vue: 随机选中的好友 =', randomFriend)
       await startChatWithFriend(randomFriend)
     }
   } else if (clickCount.value === 3) {
@@ -96,8 +100,20 @@ async function animateLogo() {
 // 与好友开始聊天
 async function startChatWithFriend(friend: FriendWithUserInfo) {
   try {
+    console.log('home.vue: 开始与好友聊天', friend)
+    console.log('home.vue: friend.fid =', friend.fid)
+
     // 创建聊天会话
-    const chat = await useChat().createChat(friend.id, 'private')
+    const chat = await useChat().createChat(friend.fid, 'private')
+    console.log('home.vue: createChat 返回结果 =', chat)
+
+    // 检查 chat 是否为 null
+    if (!chat) {
+      console.error('home.vue: createChat 返回了 null')
+      useSnackbar().showError('创建聊天失败：未获取到会话信息')
+      return
+    }
+
     // 设置为当前活跃聊天
     selectChat(chat.id)
     // 跳转到聊天页面
@@ -105,6 +121,7 @@ async function startChatWithFriend(friend: FriendWithUserInfo) {
     // 重置状态
     resetState()
   } catch (error) {
+    console.error('home.vue: startChatWithFriend 出错:', error)
     useSnackbar().showError('创建聊天失败，请重试')
   }
 }

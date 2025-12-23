@@ -59,9 +59,9 @@ export interface BasePayload {
   detail?: string                  // 消息文本或url
 
   // 实时消息状态
-  is_announcement?: boolean         // 是否是群公告
-  mentioned_uids?: string[]         // 可选，@的用户列表，对应 mentioned_uids，前端发送时解析@
-  quote_msg_id?: string              // 可选，引用的消息ID，对应quote_msg_id
+  is_announcement?: boolean | null         // 是否是群公告
+  mentioned_uids?: string[] | null         // 可选，@的用户列表，对应 mentioned_uids，前端发送时解析@
+  quote_msg_id?: string | null              // 可选，引用的消息ID，对应quote_msg_id
 }
 
 /**
@@ -312,8 +312,8 @@ export function createTextMessage (
   chat_id: string,
   userIsSender?: boolean,
   is_announcement?: boolean,
-  mentioned_uids?: string[],
-  quote_msg_id?: string,
+  mentioned_uids?: string[] | null,
+  quote_msg_id?: string | null,
 ): LocalMessage {
   const payload: BasePayload = {
     sender_id,
@@ -323,9 +323,9 @@ export function createTextMessage (
     chat_id,
     content_type: ContentType.TEXT,
     detail: content,
-    is_announcement,
-    mentioned_uids,
-    quote_msg_id,
+    is_announcement: is_announcement ?? false,
+    mentioned_uids: mentioned_uids ?? null,
+    quote_msg_id: quote_msg_id ?? null,
   }
 
   return new LocalMessage(type, payload, MessageStatus.PENDING, userIsSender)

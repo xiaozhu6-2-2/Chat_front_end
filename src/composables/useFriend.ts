@@ -146,6 +146,11 @@ export function useFriend () {
     return friendStore.getFriendByUid(uid)
   }
 
+  // 根据好友关系ID获取好友信息
+  const getFriendByFid = (fid: string) => {
+    return friendStore.getFriendByFid(fid)
+  }
+
   // 刷新好友数据，通过API获取新的好友资料并覆盖store中的数据
   const refreshFriendData = async (fid: string, uid: string) => {
     try {
@@ -206,6 +211,7 @@ export function useFriend () {
     updateFriendProfile,
     checkUserRelation,
     getFriendByUid,
+    getFriendByFid,
     getFriendProfile,
     refreshFriendData,
 

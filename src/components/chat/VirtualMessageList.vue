@@ -10,7 +10,7 @@
     >
       <template #default="{ item, index }">
         <div
-          :key="item.payload.messageId"
+          :key="item.payload.message_id"
           class="virtual-message-item"
         >
           <MessageBubble

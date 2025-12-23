@@ -114,10 +114,10 @@ export function useUser () {
         email: options.email?? null,
       }
 
-      const updatedUser = await userService.updateProfile(apiOptions)
+      await userService.updateProfile(apiOptions)
 
-      // 更新本地状态
-      userStore.updateUserFromApi(updatedUser)
+      // 更新成功后重新获取完整的用户信息
+      const updatedUser = await fetchCurrentUser()
 
       console.log('useUser: 更新用户资料成功')
       showSuccess('更新用户资料成功')

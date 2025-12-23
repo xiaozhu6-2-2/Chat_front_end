@@ -1,14 +1,14 @@
 import { nextTick, ref } from 'vue'
 
 export function useMessageInput () {
-  const message = ref('')
+  const inputMessage = ref('')
   const showEmojiPicker = ref(false)
   const messagesContainer = ref<HTMLElement | null>(null)
 
   const emojis = ['😀', '😂', '😍', '👍', '👏', '🙏', '❤️', '🎉', '🤔', '🤗']
 
   const insertEmoji = (emoji: string) => {
-    message.value += emoji
+    inputMessage.value += emoji
   }
 
   const toggleEmojiPicker = () => {
@@ -16,7 +16,7 @@ export function useMessageInput () {
   }
 
   const clearInput = () => {
-    message.value = ''
+    inputMessage.value = ''
     showEmojiPicker.value = false
   }
 
@@ -37,7 +37,7 @@ export function useMessageInput () {
 
   return {
     // State
-    message,
+    inputMessage,
     showEmojiPicker,
     messagesContainer,
     emojis,

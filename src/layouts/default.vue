@@ -6,17 +6,23 @@
         <v-navigation-drawer class="sidebar" permanent width="80">
           <!-- 头像区域 -->
           <div class="avatar-container">
-            <ContactCardModal v-model="showContactCard" :contact= LoginUser @edit-profile="handleEditProfile">
-              <template #activator="{ props }">
-                <Avatar
-                  :clickable="true"
-                  :name="currentUser!.name"
-                  :size="56"
-                  :url="currentUser!.avatar"
-                  v-bind="props"
-                />
-              </template>
-            </ContactCardModal>
+            <template v-if="currentUser">
+              <ContactCardModal v-model="showContactCard" :contact="currentUser as any" @edit-profile="handleEditProfile">
+                <template #activator="{ props }">
+                  <Avatar
+                    :clickable="true"
+                    :name="currentUser.name"
+                    :size="56"
+                    :url="currentUser.avatar"
+                    v-bind="props"
+                  />
+                </template>
+              </ContactCardModal>
+            </template>
+            <template v-else>
+              <!-- 加载状态 -->
+              <v-skeleton-loader type="avatar" class="skeleton-avatar" />
+            </template>
             <!-- 新增的 UserProfileEditModal -->
             <UserProfileEditModal
               v-model="showProfileEditModal"
@@ -95,7 +101,8 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, reactive, ref } from 'vue'
+  import { reactive, ref } from 'vue'
+  import { storeToRefs } from 'pinia'
   import { useRoute, useRouter } from 'vue-router'
   import { useUserStore } from '../stores/userStore'
   import Avatar from '../components/global/Avatar.vue'
@@ -104,7 +111,8 @@
 
   const router = useRouter()
   const $route = useRoute()
-  const { currentUser } = useUserStore()
+  const userStore = useUserStore()
+  const { currentUser } = storeToRefs(userStore)
   // 模拟未读消息数量
   const unreadCount = reactive({
     chat: 0,
@@ -117,9 +125,6 @@
   const showContactCard = ref(false)
   // 控制模态框显示
   const showProfileEditModal = ref(false)
-  // 当前用户信息
-  // todo: 使用useauth
-  const LoginUser = computed(() => currentUser)
   // 处理编辑资料事件
   function handleEditProfile() {
     showProfileEditModal.value = true

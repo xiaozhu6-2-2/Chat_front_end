@@ -75,8 +75,12 @@
       v-model="showContactCard"
       :contact="selectedContactInfo"
       @update-friend-profile="(fid, remark, isBlacklisted, tag) => updateFriendProfile(fid, {remark, isBlacklisted, tag} )"
-      @edit-profile=""
+      @edit-profile="handleEditProfile"
       />
+    <UserProfileEditModal
+      v-model="showProfileEditModal"
+      :user-id="currentUser?.id"
+    />
   </div>
 </template>
 
@@ -84,6 +88,7 @@
   import type { MessageBubbleProps } from '../../../types/chat'
   import type { FriendWithUserInfo } from '../../../types/friend'
   import { computed, ref } from 'vue'
+  import { storeToRefs } from 'pinia'
   import { useFriend } from '../../../composables/useFriend'
   import { ContentType, MessageType } from '../../../types/message'
   import { useFriendStore } from '../../../stores/friendStore'
@@ -92,22 +97,23 @@
 
   const friendStore = useFriendStore()
   const { updateFriendProfile } = useFriend()
-  const { 
+  const userStore = useUserStore()
+  const {
     currentUser,
     currentUserAvatar,
     currentUserId,
     currentUsername,
     currentAccount
-   } = useUserStore()
+  } = storeToRefs(userStore)
   const emit = defineEmits<{
     imagePreview: [imageUrl: string]
   }>()
 
   const showContactCard = ref(false)
   const selectedContactInfo = ref<FriendWithUserInfo>()
-
+  const showProfileEditModal = ref(false)
   const isOwnMessage = computed(() =>
-    props.message.userIsSender || props.message.payload.senderId === currentUserId,
+    props.message.userIsSender || props.message.payload.sender_id === currentUserId.value,
   )
 
   const messageClasses = computed(() => ({
@@ -124,7 +130,7 @@
   const senderName = computed(() => {
     // 这里可以根据需要从用户服务中获取用户名
     // todo 消息发送者的name
-    return props.message.payload.senderId || '未知用户'
+    return props.message.payload.sender_name || '未知用户'
   })
 
   const senderAvatar = computed(() => {
@@ -186,16 +192,16 @@
   }
 
   const isImageMessage = computed(() => {
-    return props.message.payload.contentType === ContentType.IMAGE
+    return props.message.payload.content_type === ContentType.IMAGE
       || (props.message.type === MessageType.GROUP && props.message.payload.detail?.startsWith('http'))
   })
 
   const isTextMessage = computed(() => {
-    return props.message.payload.contentType === ContentType.TEXT
+    return props.message.payload.content_type === ContentType.TEXT
   })
 
   const isFileMessage = computed(() => {
-    return props.message.payload.contentType === ContentType.FILE
+    return props.message.payload.content_type === ContentType.FILE
   })
 
   const isSystemMessage = computed(() => {
@@ -210,7 +216,7 @@
 
   // 处理头像点击事件
   function handleAvatarClick () {
-    const senderId = props.message.payload.senderId
+    const senderId = props.message.payload.sender_id
 
     // 首先检查是否为好友
     const friendInfo = senderId ? friendStore.getFriendByUid(senderId) : null
@@ -231,21 +237,26 @@
     // 自己的头像不查询好友关系，直接构建 UserProfile
     selectedContactInfo.value = {
       // OK：考虑从 authStore 获取真实的用户数据
-      id: currentUserId,
+      id: currentUserId.value,
       fid: 'default',
       name: '我',
-      createdAt: new Date().toISOString(),
+      createdAt: currentUser.value?.createdAt,
       isBlacklisted: false,
-      avatar: currentUserAvatar,
+      avatar: currentUserAvatar.value,
       bio: '这是我的个人信息',
       info: {
-        account: currentAccount,
-        gender: currentUser?.gender,
-        region: currentUser?.region,
-        email: currentUser?.email,
+        account: currentAccount.value,
+        gender: currentUser.value?.gender,
+        region: currentUser.value?.region,
+        email: currentUser.value?.email,
       },
     }
     showContactCard.value = true
+  }
+
+  // 处理编辑资料事件
+  function handleEditProfile() {
+    showProfileEditModal.value = true
   }
 </script>
 

@@ -53,7 +53,7 @@ export function useMessage() {
   const { showSuccess, showError, showWarning } = useSnackbar()
   const { activeChatId, activeChat, activeChatType } = useChat()
   const { getCurrentUserId, getCurrentUsername, getCurrentUserAvatar } = useUser()
-  const { getFriendByUid } = useFriend()
+  const { getFriendByFid } = useFriend()
 
   const isLoading = ref(false)
 
@@ -189,7 +189,7 @@ export function useMessage() {
     } else {
       // 私聊：receiver_id 是对方的 uid
       // chatId 在私聊中就是 fid (friend id)
-      const friend = getFriendByUid(chatId)
+      const friend = getFriendByFid(chatId)
       return friend?.id || '0'
     }
   }

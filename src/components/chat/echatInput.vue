@@ -36,7 +36,6 @@
       <v-btn
         class="input__button__shadow"
         color="primary"
-        :loading="isSending"
         variant="flat"
         @click="handleSendMessage"
       >
@@ -53,7 +52,7 @@
       default: '',
     },
   })
-  defineEmits(['update:modelValue', 'keydown.enter.exact.prevent', 'send-message'])
+  const emit = defineEmits(['update:modelValue', 'keydown.enter.exact.prevent', 'send-message'])
   // 处理发送按钮点击
   function handleSendMessage () {
     emit('send-message')

@@ -59,9 +59,9 @@ export const userService = {
       const response = await authApi.post('/user/update-user-info', params)
 
       if (response.status === 200) {
-        const updatedUser = UserApiToUser(response.data)
-        console.log('userService: 更新用户信息成功')
-        return updatedUser
+        console.log('userService: 更新用户信息成功，API返回', response.data)
+        // API只返回success，不返回用户数据，需要重新获取
+        return {} as User
       } else {
         throw new Error(`更新用户信息失败：${response.status}`)
       }

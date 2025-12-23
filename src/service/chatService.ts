@@ -66,10 +66,13 @@ export const ChatService = {
    * @throws Error API错误或数据错误
    */
   async getPrivateChat (friendId: string): Promise<Chat> {
+    console.log(`ChatService.getPrivateChat: 开始请求，friendId=${friendId}`)
     try {
+      console.log(`ChatService.getPrivateChat: 发送 POST 请求到 /chat/soloprivate，body: { fid: ${friendId} }`)
       const response = await authApi.post('/chat/soloprivate', {
         fid: friendId,
       })
+      console.log(`ChatService.getPrivateChat: 收到响应，status=${response.status}, data=`, response.data)
 
       if (response.status !== 200) {
         throw new Error(`获取私聊会话失败：HTTP ${response.status}`)
@@ -82,7 +85,7 @@ export const ChatService = {
       console.log(`ChatService: 成功获取与好友 ${friendId} 的私聊会话`)
       return transformApiChat(response.data)
     } catch (error) {
-      console.error('ChatService.getPrivateChat:', error)
+      console.error('ChatService.getPrivateChat: 请求失败:', error)
       throw error
     }
   },

@@ -71,7 +71,7 @@
       <echatInput
         @keydown.enter.exact.prevent="handleSendMessage"
         @send-message="handleSendMessage"
-        v-model="message"
+        v-model="inputMessage"
       />
 
     </div>
@@ -83,10 +83,10 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
+import { storeToRefs } from "pinia";
 import { useChat } from "../../composables/useChat";
 import { useMessageInput } from "../../composables/useMessageInput";
 import { useChatStore } from "../../stores/chatStore";
-import { messageService } from "../../service/message";
 import { useUserStore } from"../../stores/userStore"
 import type { ChatType, Chat, ChatAreaProps } from "../../types/chat";
 import Avatar from "../../components/global/Avatar.vue";
@@ -95,6 +95,7 @@ import echatInput from "./echatInput.vue";
 
 import VirtualMessageList from "./VirtualMessageList.vue";
 import type { LocalMessage } from "../../types/message";
+import { useMessage } from "../../composables/useMessage";
 
 const props = defineProps<ChatAreaProps>();
 
@@ -106,7 +107,7 @@ const emit = defineEmits<{
 const chatStore = useChatStore();
 const { activeChat, selectChat } = useChat();
 const {
-  message,
+  inputMessage,
   showEmojiPicker,
   emojis,
   insertEmoji,
@@ -114,38 +115,28 @@ const {
   scrollToBottom,
 } = useMessageInput();
 const {
-  currentUser,
-  currentUserId
-} = useUserStore()
+  messages,
+  loading,
+  sendTextMessage,
+  init,
+  loadHistoryMessages
+} = useMessage()
+const userStore = useUserStore()
+const { currentUser, currentUserId } = storeToRefs(userStore)
 // Local state
 const showOnlineBoard = ref(false)
 const showContactCard = ref(false)
 // const isTyping = ref(false)
 const isSending = ref(false)
-const typingTimeout = ref<number>()
 const virtualMessageList = ref()
 
 // 当前聊天联系人信息
 const currentChatContact = computed(() => {
   if (!props.chat) return null;
-  return currentUser
-  // {
-  //   //OK: 改用useauth中的缓存
-  //   uid: props.chat.id,
-  //   username: props.chat.name,
-  //   account: props.chat.name.toLowerCase().replace(/\s+/g, "_"),
-  //   gender: "other" as const,
-  //   region: "",
-  //   email: `${props.chat.name.toLowerCase()}@example.com`,
-  //   create_time: new Date().toISOString(),
-  //   avatar: props.chat.avatar,
-  //   bio: `${props.chat.name}的聊天`,
-  // };
+  return currentUser.value
 });
 
 // 虚拟滚动配置
-// OK ：改用useauth缓存
-// const currentUserId = ref("current-user");
 const autoScroll = ref(true);
 const containerHeight = computed(() => {
   // 计算容器高度，减去头部、输入框等高度
@@ -155,8 +146,8 @@ const containerHeight = computed(() => {
   return window.innerHeight - headerHeight - inputHeight - padding - 60; // 侧边栏宽度
 });
 
-  // Computed
-  const isLoading = computed(() => chatStore.isLoading)
+// Computed
+const isLoading = computed(() => loading)
 
 // Watch for chat changes
 watch(
@@ -171,36 +162,36 @@ watch(
   { immediate: true }
 );
 
-  // Watch for messages to scroll to bottom
-  watch(
-    messages,
-    () => {
-      if (autoScroll.value) {
-        virtualMessageList.value?.scrollToBottom()
-      }
-    },
-    { deep: true },
-  )
-
-  // 处理虚拟滚动接近底部事件
-  function handleScrollNearBottom (isNearBottom: boolean) {
-    autoScroll.value = isNearBottom
-  }
-
-  // Methods
-  async function handleSendMessage () {
-    if (!message.value.trim() || isSending.value) return
-
-    isSending.value = true
-    try {
-      await sendMessage(message.value)
-      message.value = ''
-    } catch (error) {
-      console.error('Failed to send message:', error)
-    } finally {
-      isSending.value = false
+// Watch for messages to scroll to bottom
+watch(
+  messages,
+  () => {
+    if (autoScroll.value) {
+      virtualMessageList.value?.scrollToBottom()
     }
+  },
+  { deep: true },
+)
+
+// 处理虚拟滚动接近底部事件
+function handleScrollNearBottom (isNearBottom: boolean) {
+  autoScroll.value = isNearBottom
+}
+
+// Methods
+async function handleSendMessage () {
+  if (!inputMessage.value.trim() || isSending.value) return
+
+  isSending.value = true
+  try {
+    await sendTextMessage(inputMessage.value)
+    inputMessage.value = ''
+  } catch (error) {
+    console.error('Failed to send message:', error)
+  } finally {
+    isSending.value = false
   }
+}
 
 
 const toggleOnlineBoard = () => {
@@ -221,24 +212,25 @@ const handleFileUpload = () => {
   console.log("File upload clicked");
 };
 
-  function handleVoiceRecord () {
-    // TODO: Implement voice recording
-    console.log('Voice record clicked')
+function handleVoiceRecord () {
+  // TODO: Implement voice recording
+  console.log('Voice record clicked')
+}
+
+// Lifecycle
+onMounted(() => {
+
+  // 初始化消息服务（如果需要）
+  if (!init) {
+    // 这里可以添加初始化逻辑，比如传入 token 和 userId
+    console.log('Message service not initialized yet')
   }
 
-  // Lifecycle
-  onMounted(() => {
-    // 初始化消息服务（如果需要）
-    if (!messageService.isInitialized) {
-      // 这里可以添加初始化逻辑，比如传入 token 和 userId
-      console.log('Message service not initialized yet')
-    }
-
-    // 延迟滚动到底部，确保组件已渲染
-    setTimeout(() => {
-      virtualMessageList.value?.scrollToBottom()
-    }, 100)
-  })
+  // 延迟滚动到底部，确保组件已渲染
+  setTimeout(() => {
+    virtualMessageList.value?.scrollToBottom()
+  }, 100)
+})
 </script>
 
 <style lang="scss" scoped>

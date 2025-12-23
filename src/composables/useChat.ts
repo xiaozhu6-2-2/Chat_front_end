@@ -107,6 +107,7 @@ export function useChat () {
    */
   const createChat = async (fidOrGid: string, chatType: ChatType): Promise<Chat | null> => {
     console.log(`useChat: 开始创建/获取会话，${chatType === 'private' ? '好友ID' : '群组ID'}: ${fidOrGid}`)
+    console.log(`useChat: 当前聊天列表长度: ${chatList.value.length}`)
 
     try {
       // 1. 先从缓存查找（现在后端已更新，fid和私聊pid是同一个id）
@@ -117,12 +118,16 @@ export function useChat () {
         return chat
       }
 
+      console.log(`useChat: 缓存中未找到会话 ${fidOrGid}，准备调用 API`)
+
       // 2. 缓存没有则调用API
       if (chatType === 'private') {
         // 获取私聊会话
+        console.log(`useChat: 调用 ChatService.getPrivateChat(${fidOrGid})`)
         chat = await ChatService.getPrivateChat(fidOrGid)
       } else if (chatType === 'group') {
         // 获取群聊会话
+        console.log(`useChat: 调用 ChatService.getGroupChat(${fidOrGid})`)
         chat = await ChatService.getGroupChat(fidOrGid)
       } else {
         console.error(`useChat: 未知的会话类型: ${chatType}`)
@@ -134,6 +139,8 @@ export function useChat () {
         console.log(`useChat: 成功获取会话，会话ID: ${chat.id}`)
         // 将会话添加到列表（如果不存在）
         chatStore.addChat(chat)
+      } else {
+        console.warn(`useChat: API 返回了 null`)
       }
 
       return chat

@@ -27,6 +27,13 @@ export const useFriendStore = defineStore('friend', () => {
     }
   })
 
+  // 根据fid查找好友（fid是Map的key）
+  const getFriendByFid = computed(() => {
+    return (fid: string) => {
+      return friends.value.get(fid)
+    }
+  })
+
   const isFriend = computed(() => {
     return (uid: string) => {
       return Array.from(friends.value.values())
@@ -164,6 +171,7 @@ export const useFriendStore = defineStore('friend', () => {
     activeFriends,
     blacklistedFriends,
     getFriendByUid,
+    getFriendByFid,
     isFriend,
     // 标签相关computed
     getFriendsByTag,
