@@ -193,9 +193,9 @@
 
 <script setup lang="ts">
   import type { UserSearchResultCardEmits, UserSearchResultCardProps } from '../../types/friendRequest'
-  import { useFriend } from '../../composables/useFriend';
-  const { checkUserRelation } = useFriend() 
   import { ref } from 'vue'
+  import { useFriend } from '../../composables/useFriend'
+  const { checkUserRelation } = useFriend()
 
   const props = defineProps<UserSearchResultCardProps>()
   const emit = defineEmits<UserSearchResultCardEmits>()

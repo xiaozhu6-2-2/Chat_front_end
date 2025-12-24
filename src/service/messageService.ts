@@ -26,7 +26,6 @@ export interface ReadStatus {
 }
 
 class MessageService {
-
   // ========== API 方法 ==========
 
   /**
@@ -126,8 +125,6 @@ class MessageService {
       throw error
     }
   }
-
-
 }
 
 // 创建单例实例

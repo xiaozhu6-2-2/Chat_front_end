@@ -21,7 +21,7 @@
             </template>
             <template v-else>
               <!-- 加载状态 -->
-              <v-skeleton-loader type="avatar" class="skeleton-avatar" />
+              <v-skeleton-loader class="skeleton-avatar" type="avatar" />
             </template>
             <!-- 新增的 UserProfileEditModal -->
             <UserProfileEditModal
@@ -101,13 +101,13 @@
 </template>
 
 <script setup lang="ts">
-  import { reactive, ref } from 'vue'
   import { storeToRefs } from 'pinia'
+  import { reactive, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
-  import { useUserStore } from '../stores/userStore'
   import Avatar from '../components/global/Avatar.vue'
   import ContactCardModal from '../components/global/ContactCardModal.vue'
   import UserProfileEditModal from '../components/global/UserProfileEditModal.vue'
+  import { useUserStore } from '../stores/userStore'
 
   const router = useRouter()
   const $route = useRoute()
@@ -126,7 +126,7 @@
   // 控制模态框显示
   const showProfileEditModal = ref(false)
   // 处理编辑资料事件
-  function handleEditProfile() {
+  function handleEditProfile () {
     showProfileEditModal.value = true
   }
   function navigateTo (path: string) {

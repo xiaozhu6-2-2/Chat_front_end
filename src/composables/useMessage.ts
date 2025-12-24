@@ -23,21 +23,23 @@
  * - 消息已读状态管理
  */
 
-import { computed, ref, readonly } from 'vue'
-import { useAuthStore } from '@/stores/authStore'
-import { useMessageStore, type MessageStoreType } from '@/stores/messageStore'
-import { useUserStore } from '@/stores/userStore'
-import { useFriendStore } from '@/stores/friendStore'
-import { MessageStatus, MessageType, LocalMessage, batchApiResponseToLocalMessages, createTextMessage } from '@/types/message'
-import { websocketService } from '@/service/websocket'
-import { messageService } from '@/service/messageService'
+import { computed, readonly, ref } from 'vue'
 import { useSnackbar } from '@/composables/useSnackbar'
+import { messageService } from '@/service/messageService'
+import { websocketService } from '@/service/websocket'
+import { useAuthStore } from '@/stores/authStore'
+import { useChatStore } from '@/stores/chatStore'
+import { useFriendStore } from '@/stores/friendStore'
+import { type MessageStoreType, useMessageStore } from '@/stores/messageStore'
+import { useUserStore } from '@/stores/userStore'
+import { batchApiResponseToLocalMessages, createTextMessage, LocalMessage, MessageStatus } from '@/types/message'
+import { MessageType } from '@/types/websocket'
 import { useChat } from './useChat'
-import { useUser } from './useUser'
 import { useFriend } from './useFriend'
+import { useUser } from './useUser'
 
 // 防抖函数
-const debounce = (fn: (...args: any[]) => void, delay: number) => {
+function debounce (fn: (...args: any[]) => void, delay: number) {
   let timeoutId: ReturnType<typeof setTimeout>
   return function (...args: any[]) {
     clearTimeout(timeoutId)
@@ -45,7 +47,7 @@ const debounce = (fn: (...args: any[]) => void, delay: number) => {
   }
 }
 
-export function useMessage() {
+export function useMessage () {
   // ============== 响应式状态 ==============
 
   const messageStore = useMessageStore()
@@ -57,16 +59,12 @@ export function useMessage() {
 
   const isLoading = ref(false)
 
-  // ============== 缓冲队列管理 ==============
+  // ============== 队列配置 ==============
 
-  // 缓冲队列状态 - 存储已发送消息的引用
-  const messageQueue = ref<LocalMessage[]>([])
-  const queueProcessingTimer = ref<number | undefined>(undefined)
-
-  // 队列配置（保持现有参数）
   const queueConfig = {
-    timeout: 5000,        // ACK超时时间
-    retryInterval: 1000,  // 重试间隔
+    timeout: 5000, // ACK超时时间
+    retryInterval: 1000, // 重试间隔
+    maxRetries: 3, // 最大重试次数
   }
 
   // ============== 计算属性 ==============
@@ -76,7 +74,9 @@ export function useMessage() {
    * 响应式更新，自动同步 messageStore 中的最新数据
    */
   const messages = computed(() => {
-    if (!activeChatId.value) return []
+    if (!activeChatId.value) {
+      return []
+    }
     const chatType = activeChatType.value === 'private' ? 'private' : 'group'
     return messageStore.getMessages(activeChatId.value, chatType)
   })
@@ -85,91 +85,102 @@ export function useMessage() {
    * 是否还有更多历史消息可以加载
    */
   const hasMore = computed(() => {
-    if (!activeChatId.value) return false
+    if (!activeChatId.value) {
+      return false
+    }
     return messageStore.hasMoreMessages(activeChatId.value)
   })
-
 
   /**
    * 当前聊天是否正在加载
    */
   const loading = computed(() => {
-    if (!activeChatId.value) return false
+    if (!activeChatId.value) {
+      return false
+    }
     return messageStore.isLoading(activeChatId.value)
   })
 
-  // ============== 队列管理方法 ==============
+  // ============== 队列管理方法（使用 store 提供的方法）=============
 
   /**
    * 将已发送消息引用加入队列
    */
   const addToQueue = (message: LocalMessage) => {
-    // message已经是messageStore中的对象，直接添加引用
-    messageQueue.value.push(message)
+    messageStore.addToMessageQueue(message)
   }
 
   /**
    * 从队列移除消息引用
    */
   const removeFromQueue = (messageId: string) => {
-    const index = messageQueue.value.findIndex(msg => msg.payload.message_id === messageId)
-    if (index !== -1) {
-      messageQueue.value.splice(index, 1)
-    }
+    messageStore.removeFromMessageQueue(messageId)
   }
 
   /**
    * 查找队列中的消息引用
    */
   const findInQueue = (messageId: string): LocalMessage | undefined => {
-    return messageQueue.value.find(msg => msg.payload.message_id === messageId)
+    return messageStore.findInMessageQueue(messageId)
   }
 
   /**
    * 处理队列中的消息状态，处理超时和重试
    */
   const processQueue = () => {
-    const now = Date.now()
+    const now = Math.floor(Date.now() / 1000) // 秒级时间戳
+    const queueMessages = messageStore.getQueueMessages()
 
-    messageQueue.value.forEach(message => {
+    for (const message of queueMessages) {
       if (message.sendStatus === MessageStatus.SENDING) {
         const timestamp = message.payload.timestamp
-        if (timestamp && now - timestamp > queueConfig.timeout) {
-          // 超时重试
-          try {
-            websocketService.send(message)
-            message.payload.timestamp = now // 更新时间戳
-          } catch {
+        if (timestamp && now - timestamp > queueConfig.timeout / 1000) {
+          // 超时重试（timeout 是毫秒，需要转为秒）
+          const currentRetries = message.retryCount || 0
+
+          if (currentRetries >= queueConfig.maxRetries) {
+            // 达到最大重试次数，标记为失败
             message.sendStatus = MessageStatus.FAILED
+            console.warn(`消息${message.payload.message_id}重试${currentRetries}次后仍然失败`)
+          } else {
+            // 继续重试
+            try {
+              websocketService.send(message)
+              message.payload.timestamp = now
+              message.retryCount = currentRetries + 1
+              console.log(`消息${message.payload.message_id}第${message.retryCount}次重试`)
+            } catch {
+              message.sendStatus = MessageStatus.FAILED
+            }
           }
         }
       }
-    })
+    }
 
-    // 清理失败消息
-    messageQueue.value = messageQueue.value.filter(
-      msg => msg.sendStatus !== MessageStatus.FAILED
-    )
+    // 清理失败和非发送中的消息
+    messageStore.filterMessageQueue(msg => msg.sendStatus === MessageStatus.SENDING)
   }
 
   /**
    * 启动队列处理定时器
    */
   const startQueueProcessing = () => {
-    if (queueProcessingTimer.value) return
+    if (messageStore.queueProcessingTimer) {
+      return
+    }
 
-    queueProcessingTimer.value = setInterval(() => {
+    messageStore.queueProcessingTimer = setInterval(() => {
       processQueue()
-    }, queueConfig.retryInterval)
+    }, queueConfig.retryInterval) as unknown as number
   }
 
   /**
    * 停止队列处理
    */
   const stopQueueProcessing = () => {
-    if (queueProcessingTimer.value) {
-      clearInterval(queueProcessingTimer.value)
-      queueProcessingTimer.value = undefined
+    if (messageStore.queueProcessingTimer) {
+      clearInterval(messageStore.queueProcessingTimer)
+      messageStore.queueProcessingTimer = undefined
     }
   }
 
@@ -191,6 +202,40 @@ export function useMessage() {
       // chatId 在私聊中就是 fid (friend id)
       const friend = getFriendByFid(chatId)
       return friend?.id || '0'
+    }
+  }
+
+  /**
+   * 格式化消息内容用于显示在会话列表
+   *
+   * @param message 本地消息对象
+   * @returns 格式化后的消息内容
+   */
+  const formatMessageContent = (message: LocalMessage): string => {
+    const contentType = message.payload.content_type
+
+    switch (contentType) {
+      case 'text': {
+        return message.payload.detail || ''
+      }
+      case 'image': {
+        return '[图片]'
+      }
+      case 'file': {
+        return '[文件]'
+      }
+      case 'voice': {
+        return '[语音]'
+      }
+      case 'video': {
+        return '[视频]'
+      }
+      case 'system': {
+        return '[系统消息]'
+      }
+      default: {
+        return message.payload.detail || '[消息]'
+      }
     }
   }
 
@@ -224,26 +269,30 @@ export function useMessage() {
 
       // 2. 使用 createTextMessage 函数创建消息对象
       const message = createTextMessage(
-        chatType === 'private' ? MessageType.PRIVATE : MessageType.GROUP,
+        chatType === 'private' ? MessageType.PRIVATE : MessageType.MESGROUP,
         getCurrentUserId(),
         getCurrentUsername(),
         getCurrentUserAvatar(),
         receiverId,
         content,
         chatId,
-        true
+        true,
       )
 
       // 3. 立即添加到 store（立即显示）
       messageStore.addMessage(chatId, message, chatType)
 
+      // 3.5 更新会话最新消息
+      const chatStore = useChatStore()
+      chatStore.updateChatLastMessage(chatId, content)
+
       // 4. 通过 WebSocket 发送
       websocketService.send(message)
 
       // 5. 发送后将消息引用加入队列，等待ACK确认
-      if (message.type === 'Private' || message.type === 'Group' || message.type === 'Notification') {
+      if (message.type === 'Private' || message.type === 'MesGroup') {
         message.sendStatus = MessageStatus.SENDING
-        addToQueue(message)  // 添加的是同一个对象引用
+        addToQueue(message) // 添加的是同一个对象引用
         startQueueProcessing() // 启动队列处理
       }
 
@@ -282,15 +331,12 @@ export function useMessage() {
   const loadHistoryMessages = async (
     chatId: string,
     type: MessageStoreType,
-    loadMore: boolean = false
+    loadMore = false,
   ) => {
     try {
-      // 检查状态
-      const existingMessages = messageStore.getMessages(chatId, type)
-
-      // 首次加载且已有消息，跳过
-      if (!loadMore && existingMessages.length > 0) {
-        console.log('聊天已有消息，跳过首次加载')
+      // 检查历史是否已完整加载
+      if (!loadMore && messageStore.getHistoryFullyLoaded(chatId)) {
+        console.log(`聊天 ${chatId} 历史已完整加载，跳过首次加载`)
         return
       }
 
@@ -301,7 +347,7 @@ export function useMessage() {
       }
 
       // 检查是否还有更多消息可加载
-      //后续可以返回hasMore作为提示
+      // 后续可以返回hasMore作为提示
       if (loadMore && !messageStore.hasMoreMessages(chatId)) {
         console.log('没有更多历史消息了')
         return
@@ -324,13 +370,13 @@ export function useMessage() {
         messages = await messageService.fetchHistoryPrivateMessages(
           chatId,
           pageSize,
-          offset
+          offset,
         )
       } else if (type === 'group') {
         messages = await messageService.fetchHistoryGroupMessages(
           chatId,
           pageSize,
-          offset
+          offset,
         )
       }
 
@@ -339,7 +385,7 @@ export function useMessage() {
 
       // 按时间戳排序（旧消息在前，新消息在后）
       localMessages.sort((a, b) =>
-        (a.payload.timestamp || 0) - (b.payload.timestamp || 0)
+        (a.payload.timestamp || 0) - (b.payload.timestamp || 0),
       )
 
       // 将消息添加到 store
@@ -354,16 +400,29 @@ export function useMessage() {
           pageSize,
           hasMore,
           oldestMessageId: localMessages[0]?.payload.message_id,
-          newestMessageId: localMessages[localMessages.length - 1]?.payload.message_id
+          newestMessageId: localMessages[localMessages.length - 1]?.payload.message_id,
         })
+
+        // 首次加载且没有更多消息时，标记为已完整加载
+        if (!loadMore && !hasMore) {
+          messageStore.setHistoryFullyLoaded(chatId, true)
+          console.log(`聊天 ${chatId} 历史加载完成，已标记为完整加载`)
+        }
 
         console.log(`成功加载${type}聊天${chatId}的${localMessages.length}条历史消息（第${currentPage + 1}页，hasMore: ${hasMore}）`)
       } else {
         // 没有更多消息了
         messageStore.updatePagination(chatId, {
           page: currentPage,
-          hasMore: false
+          hasMore: false,
         })
+
+        // 首次加载且没有消息时也标记为已完整加载
+        if (!loadMore) {
+          messageStore.setHistoryFullyLoaded(chatId, true)
+          console.log(`聊天 ${chatId} 没有历史消息，标记为完整加载`)
+        }
+
         console.log(`${type}聊天${chatId}没有更多历史消息`)
       }
     } catch (error) {
@@ -392,7 +451,9 @@ export function useMessage() {
   const markAsRead = debounce(
     async (chatId: string, beforeTimestamp?: number) => {
       try {
-        if (!chatId) return
+        if (!chatId) {
+          return
+        }
 
         // 获取需要标记的消息
         const chatType = activeChatType.value === 'private' ? 'private' : 'group'
@@ -400,7 +461,7 @@ export function useMessage() {
         const messageIds: string[] = []
         let latestTimestamp = 0
 
-        messages.forEach(message => {
+        for (const message of messages) {
           // 只标记接收到的未读消息
           if (!message.userIsSender && !message.is_read) {
             const msgTimestamp = message.payload.timestamp || 0
@@ -412,21 +473,21 @@ export function useMessage() {
               }
             }
           }
-        })
+        }
 
         if (messageIds.length === 0) {
           console.log(`聊天${chatId}没有需要标记已读的消息`)
           return
         }
 
-        // 使用当前时间戳作为已读标记时间（如果有消息，则使用消息的最新时间戳）
-        const readTimestamp = latestTimestamp || Date.now()
+        // 使用当前时间戳作为已读标记时间（秒级，如果有消息则使用消息的最新时间戳）
+        const readTimestamp = latestTimestamp || Math.floor(Date.now() / 1000)
 
         // 调用 messageService API 发送已读标记
         await messageService.markMessagesAsRead(
           chatId,
           chatType,
-          readTimestamp
+          readTimestamp,
         )
 
         // 更新本地状态 - 传递类型参数以提升查找性能
@@ -439,7 +500,7 @@ export function useMessage() {
         throw error
       }
     },
-    500 // 500ms 防抖
+    500, // 500ms 防抖
   )
 
   /**
@@ -461,7 +522,7 @@ export function useMessage() {
       let message = messageStore.getMessageById(
         messageId,
         chatType,
-        activeChatId.value
+        activeChatId.value,
       )
 
       // 如果在当前聊天中没找到，再全局搜索
@@ -479,8 +540,9 @@ export function useMessage() {
         return
       }
 
-      // 重置状态为 PENDING
+      // 重置状态为 PENDING 和重试次数
       message.sendStatus = MessageStatus.PENDING
+      message.retryCount = 0
 
       // 通过 WebSocket 重新发送
       websocketService.send(message)
@@ -522,39 +584,54 @@ export function useMessage() {
         wsMessage.type,
         wsMessage.payload || {},
         MessageStatus.SENT,
-        wsMessage.payload?.sender_id === authStore.userId
+        wsMessage.payload?.sender_id === authStore.userId,
       )
 
       // 根据消息类型添加到对应的 store
       let storeType: MessageStoreType
       switch (localMessage.type) {
-        case MessageType.PRIVATE:
+        case MessageType.PRIVATE: {
           storeType = 'private'
           break
-        case MessageType.GROUP:
+        }
+        case MessageType.MESGROUP: {
           storeType = 'group'
           break
-        case MessageType.NOTIFICATION:
-          storeType = 'notification'
-          break
-        case MessageType.SYSTEM:
-          storeType = 'system'
-          break
-        default:
+        }
+        default: {
           console.warn('未知消息类型:', localMessage.type)
           return
+        }
       }
 
       // 判断是否为当前用户发送
       localMessage.userIsSender = localMessage.payload.sender_id === authStore.userId
 
-      // 添加到 store
-      if (localMessage.payload.chat_id) {
-        messageStore.addMessage(localMessage.payload.chat_id, localMessage, storeType)
-        // TODO: 更新 chatStore 将该会话置顶并增加未读数
+      // 过滤自己发送的消息（避免重复添加）
+      // 发送消息时已经添加到store了，不需要再添加广播回来的消息
+      if (localMessage.userIsSender) {
+        console.log(`[消息] 忽略自己发送的广播消息: ${localMessage.payload.message_id}`)
+        return
       }
 
-      console.log(`收到${storeType}消息:`, localMessage.payload.message_id)
+      // 只添加别人发送的消息
+      if (localMessage.payload.chat_id) {
+        messageStore.addMessage(localMessage.payload.chat_id, localMessage, storeType)
+
+        // 更新 chatStore
+        const chatStore = useChatStore()
+
+        // 1. 更新会话最新消息
+        const messageContent = formatMessageContent(localMessage)
+        chatStore.updateChatLastMessage(localMessage.payload.chat_id, messageContent)
+
+        // 2. 增加未读数（仅当不是当前激活的会话时）
+        if (activeChatId.value !== localMessage.payload.chat_id) {
+          chatStore.incrementUnreadCount(localMessage.payload.chat_id)
+        }
+      }
+
+      console.log(`[消息] 收到${storeType}消息:`, localMessage.payload)
     } catch (error) {
       console.error('处理接收消息失败:', error)
     }
@@ -574,6 +651,9 @@ export function useMessage() {
   const handleMessageAck = (ackData: any) => {
     try {
       const { tempId, realId } = ackData
+      const queueMessages = messageStore.getQueueMessages()
+      console.log('收到ACK:', { tempId, realId, queueSize: queueMessages.length })
+      console.log('队列中的消息IDs:', queueMessages.map(m => m.payload.message_id))
 
       // 从队列中查找并处理消息
       const queuedMessage = findInQueue(tempId)
@@ -586,7 +666,7 @@ export function useMessage() {
         removeFromQueue(tempId)
         console.log(`消息${tempId}发送成功`)
       } else {
-        console.warn('收到未知消息的ACK:', tempId)
+        console.warn('收到未知消息的ACK:', tempId, 'realId:', realId)
       }
     } catch (error) {
       console.error('处理消息ACK失败:', error)
@@ -644,12 +724,16 @@ export function useMessage() {
       console.log('WebSocket已连接')
       showSuccess('连接成功')
       // 连接恢复，重新发送队列中的消息
-      if (messageQueue.value.length > 0) {
-        messageQueue.value.forEach(message => {
-          if (message.sendStatus === MessageStatus.PENDING) {
+      const queueMessages = messageStore.getQueueMessages()
+      if (queueMessages.length > 0) {
+        queueMessages.forEach((message: LocalMessage) => {
+          // 重发所有未成功发送的消息（PENDING 和 FAILED）
+          if (message.sendStatus === MessageStatus.PENDING
+            || message.sendStatus === MessageStatus.FAILED) {
             try {
               websocketService.send(message)
               message.sendStatus = MessageStatus.SENDING
+              message.retryCount = 0 // 连接恢复后重置重试计数
             } catch {
               console.error('重发消息失败')
             }
@@ -695,23 +779,21 @@ export function useMessage() {
    * 重置消息模块
    *
    * 执行流程：
-   * 1. 清空 messageStore 中的所有数据
+   * 1. 清空 messageStore 中的所有数据（包括队列）
    * 2. 清理 WebSocket 事件监听
-   * 3. 重置本地状态
+   * 3. 停止队列处理定时器
+   * 4. 重置本地状态
    */
   const reset = () => {
     try {
-      // 清空数据
+      // 清空数据（包括队列）
       messageStore.clearAllMessages()
 
       // 清理所有监听器
       cleanupWebSocketListeners()
 
-      // 停止队列处理
+      // 停止队列处理定时器
       stopQueueProcessing()
-
-      // 清空队列
-      messageQueue.value = []
 
       // 重置本地状态
       isLoading.value = false
@@ -728,6 +810,16 @@ export function useMessage() {
   const markCurrentChatAsRead = () => {
     if (activeChatId.value) {
       markAsRead(activeChatId.value)
+    }
+  }
+
+  /**
+   * 对当前聊天的消息按时间戳排序
+   */
+  const sortCurrentChatMessages = () => {
+    if (activeChatId.value && activeChatType.value) {
+      const chatType = activeChatType.value === 'private' ? 'private' : 'group'
+      messageStore.sortMessagesByTimestamp(activeChatId.value, chatType)
     }
   }
 
@@ -757,14 +849,14 @@ export function useMessage() {
 
     // 辅助方法
     markCurrentChatAsRead,
+    sortCurrentChatMessages,
 
-    // 队列管理（高级用法）
-    messageQueue: readonly(messageQueue),
+    // 队列管理（高级用法）- 直接从 store 访问
     startQueueProcessing,
     stopQueueProcessing,
 
     // Store 访问（高级用法）
     messageStore,
-    messageService
+    messageService,
   }
 }

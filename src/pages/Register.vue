@@ -174,10 +174,10 @@
                         <!-- 上传中指示器 -->
                         <div v-if="avatarUploading" class="upload-indicator">
                           <v-progress-circular
+                            color="white"
                             indeterminate
                             size="24"
                             width="2"
-                            color="white"
                           />
                         </div>
                       </div>
@@ -421,8 +421,8 @@ meta:
   import { reactive, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { useAuth } from '@/composables/useAuth'
-  import { useSnackbar } from '@/composables/useSnackbar'
   import { useFile } from '@/composables/useFile'
+  import { useSnackbar } from '@/composables/useSnackbar'
   import { userService } from '@/service/userService'
 
   const router = useRouter()
@@ -605,7 +605,6 @@ meta:
     // 注册时不自动上传，等注册成功后再上传
   }
 
-  
   // 步骤 4: 执行注册
   async function step4Click () {
     // 检查头像错误
@@ -649,8 +648,8 @@ meta:
               {
                 fileName: `avatar_${registerForm.username}_${Date.now()}`,
                 fileType: 'image',
-                context: { type: 'avatar' }
-              }
+                context: { type: 'avatar' },
+              },
             )
 
             // 3. 调用API更新用户头像

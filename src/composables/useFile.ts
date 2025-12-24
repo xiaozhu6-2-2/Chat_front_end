@@ -4,39 +4,39 @@
  * 实现智能缓存策略：只缓存图片，其余文件只缓存预览
  */
 
-import { ref } from 'vue'
-import { useFileStore } from '@/stores/fileStore'
-import { FileService } from '@/service/fileService'
+import type {
+  FileMetadata,
+  FilePreviewInfo,
+  FileType,
+  FileUploadContext,
+  UploadOptions,
+  UploadResult,
+} from '@/types/file'
 import axios from 'axios'
+import { ref } from 'vue'
+import { useSnackbar } from '@/composables/useSnackbar'
+import { FileService } from '@/service/fileService'
+import { useFileStore } from '@/stores/fileStore'
 import {
+  FileDownloadError,
+  FileUploadError,
+} from '@/types/file'
+import {
+  createImageThumbnail,
+  downloadFromUrl,
+  formatFileSize,
   generateFileId,
   generateTaskId,
   shouldCacheFully,
   shouldCacheFullyByMimeType,
-  formatFileSize,
-  createImageThumbnail,
-  downloadFromUrl,
-  validateFile
+  validateFile,
 } from '@/utils/fileUtils'
-import type {
-  UploadOptions,
-  UploadResult,
-  FileMetadata,
-  FilePreviewInfo,
-  FileUploadContext
-} from '@/types/file'
-import {
-  FileUploadError,
-  FileDownloadError,
-  FileType
-} from '@/types/file'
-import { useSnackbar } from '@/composables/useSnackbar'
 
 /**
  * 文件处理组合式函数
  * @returns 文件操作方法和状态
  */
-export function useFile() {
+export function useFile () {
   const fileStore = useFileStore()
   const { showSuccess, showError, showInfo } = useSnackbar()
 
@@ -50,7 +50,7 @@ export function useFile() {
    */
   const uploadFile = async (
     file: File,
-    options: UploadOptions = {}
+    options: UploadOptions = {},
   ): Promise<UploadResult> => {
     const taskId = generateTaskId()
 
@@ -61,23 +61,23 @@ export function useFile() {
         fileName: file.name,
         fileSize: file.size,
         status: 'pending',
-        progress: 0
+        progress: 0,
       })
 
       // 2. 上传文件
       const result = await FileService.uploadFile(file, {
         ...options,
-        onProgress: (progress) => {
+        onProgress: progress => {
           fileStore.updateUploadProgress(taskId, progress)
           options.onProgress?.(progress)
-        }
+        },
       })
 
       // 3. 获取完整文件信息
       const metadata: FileMetadata = {
         ...result,
         url: FileService.generatePreviewUrl(result.file_id, result),
-        thumbnail: result.thumbnail
+        thumbnail: result.thumbnail,
       }
 
       // 4. 根据缓存策略处理文件
@@ -93,7 +93,7 @@ export function useFile() {
           if (thumbnailUrl) {
             fileStore.cacheFile(result.file_id, {
               ...metadata,
-              thumbnail: thumbnailUrl
+              thumbnail: thumbnailUrl,
             }, file, file.type)
           }
         } catch (error) {
@@ -134,7 +134,7 @@ export function useFile() {
    */
   const uploadFiles = async (
     files: File[],
-    options: UploadOptions = {}
+    options: UploadOptions = {},
   ): Promise<UploadResult[]> => {
     if (files.length === 0) {
       return []
@@ -150,10 +150,10 @@ export function useFile() {
           // 单个文件进度更新
           console.log(`文件 ${fileIndex + 1}/${files.length} 进度: ${progress}%`)
         },
-        (overallProgress) => {
+        overallProgress => {
           // 总体进度更新（可以显示进度条）
           console.log(`总体上传进度: ${overallProgress}%`)
-        }
+        },
       )
 
       const successCount = results.length
@@ -184,7 +184,7 @@ export function useFile() {
   const uploadFileWithTempToken = async (
     file: File,
     token: string,
-    options: UploadOptions = {}
+    options: UploadOptions = {},
   ): Promise<UploadResult> => {
     const taskId = generateTaskId()
 
@@ -205,14 +205,14 @@ export function useFile() {
         fileName: file.name,
         fileSize: file.size,
         status: 'pending',
-        progress: 0
+        progress: 0,
       })
 
       // 4. 验证文件（使用现有的验证规则）
       const validationRules = {
         maxSize: 10 * 1024 * 1024, // 10MB（图片限制）
         allowedTypes: ['image'], // 图片文件类型
-        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] // 支持的MIME类型
+        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'], // 支持的MIME类型
       }
       validateFile(file, validationRules)
 
@@ -225,23 +225,23 @@ export function useFile() {
       // 6. 发送上传请求
       const response = await tempAuthApi.post<UploadResult>('/file/upload', formData, {
         headers: {
-          'Content-Type': 'multipart/form-data'
+          'Content-Type': 'multipart/form-data',
         },
-        onUploadProgress: (progressEvent) => {
+        onUploadProgress: progressEvent => {
           if (progressEvent.total) {
             const progress = (progressEvent.loaded / progressEvent.total) * 100
             fileStore.updateUploadProgress(taskId, progress)
             options.onProgress?.(progress)
           }
         },
-        timeout: options.timeout || 5 * 60 * 1000
+        timeout: options.timeout || 5 * 60 * 1000,
       })
 
       // 7. 处理响应
       if (response.data?.file_id) {
         const metadata: FileMetadata = {
           ...response.data,
-          url: `${baseURL}/auth/file/preview/${response.data.file_id}`
+          url: `${baseURL}/auth/file/preview/${response.data.file_id}`,
         }
 
         // 8. 根据缓存策略处理
@@ -261,7 +261,7 @@ export function useFile() {
       fileStore.markUploadTaskError(taskId, error instanceof Error ? error.message : '上传失败')
       throw new FileUploadError(
         error.response?.data?.message || error.message || '文件上传失败',
-        error
+        error,
       )
     } finally {
       fileStore.removeUploadTask(taskId)
@@ -300,11 +300,11 @@ export function useFile() {
         fileId,
         fileName,
         status: 'pending',
-        progress: 0
+        progress: 0,
       })
 
       // 4. 下载文件
-      const blob = await FileService.downloadFile(fileId, (progress) => {
+      const blob = await FileService.downloadFile(fileId, progress => {
         fileStore.updateDownloadProgress(taskId, progress)
       })
 
@@ -407,7 +407,7 @@ export function useFile() {
           previewUrl: 'previewUrl' in cachedFile ? cachedFile.previewUrl : undefined,
           thumbnail: cachedFile.thumbnail,
           canPreview: FileService.canPreviewOnline(cachedFile.metadata),
-          needDownload: !('blob' in cachedFile)
+          needDownload: !('blob' in cachedFile),
         }
       }
 
@@ -424,7 +424,7 @@ export function useFile() {
         previewUrl: FileService.generatePreviewUrl(fileId, metadata),
         thumbnail: metadata.thumbnail,
         canPreview: FileService.canPreviewOnline(metadata),
-        needDownload: true
+        needDownload: true,
       }
     } catch (error) {
       console.error('获取文件预览信息失败:', error)
@@ -496,13 +496,23 @@ export function useFile() {
    * 从MIME类型获取文件类型
    */
   const getFileTypeFromMimeType = (mimeType: string): FileType => {
-    if (mimeType.startsWith('image/')) return 'image' as FileType
-    if (mimeType.startsWith('video/')) return 'video' as FileType
-    if (mimeType.startsWith('audio/')) return 'audio' as FileType
+    if (mimeType.startsWith('image/')) {
+      return 'image' as FileType
+    }
+    if (mimeType.startsWith('video/')) {
+      return 'video' as FileType
+    }
+    if (mimeType.startsWith('audio/')) {
+      return 'audio' as FileType
+    }
 
     // 更详细的判断
-    if (mimeType.includes('pdf') || mimeType.includes('text/')) return 'document' as FileType
-    if (mimeType.includes('zip')) return 'archive' as FileType
+    if (mimeType.includes('pdf') || mimeType.includes('text/')) {
+      return 'document' as FileType
+    }
+    if (mimeType.includes('zip')) {
+      return 'archive' as FileType
+    }
 
     return 'unknown' as FileType
   }
@@ -542,6 +552,6 @@ export function useFile() {
     uploadTasks: fileStore.uploadTasks,
     downloadTasks: fileStore.downloadTasks,
     activeUploadTasks: fileStore.activeUploadTasks,
-    activeDownloadTasks: fileStore.activeDownloadTasks
+    activeDownloadTasks: fileStore.activeDownloadTasks,
   }
 }

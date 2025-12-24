@@ -31,7 +31,8 @@ import { messageService } from '@/service/message'
 import { useChatStore } from '@/stores/chatStore'
 import { useFriendStore } from '@/stores/friendStore'
 import { useGroupStore } from '@/stores/groupStore'
-import { ContentType, MessageType } from '@/types/message'
+import { ContentType } from '@/types/message'
+import { MessageType } from '@/types/websocket'
 
 /**
  * 本地搜索服务对象
@@ -301,7 +302,7 @@ export const localSearchService = {
     const results = pagedResults.map(chat => ({
       chatId: chat.id,
       name: chat.name || '',
-      type: chat.type === 'Group' ? 'group' as const : 'private' as const,
+      type: chat.type === 'MesGroup' ? 'group' as const : 'private' as const,
       lastMessage: chat.lastMessage,
       unreadCount: chat.unreadCount,
       isPinned: chat.isPinned,
@@ -362,7 +363,8 @@ export const localSearchService = {
 
       for (const message of allMessages) {
         // 跳过系统消息和通知
-        if (message.type === MessageType.SYSTEM || message.type === MessageType.NOTIFICATION) {
+        // (已删除 NOTIFICATION 和 SYSTEM 消息类型)
+        if (message.type === MessageType.PING || message.type === MessageType.PONG) {
           continue
         }
 
@@ -391,7 +393,7 @@ export const localSearchService = {
             messageId: message.payload.messageId || '',
             chatId,
             chatName: await this.getChatName(chatId),
-            chatType: message.type === MessageType.GROUP ? 'group' : 'private',
+            chatType: message.type === MessageType.MESGROUP ? 'group' : 'private',
             senderId: message.payload.senderId || '',
             senderName: await this.getSenderName(message.payload.senderId || ''),
             content,

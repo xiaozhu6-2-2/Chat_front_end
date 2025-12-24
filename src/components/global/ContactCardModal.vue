@@ -103,7 +103,7 @@
             <!-- 邮箱 -->
             <v-list-item prepend-icon="mdi-email" title="邮箱">
               <template #subtitle>
-                {{ contactInfo.email}}
+                {{ contactInfo.email }}
               </template>
             </v-list-item>
 
@@ -237,8 +237,8 @@
   import type { FriendWithUserInfo } from '../../types/friend'
   import type { ContactCardModalEmits, ContactCardModalProps } from '../../types/global'
 
-  import { computed, reactive, ref } from 'vue'
   import { storeToRefs } from 'pinia'
+  import { computed, reactive, ref } from 'vue'
 
   import { useFriend } from '../../composables/useFriend'
   import { useUserStore } from '../../stores/userStore'
@@ -322,7 +322,7 @@
         gender: friend.info?.gender,
         bio: friend.bio,
       }
-    } else if(isCurrentUser){
+    } else if (isCurrentUser.value) {
       return {
         id: currentUser.value?.id,
         name: currentUser.value?.name,
@@ -362,11 +362,10 @@
   // 判断是否是当前用户
   // OK：使用authstore
   const isCurrentUser = computed(() => {
-    if(currentUser.value){
+    if (currentUser.value) {
       return props.contact?.id === currentUser.value.id
-    }
-    else{
-      console.error("ContactCardModal.vue:currentUser 为空!")
+    } else {
+      console.error('ContactCardModal.vue:currentUser 为空!')
       return false
     }
   })

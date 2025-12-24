@@ -143,7 +143,7 @@ export const authService = {
         ? {
             success: true,
             message: response.data.message || '注册成功',
-            token: response.data.token,  // 提取注册后返回的临时token
+            token: response.data.token, // 提取注册后返回的临时token
           }
         : {
             success: false,

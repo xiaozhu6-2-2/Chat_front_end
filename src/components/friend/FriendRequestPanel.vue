@@ -73,7 +73,7 @@
     pendingRequests,
     sentRequests,
     respondFriendRequest,
-    init
+    init,
   } = useFriendRequest()
 
   const activeTab = ref<'received' | 'sent'>('received')

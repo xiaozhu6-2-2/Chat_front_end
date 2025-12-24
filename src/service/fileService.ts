@@ -4,23 +4,23 @@
  * 与智能缓存策略配合使用
  */
 
-import { authApi } from './api'
 import type {
+  FileMetadata,
+  FileUploadContext,
   UploadOptions,
   UploadResult,
-  FileMetadata,
-  FileUploadContext
 } from '@/types/file'
 import {
+  FileDownloadError,
   FileError,
   FileUploadError,
-  FileDownloadError
 } from '@/types/file'
 import {
+  createFileFormData,
   getFileType,
   validateFile,
-  createFileFormData
 } from '@/utils/fileUtils'
+import { authApi } from './api'
 
 /**
  * 文件服务类
@@ -33,9 +33,9 @@ export class FileServiceClass {
    * @param options 上传选项
    * @returns 上传结果
    */
-  async uploadFile(
+  async uploadFile (
     file: File,
-    options: UploadOptions = {}
+    options: UploadOptions = {},
   ): Promise<UploadResult> {
     try {
       // 1. 基础验证
@@ -51,16 +51,16 @@ export class FileServiceClass {
       // 4. 发送上传请求
       const response = await authApi.post<UploadResult>('/auth/file/upload', formData, {
         headers: {
-          'Content-Type': 'multipart/form-data'
+          'Content-Type': 'multipart/form-data',
         },
-        onUploadProgress: (progressEvent) => {
+        onUploadProgress: progressEvent => {
           if (progressEvent.total && options.onProgress) {
             const progress = (progressEvent.loaded / progressEvent.total) * 100
             // 使用防抖优化进度更新频率
             this.debouncedProgressUpdate(options.onProgress, progress)
           }
         },
-        timeout: options.timeout || 5 * 60 * 1000 // 默认5分钟超时
+        timeout: options.timeout || 5 * 60 * 1000, // 默认5分钟超时
       })
 
       return response.data
@@ -68,7 +68,7 @@ export class FileServiceClass {
       console.error('FileService.uploadFile:', error)
       throw new FileUploadError(
         this.formatUploadErrorMessage(error),
-        error
+        error,
       )
     }
   }
@@ -78,10 +78,10 @@ export class FileServiceClass {
    * @param fileId 文件ID
    * @returns 文件元数据
    */
-  async getFileInfo(fileId: string): Promise<FileMetadata> {
+  async getFileInfo (fileId: string): Promise<FileMetadata> {
     try {
       const response = await authApi.post<FileMetadata>('/auth/file/preview', {
-        file_id: fileId
+        file_id: fileId,
       })
 
       return response.data
@@ -97,21 +97,21 @@ export class FileServiceClass {
    * @param onProgress 进度回调（可选）
    * @returns 文件Blob数据
    */
-  async downloadFile(
+  async downloadFile (
     fileId: string,
-    onProgress?: (progress: number) => void
+    onProgress?: (progress: number) => void,
   ): Promise<Blob> {
     try {
       const response = await authApi.post('/auth/file/download', {
-        file_id: fileId
+        file_id: fileId,
       }, {
         responseType: 'blob',
-        onDownloadProgress: (progressEvent) => {
+        onDownloadProgress: progressEvent => {
           if (progressEvent.total && onProgress) {
             const progress = (progressEvent.loaded / progressEvent.total) * 100
             this.debouncedProgressUpdate(onProgress, progress)
           }
-        }
+        },
       })
 
       return response.data
@@ -126,10 +126,10 @@ export class FileServiceClass {
    * @param fileId 文件ID
    * @returns 删除结果
    */
-  async deleteFile(fileId: string): Promise<{ success: boolean }> {
+  async deleteFile (fileId: string): Promise<{ success: boolean }> {
     try {
       const response = await authApi.post('/auth/file/delete', {
-        file_id: fileId
+        file_id: fileId,
       })
 
       return response.data
@@ -145,7 +145,7 @@ export class FileServiceClass {
    * @param metadata 文件元数据
    * @returns 预览URL
    */
-  generatePreviewUrl(fileId: string, metadata: FileMetadata): string {
+  generatePreviewUrl (fileId: string, metadata: FileMetadata): string {
     // 如果已有URL，直接返回
     if (metadata.url) {
       return metadata.url
@@ -173,7 +173,7 @@ export class FileServiceClass {
    * @param metadata 文件元数据
    * @returns 是否支持在线预览
    */
-  canPreviewOnline(metadata: FileMetadata): boolean {
+  canPreviewOnline (metadata: FileMetadata): boolean {
     const fileType = metadata.file_type.toLowerCase()
     const mimeType = metadata.mime_type.toLowerCase()
 
@@ -192,7 +192,7 @@ export class FileServiceClass {
    * @param fileId 文件ID
    * @returns 下载URL
    */
-  getDownloadUrl(fileId: string): string {
+  getDownloadUrl (fileId: string): string {
     return `${import.meta.env.VITE_API_BASE_URL}/auth/file/download`
   }
 
@@ -203,10 +203,10 @@ export class FileServiceClass {
    * @param maxHeight 最大高度
    * @returns 缩略图Blob或null
    */
-  async createThumbnail(
+  async createThumbnail (
     file: File,
-    maxWidth: number = 200,
-    maxHeight: number = 200
+    maxWidth = 200,
+    maxHeight = 200,
   ): Promise<Blob | null> {
     const fileType = getFileType(file)
 
@@ -234,28 +234,26 @@ export class FileServiceClass {
    * @param onOverallProgress 总体进度回调
    * @returns 上传结果数组
    */
-  async uploadFiles(
+  async uploadFiles (
     files: File[],
     options: UploadOptions = {},
     onEachProgress?: (fileIndex: number, progress: number) => void,
-    onOverallProgress?: (overallProgress: number) => void
+    onOverallProgress?: (overallProgress: number) => void,
   ): Promise<UploadResult[]> {
     const results: UploadResult[] = []
     const totalFiles = files.length
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-
+    for (const [i, file] of files.entries()) {
       try {
         const result = await this.uploadFile(file, {
           ...options,
-          onProgress: (progress) => {
+          onProgress: progress => {
             onEachProgress?.(i, progress)
 
             // 计算总体进度
             const overallProgress = ((i + progress / 100) / totalFiles) * 100
             onOverallProgress?.(overallProgress)
-          }
+          },
         })
 
         results.push(result)
@@ -274,7 +272,7 @@ export class FileServiceClass {
    * 基础文件验证
    * @param file 文件对象
    */
-  private validateFileBasic(file: File): void {
+  private validateFileBasic (file: File): void {
     if (!file) {
       throw new FileUploadError('请选择要上传的文件')
     }
@@ -293,35 +291,39 @@ export class FileServiceClass {
    * @param fileType 文件类型
    * @returns 验证规则
    */
-  private getValidationRules(fileType?: string) {
+  private getValidationRules (fileType?: string) {
     const maxSize = 100 * 1024 * 1024 // 默认100MB
     const allowedTypes = ['image', 'video', 'audio', 'document', 'archive']
 
     // 根据文件类型定制规则
     switch (fileType) {
-      case 'image':
+      case 'image': {
         return {
           maxSize: 10 * 1024 * 1024, // 10MB
           allowedTypes: ['image'],
-          allowedMimeTypes: ['image/*']
+          allowedMimeTypes: ['image/*'],
         }
-      case 'video':
+      }
+      case 'video': {
         return {
           maxSize: 500 * 1024 * 1024, // 500MB
           allowedTypes: ['video'],
-          allowedMimeTypes: ['video/*']
+          allowedMimeTypes: ['video/*'],
         }
-      case 'audio':
+      }
+      case 'audio': {
         return {
           maxSize: 50 * 1024 * 1024, // 50MB
           allowedTypes: ['audio'],
-          allowedMimeTypes: ['audio/*']
+          allowedMimeTypes: ['audio/*'],
         }
-      default:
+      }
+      default: {
         return {
           maxSize,
-          allowedTypes
+          allowedTypes,
         }
+      }
     }
   }
 
@@ -330,7 +332,7 @@ export class FileServiceClass {
    * @param error 原始错误
    * @returns 格式化的错误信息
    */
-  private formatUploadErrorMessage(error: any): string {
+  private formatUploadErrorMessage (error: any): string {
     if (error?.response?.data?.message) {
       return error.response.data.message
     }
@@ -380,7 +382,6 @@ export class FileServiceClass {
 
 // 导出单例实例
 export const FileService = new FileServiceClass()
-
 
 // 导出便捷方法
 export const uploadFile = FileService.uploadFile.bind(FileService)

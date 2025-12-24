@@ -8,13 +8,12 @@
 // 启动后端检验心跳
 // isManualDisconnect设置有缺陷
 // pong消息需要检查时间戳来重置计时器
-// 消息队列未完善
-// 事件处理器未完善
 
 import type { LocalMessage, WSMessage } from '@/types/message'
-import { MessageType, PingMessage, PongMessage, localToWS } from '@/types/message'
-
 import { ref, type Ref } from 'vue'
+
+import { localToWS } from '@/types/message'
+import { MessageType, PingMessage, PongMessage } from '@/types/websocket'
 
 /**
  * WebSocket服务配置接口
@@ -103,11 +102,11 @@ class WebSocketService {
   constructor (config: Partial<WebSocketConfig> = {}) {
     this.config = {
       url: 'ws://localhost:3000/auth/connection/ws',
-      heartbeatInterval: 1000,
-      reconnectDelay: 1000,
+      heartbeatInterval: 30_000,
+      reconnectDelay: 5000,
       maxReconnectAttempts: 5,
-      timeout: 90_000,
-      aliveTimeout: 90_000,
+      timeout: 10_000,
+      aliveTimeout: 120_000,
       ...config,
     }
   }
@@ -192,7 +191,7 @@ class WebSocketService {
    */
   disconnect (reconnectFlag: boolean, reason: string): void {
     if (reconnectFlag) {
-      this.isManualDisconnect = true
+      this.isManualDisconnect = !reconnectFlag
     }
 
     this.connectionState.value = 'disconnected'
@@ -245,8 +244,7 @@ class WebSocketService {
       // 将 LocalMessage 转换为 WSMessage 格式后发送
       const wsMessage = localToWS(message)
       this.ws?.send(JSON.stringify(wsMessage))
-      console.log(wsMessage)
-      console.log(`WS发送消息: ${wsMessage.type} ${wsMessage.payload}`)
+      console.log('WS发送消息:', wsMessage.type, 'message_id:', wsMessage.payload.message_id)
     } else {
       // 连接断开，抛出异常，由调用方处理
       console.error('WebSocket未连接，无法发送消息')
@@ -341,7 +339,7 @@ class WebSocketService {
     }
 
     // 触发连接成功事件
-    this.dispatchEvent('connected');
+    this.dispatchEvent('connected')
   }
 
   /**
@@ -384,6 +382,25 @@ class WebSocketService {
   }
 
   /**
+   * 重置心跳超时计时器
+   * 每次发送Ping时调用，设置120秒超时保护
+   */
+  private resetAliveTimer (): void {
+    if (this.aliveTimer) {
+      clearTimeout(this.aliveTimer)
+      this.aliveTimer = undefined
+    }
+
+    this.aliveTimer = setTimeout(() => {
+      console.warn(`[心跳] 超时 (${this.config.aliveTimeout / 1000}s 内未收到 Pong)，关闭连接`)
+      // 直接关闭连接，让 handleClose 处理重连逻辑
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.close(1000, 'heartbeat_timeout')
+      }
+    }, this.config.aliveTimeout) as unknown as number
+  }
+
+  /**
    * 开始心跳机制
    */
   private startHeartbeat (): void {
@@ -392,12 +409,21 @@ class WebSocketService {
       console.error('未获取到userId，无法发送心跳')
       throw new Error('未获取到userId，无法发送心跳')
     }
-    const messagePing: PingMessage = new PingMessage(this.senderId!)
 
     this.heartbeatTimer = setInterval(() => {
       if (this.ws && this.isConnected && this.ws?.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify(messagePing))
-        // console.log('WS发送心跳');
+        // 每次发送时创建新的 PingMessage，确保时间戳是最新的
+        const messagePing: PingMessage = new PingMessage(this.senderId!)
+
+        // 发送Ping时重置超时计时器
+        this.resetAliveTimer()
+
+        console.log(`[心跳] 发送 Ping (timestamp: ${messagePing.payload.timestamp})`)
+        try {
+          this.ws.send(JSON.stringify(messagePing))
+        } catch (error) {
+          console.error('[心跳] 发送 Ping 失败:', error)
+        }
       }
     }, this.config.heartbeatInterval) as unknown as number
   }
@@ -424,21 +450,21 @@ class WebSocketService {
       this.lastActivity.value = new Date()
 
       // 处理心跳
-      // 当前实现存在问题：收到的pong可能是很久之前的，延迟不准，心跳有可能已经超时，需要通过时间戳来确定
       switch (message.type) {
         case 'Pong': {
-          // console.log(`WS收到心跳: ${message.payload.timestamp}`);
+          const pongTimestamp = message.payload.timestamp
+          const currentTimestamp = Math.floor(Date.now() / 1000)
+          const latency = currentTimestamp - (pongTimestamp || 0)
+          console.log(`[心跳] 收到 Pong (timestamp: ${pongTimestamp}, 延迟: ${latency}s)`)
+          // 收到Pong，清除超时计时器（下一次Ping时重新设置）
           if (this.aliveTimer) {
             clearTimeout(this.aliveTimer)
             this.aliveTimer = undefined
           }
-          this.aliveTimer = setTimeout(() => {
-            console.warn('WS心跳超时,断开连接')
-            this.disconnect(true, 'heartbeat_timeout')
-          }, this.config.aliveTimeout) as unknown as number
           break
         }
         case 'Ping': {
+          console.log('[心跳] 收到 Ping，回复 Pong')
           try {
             if (this.senderId) {
               const messagePong: PongMessage = new PongMessage(this.senderId!)
@@ -447,28 +473,24 @@ class WebSocketService {
               }
             }
           } catch {
-            console.error('WS发送pong失败')
+            console.error('[心跳] 发送 Pong 失败')
           }
           break
         }
-        case 'Ack': { // Ack消息确认
-          const tempId = message.payload.message_id
-          const realId = message.payload.detail
+        case 'MessageAck': { // Ack消息确认
+          // 后端发送的格式: { temp_message_id, message_id, timestamp }
+          const tempId = message.payload.temp_message_id
+          const realId = message.payload.message_id
           // 触发 ACK 事件，由useMessage处理
           this.dispatchEvent('messageAck', {
             tempId,
-            realId
+            realId,
           })
-          break
-        }
-        case 'Notification': {
-          // 触发 message 事件，让 useMessage 处理
-          this.dispatchEvent('message', message)
           break
         }
         // Private 和 Group 消息处理
         case 'Private':
-        case 'Group': {
+        case 'MesGroup': {
           // 触发 message 事件
           this.dispatchEvent('message', message)
           break
@@ -488,7 +510,6 @@ class WebSocketService {
     }
   }
 
-  
   /**
    * 分发事件到处理器
    */
@@ -529,7 +550,6 @@ class WebSocketService {
     }, delay) as unknown as number
   }
 
-  
   /**
    * 清理所有计时器
    */

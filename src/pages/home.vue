@@ -1,21 +1,21 @@
 <template>
   <div class="d-flex justify-center align-center flex-column" style="height: 100%;">
-      <img
+    <img
+      alt="Logo"
       class="fixed-size-image"
       :class="{ 'animate-wobble': isWobbling }"
+      height="100"
       src="@/assets/echatlogo.PNG"
       width="100"
-      height="100"
-      alt="Logo"
-    />
+    >
     <!-- From Uiverse.io by arthur_6104 -->
     <div
       class="box-button mt-8"
       :class="{ 'disabled': isAnimating }"
-      @click="handleButtonClick"
-      :title="showTooltip ? '点击选择好友开始聊天' : ''"
       role="button"
       tabindex="0"
+      :title="showTooltip ? '点击选择好友开始聊天' : ''"
+      @click="handleButtonClick"
     >
       <div class="button"><span>点点我吧</span></div>
     </div>
@@ -24,113 +24,124 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, nextTick } from 'vue'
-import { useFriend } from '../composables/useFriend'
-import { useChat } from '../composables/useChat'
-import { useSnackbar } from '../composables/useSnackbar'
-import router from '../router'
-import type { FriendWithUserInfo } from '../types/friend'
+  import type { FriendWithUserInfo } from '../types/friend'
+  import { nextTick, ref } from 'vue'
+  import { useChat } from '../composables/useChat'
+  import { useFriend } from '../composables/useFriend'
+  import { useSnackbar } from '../composables/useSnackbar'
+  import router from '../router'
 
-// 状态管理
-const clickCount = ref(0)  // 点击次数
-const showTooltip = ref(false)  // 是否显示提示
-const isAnimating = ref(false)  // 是否正在播放动画
-const isWobbling = ref(false)  // 是否正在播放 wobble 动画
-const { activeFriends } = useFriend()
-const { selectChat } = useChat()
-// 点击处理逻辑
-async function handleButtonClick() {
-  // 防止动画过程中的重复点击
-  if (isAnimating.value) return
+  // 状态管理
+  const clickCount = ref(0) // 点击次数
+  const showTooltip = ref(false) // 是否显示提示
+  const isAnimating = ref(false) // 是否正在播放动画
+  const isWobbling = ref(false) // 是否正在播放 wobble 动画
+  const { activeFriends } = useFriend()
+  const { selectChat } = useChat()
+  // 点击处理逻辑
+  async function handleButtonClick () {
+    // 防止动画过程中的重复点击
+    if (isAnimating.value) return
 
-  clickCount.value++
+    clickCount.value++
 
-  // 每次点击都播放动画
-  await animateLogo()
+    // 每次点击都播放动画
+    await animateLogo()
 
-  if (clickCount.value === 1) {
-    // 第一次点击：显示提示
-    showTooltip.value = true
-    useSnackbar().showInfo('不知道该和谁聊天吗？点击我，我来帮你挑个朋友开始聊天吧')
-  } else if (clickCount.value === 2) {
-    // 第二次点击：检查好友情况并执行相应操作
-    const friends = activeFriends.value
+    switch (clickCount.value) {
+      case 1: {
+        // 第一次点击：显示提示
+        showTooltip.value = true
+        useSnackbar().showInfo('不知道该和谁聊天吗？点击我，我来帮你挑个朋友开始聊天吧')
 
-    console.log('home.vue: activeFriends.value =', friends)
-    console.log('home.vue: friends.length =', friends?.length)
+        break
+      }
+      case 2: {
+        // 第二次点击：检查好友情况并执行相应操作
+        const friends = activeFriends.value
 
-    if (!friends || friends.length === 0) {
-      // 没有好友的情况
-      useSnackbar().showInfo('没有好友的话就去加好友吧')
-      // 保持 clickCount 为 2，准备处理第三次点击
-    } else {
-      // 有好友：随机选择一个并开始聊天
-      const randomFriend = friends[Math.floor(Math.random() * friends.length)]
-      console.log('home.vue: 随机选中的好友 =', randomFriend)
-      await startChatWithFriend(randomFriend)
+        console.log('home.vue: activeFriends.value =', friends)
+        console.log('home.vue: friends.length =', friends?.length)
+
+        if (!friends || friends.length === 0) {
+          // 没有好友的情况
+          useSnackbar().showInfo('没有好友的话就去加好友吧')
+          // 保持 clickCount 为 2，准备处理第三次点击
+        } else {
+          // 有好友：随机选择一个并开始聊天
+          const randomFriend = friends[Math.floor(Math.random() * friends.length)]
+          console.log('home.vue: 随机选中的好友 =', randomFriend)
+          await startChatWithFriend(randomFriend)
+        }
+
+        break
+      }
+      case 3: {
+        // 第三次点击（无好友时）：跳转到添加好友页面
+        router.push('/AddFriend')
+        resetState()
+
+        break
+      }
+    // No default
     }
-  } else if (clickCount.value === 3) {
-    // 第三次点击（无好友时）：跳转到添加好友页面
-    router.push('/AddFriend')
-    resetState()
   }
-}
 
-// Logo 动画函数
-async function animateLogo() {
-  isAnimating.value = true
+  // Logo 动画函数
+  async function animateLogo () {
+    isAnimating.value = true
 
-  // 先重置动画
-  isWobbling.value = false
-  await nextTick()
+    // 先重置动画
+    isWobbling.value = false
+    await nextTick()
 
-  // 触发动画
-  setTimeout(() => {
-    isWobbling.value = true
-  }, 50)
+    // 触发动画
+    setTimeout(() => {
+      isWobbling.value = true
+    }, 50)
 
-  // 等待动画完成
-  await new Promise(resolve => setTimeout(resolve, 1050))
+    // 等待动画完成
+    await new Promise(resolve => setTimeout(resolve, 1050))
 
-  // 清除动画类
-  isWobbling.value = false
-  isAnimating.value = false
-}
+    // 清除动画类
+    isWobbling.value = false
+    isAnimating.value = false
+  }
 
-// 与好友开始聊天
-async function startChatWithFriend(friend: FriendWithUserInfo) {
-  try {
-    console.log('home.vue: 开始与好友聊天', friend)
-    console.log('home.vue: friend.fid =', friend.fid)
+  // 与好友开始聊天
+  async function startChatWithFriend (friend: FriendWithUserInfo) {
+    try {
+      console.log('home.vue: 开始与好友聊天', friend)
+      console.log('home.vue: friend.fid =', friend.fid)
 
-    // 创建聊天会话
-    const chat = await useChat().createChat(friend.fid, 'private')
-    console.log('home.vue: createChat 返回结果 =', chat)
+      // 创建聊天会话
+      const chat = await useChat().createChat(friend.fid, 'private')
+      console.log('home.vue: createChat 返回结果 =', chat)
 
-    // 检查 chat 是否为 null
-    if (!chat) {
-      console.error('home.vue: createChat 返回了 null')
-      useSnackbar().showError('创建聊天失败：未获取到会话信息')
-      return
+      // 检查 chat 是否为 null
+      if (!chat) {
+        console.error('home.vue: createChat 返回了 null')
+        useSnackbar().showError('创建聊天失败：未获取到会话信息')
+        return
+      }
+
+      // 设置为当前活跃聊天
+      selectChat(chat.id)
+      // 跳转到聊天页面
+      await router.push('/chat')
+      // 重置状态
+      resetState()
+    } catch (error) {
+      console.error('home.vue: startChatWithFriend 出错:', error)
+      useSnackbar().showError('创建聊天失败，请重试')
     }
-
-    // 设置为当前活跃聊天
-    selectChat(chat.id)
-    // 跳转到聊天页面
-    await router.push('/chat')
-    // 重置状态
-    resetState()
-  } catch (error) {
-    console.error('home.vue: startChatWithFriend 出错:', error)
-    useSnackbar().showError('创建聊天失败，请重试')
   }
-}
 
-// 重置所有状态
-function resetState() {
-  clickCount.value = 0
-  showTooltip.value = false
-}
+  // 重置所有状态
+  function resetState () {
+    clickCount.value = 0
+    showTooltip.value = false
+  }
 </script>
 
 <style>
@@ -158,7 +169,6 @@ function resetState() {
     transform: translateX(0%);
   }
 }
-
 
 /* Logo 样式 - 全局 */
 .fixed-size-image {

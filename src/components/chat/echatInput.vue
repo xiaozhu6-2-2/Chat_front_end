@@ -53,9 +53,23 @@
     },
   })
   const emit = defineEmits(['update:modelValue', 'keydown.enter.exact.prevent', 'send-message'])
+
   // 处理发送按钮点击
   function handleSendMessage () {
     emit('send-message')
+  }
+
+  // TODO: 待实现功能
+  function toggleEmojiPicker () {
+    console.warn('表情选择器功能待实现')
+  }
+
+  function handleFileUpload () {
+    console.warn('文件上传功能待实现')
+  }
+
+  function handleVoiceRecord () {
+    console.warn('语音录制功能待实现')
   }
 </script>
 

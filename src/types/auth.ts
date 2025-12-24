@@ -53,7 +53,7 @@ export interface LoginApiResponse {
 export interface RegisterApiResponse {
   success: boolean
   message?: string
-  token?: string  // 注册后返回的临时token，用于头像上传
+  token?: string // 注册后返回的临时token，用于头像上传
 }
 
 // Token 验证 API 响应
@@ -82,7 +82,7 @@ export interface RegisterResponse {
   success: boolean
   message?: string
   code?: number
-  token?: string  // 注册后返回的临时token，用于头像上传
+  token?: string // 注册后返回的临时token，用于头像上传
 }
 
 // Token 验证响应（Service 层处理后）

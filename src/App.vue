@@ -24,9 +24,11 @@
 </template>
 
 <script lang="ts" setup>
-  import { onMounted } from 'vue'
+  import { onBeforeUnmount, onMounted } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useAuth } from '@/composables/useAuth'
+  import { useMessage } from '@/composables/useMessage'
+  import { websocketService } from '@/service/websocket'
   import { useAuthStore } from '@/stores/authStore'
   import { useSnackbarStore } from '@/stores/snackbarStore'
 
@@ -35,9 +37,25 @@
   const route = useRoute()
   const auth = useAuth()
   const authStore = useAuthStore()
+  const { stopQueueProcessing, cleanupWebSocketListeners } = useMessage()
 
   // 公开路由列表，这些页面不需要认证检查
   const publicRoutes = new Set(['/login', '/register', '/forget'])
+
+  // 页面卸载前的清理
+  function handleBeforeUnload () {
+    console.log('App.vue: 页面即将卸载，执行清理...')
+    websocketService.quickDisconnect()
+    stopQueueProcessing()
+    cleanupWebSocketListeners()
+  }
+
+  // 组件卸载时的清理
+  function handleUnmount () {
+    console.log('App.vue: 组件卸载，执行清理...')
+    handleBeforeUnload()
+    window.removeEventListener('beforeunload', handleBeforeUnload)
+  }
 
   function handleSnackbarUpdate (show: boolean) {
     if (!show) {
@@ -48,6 +66,9 @@
 
   // 应用启动时的认证初始化和路由检查
   onMounted(async () => {
+    // 添加页面卸载监听
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
     // 如果当前是公开路由，仍然需要尝试初始化认证状态（为了恢复登录状态）
     const isPublicRoute = publicRoutes.has(route.path)
 
@@ -76,6 +97,10 @@
         router.push('/login')
       }
     }
+  })
+
+  onBeforeUnmount(() => {
+    handleUnmount()
   })
 </script>
 

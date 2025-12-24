@@ -216,12 +216,12 @@
 
 <script setup lang="ts">
   import type { FriendWithUserInfo } from '../../types/friend'
+  import type { UserProfileUpdateOptions } from '../../types/user'
   import { computed, reactive, ref, watch } from 'vue'
+  import { useUser } from '../../composables/useUser'
   import { useAuthStore } from '../../stores/authStore'
   import { useUserStore } from '../../stores/userStore'
-  import { useUser } from '../../composables/useUser'
   import Avatar from './Avatar.vue'
-import type { UserProfileUpdateOptions } from '../../types/user'
 
   defineOptions({
     name: 'UserProfileEditModal',
