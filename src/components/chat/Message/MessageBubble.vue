@@ -39,11 +39,6 @@
           <v-icon class="mr-2">mdi-file</v-icon>
           <span>{{ getFileName(message.payload.detail || '') }}</span>
         </div>
-
-        <!-- System Message -->
-        <div v-else-if="isSystemMessage" class="message-system">
-          {{ message.payload.detail }}
-        </div>
       </div>
 
       <div class="message-meta">
@@ -74,9 +69,9 @@
       v-if="showContactCard && selectedContactInfo"
       v-model="showContactCard"
       :contact="selectedContactInfo"
-      @update-friend-profile="(fid, remark, isBlacklisted, tag) => updateFriendProfile(fid, {remark, isBlacklisted, tag} )"
       @edit-profile="handleEditProfile"
-      />
+      @update-friend-profile="(fid, remark, isBlacklisted, tag) => updateFriendProfile(fid, {remark, isBlacklisted, tag} )"
+    />
     <UserProfileEditModal
       v-model="showProfileEditModal"
       :user-id="currentUser?.id"
@@ -87,12 +82,13 @@
 <script setup lang="ts">
   import type { MessageBubbleProps } from '../../../types/chat'
   import type { FriendWithUserInfo } from '../../../types/friend'
-  import { computed, ref } from 'vue'
   import { storeToRefs } from 'pinia'
+  import { computed, ref } from 'vue'
   import { useFriend } from '../../../composables/useFriend'
-  import { ContentType, MessageType } from '../../../types/message'
   import { useFriendStore } from '../../../stores/friendStore'
   import { useUserStore } from '../../../stores/userStore'
+  import { ContentType } from '../../../types/message'
+import { MessageType } from '../../../types/websocket'
   const props = defineProps<MessageBubbleProps>()
 
   const friendStore = useFriendStore()
@@ -103,7 +99,7 @@
     currentUserAvatar,
     currentUserId,
     currentUsername,
-    currentAccount
+    currentAccount,
   } = storeToRefs(userStore)
   const emit = defineEmits<{
     imagePreview: [imageUrl: string]
@@ -138,7 +134,6 @@
     // todo 消息发送者的头像
     return '/src/assets/default-avatar.png'
   })
-
 
   const statusIcon = computed(() => {
     switch (props.message.sendStatus) {
@@ -180,7 +175,8 @@
 
   function formatTime (timestamp?: number) {
     if (!timestamp) return ''
-    const date = new Date(timestamp)
+    // timestamp 是秒级 Unix 时间戳，需要转换为毫秒
+    const date = new Date(timestamp * 1000)
     return date.toLocaleTimeString('zh-CN', {
       hour: '2-digit',
       minute: '2-digit',
@@ -193,7 +189,7 @@
 
   const isImageMessage = computed(() => {
     return props.message.payload.content_type === ContentType.IMAGE
-      || (props.message.type === MessageType.GROUP && props.message.payload.detail?.startsWith('http'))
+      || (props.message.type === MessageType.MESGROUP && props.message.payload.detail?.startsWith('http'))
   })
 
   const isTextMessage = computed(() => {
@@ -202,10 +198,6 @@
 
   const isFileMessage = computed(() => {
     return props.message.payload.content_type === ContentType.FILE
-  })
-
-  const isSystemMessage = computed(() => {
-    return props.message.type === MessageType.SYSTEM || props.message.type === MessageType.NOTIFICATION
   })
 
   function previewImage () {
@@ -255,7 +247,7 @@
   }
 
   // 处理编辑资料事件
-  function handleEditProfile() {
+  function handleEditProfile () {
     showProfileEditModal.value = true
   }
 </script>

@@ -1,38 +1,38 @@
 <template>
-  
-    <!-- 搜索框 -->
-    <v-text-field
-      v-model="searchQuery"
-      class="search-input mb-2 ma-2"
-      clearable
-      :label="searchType === SearchType.USER ? '搜索用户（用户名、账号、邮箱）' : '搜索群组（群名称、群号）'"
-      :loading="isLoading"
-      prepend-inner-icon="mdi-magnify"
-      variant="outlined"
-      @input="handleSearchInput"
-      @keyup.enter="performSearch"
-    />
 
-    <!-- 搜索类型切换 -->
-    <div class="px-2 pb-2">
-      <v-btn-toggle
-        v-model="currentSearchType"
-        mandatory
-        variant="outlined"
-        divided
-        class="w-100"
-        @update:model-value="handleSearchTypeChange"
-      >
-        <v-btn :value="SearchType.USER" class="flex-grow-1">
-          <v-icon start icon="mdi-account" />
-          用户
-        </v-btn>
-        <v-btn :value="SearchType.GROUP" class="flex-grow-1">
-          <v-icon start icon="mdi-account-group" />
-          群组
-        </v-btn>
-      </v-btn-toggle>
-    </div>
+  <!-- 搜索框 -->
+  <v-text-field
+    v-model="searchQuery"
+    class="search-input mb-2 ma-2"
+    clearable
+    :label="searchType === SearchType.USER ? '搜索用户（用户名、账号、邮箱）' : '搜索群组（群名称、群号）'"
+    :loading="isLoading"
+    prepend-inner-icon="mdi-magnify"
+    variant="outlined"
+    @input="handleSearchInput"
+    @keyup.enter="performSearch"
+  />
+
+  <!-- 搜索类型切换 -->
+  <div class="px-2 pb-2">
+    <v-btn-toggle
+      v-model="currentSearchType"
+      class="w-100"
+      divided
+      mandatory
+      variant="outlined"
+      @update:model-value="handleSearchTypeChange"
+    >
+      <v-btn class="flex-grow-1" :value="SearchType.USER">
+        <v-icon icon="mdi-account" start />
+        用户
+      </v-btn>
+      <v-btn class="flex-grow-1" :value="SearchType.GROUP">
+        <v-icon icon="mdi-account-group" start />
+        群组
+      </v-btn>
+    </v-btn-toggle>
+  </div>
   <div class="search-panel">
     <!-- 搜索结果 -->
     <v-container v-if="searchResults.length > 0" class="pa-0">
@@ -74,8 +74,8 @@
     <!-- 空状态 -->
     <div v-else-if="searchQuery && !isLoading" class="text-center py-8">
       <v-icon
-        :icon="searchType === SearchType.USER ? 'mdi-account-search' : 'mdi-account-group-search'"
         color="grey-lighten-1"
+        :icon="searchType === SearchType.USER ? 'mdi-account-search' : 'mdi-account-group-search'"
         size="64"
       />
       <p class="text-grey mt-4">
@@ -95,8 +95,8 @@
     <!-- 初始状态 -->
     <div v-else class="text-center py-8">
       <v-icon
-        :icon="searchType === SearchType.USER ? 'mdi-account-search-outline' : 'mdi-account-group-outline'"
         color="grey-lighten-1"
+        :icon="searchType === SearchType.USER ? 'mdi-account-search-outline' : 'mdi-account-group-outline'"
         size="64"
       />
       <p class="text-grey mt-4">
@@ -110,13 +110,13 @@
 </template>
 
 <script setup lang="ts">
+  import type { GroupSearchResult, UserSearchResult } from '../../types/search'
   import { ref, watch } from 'vue'
-  import type { UserSearchResult, GroupSearchResult } from '../../types/search'
   import { useFriendRequest } from '../../composables/useFriendRequest'
   import { useGroupRequest } from '../../composables/useGroupRequest'
   import { useSearch } from '../../composables/useSearch'
-  import UserSearchResultCard from './UserSearchResultCard.vue'
   import GroupSearchResultCard from './GroupSearchResultCard.vue'
+  import UserSearchResultCard from './UserSearchResultCard.vue'
 
   const {
     search,
@@ -125,7 +125,7 @@
     query,
     searchType,
     switchSearchType,
-    SearchType
+    SearchType,
   } = useSearch()
 
   const { sendFriendRequest } = useFriendRequest()
@@ -135,12 +135,12 @@
   const currentSearchType = ref(searchType.value)
 
   // 监听 searchType 变化
-  watch(searchType, (newType) => {
+  watch(searchType, newType => {
     currentSearchType.value = newType
   })
 
   // 处理搜索类型切换
-  const handleSearchTypeChange = (newType: SearchType) => {
+  function handleSearchTypeChange (newType: SearchType) {
     switchSearchType(newType)
   }
 
@@ -179,7 +179,7 @@
     console.log('UserSearchPanel: 群组申请结果', {
       groupId: group.gid,
       groupName: group.group_name,
-      success
+      success,
     })
   }
 </script>

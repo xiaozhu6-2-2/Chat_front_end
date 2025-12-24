@@ -6,8 +6,10 @@
 
 import type {
   ContentType,
-  MessageType,
 } from './message'
+import type {
+  MessageType,
+} from './websocket'
 import type {
   GroupSearchResult,
   UserSearchResult,

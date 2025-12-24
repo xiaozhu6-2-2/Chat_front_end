@@ -4,7 +4,7 @@
  */
 
 import type { FileValidationRule } from '@/types/file'
-import { FileValidationError, FileType } from '@/types/file'
+import { FileType, FileValidationError } from '@/types/file'
 
 // 文件类型映射
 export const FILE_TYPE_MAP = {
@@ -13,7 +13,7 @@ export const FILE_TYPE_MAP = {
   [FileType.VIDEO]: ['mp4', 'mov', 'avi', 'wmv', 'flv', 'webm', 'mkv', '3gp', 'mkv'],
   [FileType.AUDIO]: ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma'],
   [FileType.ARCHIVE]: ['zip', 'rar', '7z', 'tar', 'gz', 'bz2'],
-  [FileType.CODE]: ['js', 'ts', 'html', 'css', 'json', 'xml', 'py', 'java', 'cpp', 'c', 'h', 'php', 'rb', 'go', 'rs', 'swift', 'kt']
+  [FileType.CODE]: ['js', 'ts', 'html', 'css', 'json', 'xml', 'py', 'java', 'cpp', 'c', 'h', 'php', 'rb', 'go', 'rs', 'swift', 'kt'],
 }
 
 /**
@@ -21,7 +21,7 @@ export const FILE_TYPE_MAP = {
  * @param file 文件对象
  * @returns 文件类型
  */
-export const getFileType = (file: File): FileType => {
+export function getFileType (file: File): FileType {
   const extension = file.name.split('.').pop()?.toLowerCase()
 
   if (!extension) {
@@ -42,15 +42,27 @@ export const getFileType = (file: File): FileType => {
  * @param mimeType MIME类型
  * @returns 文件类型
  */
-export const getFileTypeFromMimeType = (mimeType: string): FileType => {
-  if (mimeType.startsWith('image/')) return FileType.IMAGE
-  if (mimeType.startsWith('video/')) return FileType.VIDEO
-  if (mimeType.startsWith('audio/')) return FileType.AUDIO
+export function getFileTypeFromMimeType (mimeType: string): FileType {
+  if (mimeType.startsWith('image/')) {
+    return FileType.IMAGE
+  }
+  if (mimeType.startsWith('video/')) {
+    return FileType.VIDEO
+  }
+  if (mimeType.startsWith('audio/')) {
+    return FileType.AUDIO
+  }
 
   // 根据MIME类型进一步细分
-  if (mimeType.includes('pdf')) return FileType.DOCUMENT
-  if (mimeType.includes('text/')) return FileType.DOCUMENT
-  if (mimeType.includes('application/zip')) return FileType.ARCHIVE
+  if (mimeType.includes('pdf')) {
+    return FileType.DOCUMENT
+  }
+  if (mimeType.includes('text/')) {
+    return FileType.DOCUMENT
+  }
+  if (mimeType.includes('application/zip')) {
+    return FileType.ARCHIVE
+  }
 
   return FileType.UNKNOWN
 }
@@ -60,14 +72,14 @@ export const getFileTypeFromMimeType = (mimeType: string): FileType => {
  * @param file 文件对象
  * @returns true表示应该完整缓存，false表示仅缓存预览信息
  */
-export const shouldCacheFully = (file: File): boolean => {
+export function shouldCacheFully (file: File): boolean {
   // 策略：只有图片文件才完整缓存
   const fileType = getFileType(file)
   const mimeType = file.type.toLowerCase()
 
   return (
-    fileType === FileType.IMAGE ||
-    mimeType.startsWith('image/')
+    fileType === FileType.IMAGE
+    || mimeType.startsWith('image/')
   )
 }
 
@@ -76,7 +88,7 @@ export const shouldCacheFully = (file: File): boolean => {
  * @param file 文件对象
  * @returns 'image' 或 'preview'
  */
-export const getCacheType = (file: File): 'image' | 'preview' => {
+export function getCacheType (file: File): 'image' | 'preview' {
   return shouldCacheFully(file) ? 'image' : 'preview'
 }
 
@@ -85,7 +97,7 @@ export const getCacheType = (file: File): 'image' | 'preview' => {
  * @param mimeType MIME类型
  * @returns 是否应该完整缓存
  */
-export const shouldCacheFullyByMimeType = (mimeType: string): boolean => {
+export function shouldCacheFullyByMimeType (mimeType: string): boolean {
   return mimeType.startsWith('image/')
 }
 
@@ -95,11 +107,11 @@ export const shouldCacheFullyByMimeType = (mimeType: string): boolean => {
  * @param rule 验证规则
  * @throws FileValidationError 验证失败时抛出异常
  */
-export const validateFile = (file: File, rule: FileValidationRule): void => {
+export function validateFile (file: File, rule: FileValidationRule): void {
   // 文件大小验证
   if (rule.maxSize && file.size > rule.maxSize) {
     throw new FileValidationError(
-      `文件大小超出限制。最大允许: ${formatFileSize(rule.maxSize)}，当前文件: ${formatFileSize(file.size)}`
+      `文件大小超出限制。最大允许: ${formatFileSize(rule.maxSize)}，当前文件: ${formatFileSize(file.size)}`,
     )
   }
 
@@ -108,7 +120,7 @@ export const validateFile = (file: File, rule: FileValidationRule): void => {
     const fileType = getFileType(file)
     if (!rule.allowedTypes.includes(fileType)) {
       throw new FileValidationError(
-        `不支持的文件类型: ${fileType}。支持的类型: ${rule.allowedTypes.join(', ')}`
+        `不支持的文件类型: ${fileType}。支持的类型: ${rule.allowedTypes.join(', ')}`,
       )
     }
   }
@@ -128,7 +140,7 @@ export const validateFile = (file: File, rule: FileValidationRule): void => {
 
     if (!isAllowed) {
       throw new FileValidationError(
-        `不支持的MIME类型: ${file.type}。支持的类型: ${rule.allowedMimeTypes.join(', ')}`
+        `不支持的MIME类型: ${file.type}。支持的类型: ${rule.allowedMimeTypes.join(', ')}`,
       )
     }
   }
@@ -140,16 +152,18 @@ export const validateFile = (file: File, rule: FileValidationRule): void => {
  * @param decimals 保留小数位数
  * @returns 格式化后的文件大小字符串
  */
-export const formatFileSize = (bytes: number, decimals: number = 2): string => {
-  if (bytes === 0) return '0 Bytes'
+export function formatFileSize (bytes: number, decimals = 2): string {
+  if (bytes === 0) {
+    return '0 Bytes'
+  }
 
   const k = 1024
-  const dm = decimals < 0 ? 0 : decimals
+  const dm = Math.max(decimals, 0)
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
 
   const i = Math.floor(Math.log(bytes) / Math.log(k))
 
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
+  return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
 }
 
 /**
@@ -157,9 +171,9 @@ export const formatFileSize = (bytes: number, decimals: number = 2): string => {
  * @param file 文件对象
  * @returns 文件ID
  */
-export const generateFileId = (file: File): string => {
+export function generateFileId (file: File): string {
   const timestamp = Date.now()
-  const random = Math.random().toString(36).substring(2, 11)
+  const random = Math.random().toString(36).slice(2, 11)
   const extension = file.name.split('.').pop()
 
   return `file_${timestamp}_${random}.${extension || ''}`
@@ -169,8 +183,8 @@ export const generateFileId = (file: File): string => {
  * 生成任务ID
  * @returns 任务ID
  */
-export const generateTaskId = (): string => {
-  return `task_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
+export function generateTaskId (): string {
+  return `task_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
 }
 
 /**
@@ -178,12 +192,12 @@ export const generateTaskId = (): string => {
  * @param fileName 原始文件名
  * @returns 安全化的文件名
  */
-export const sanitizeFileName = (fileName: string): string => {
+export function sanitizeFileName (fileName: string): string {
   return fileName
-    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')  // 移除危险字符
-    .replace(/^\.+/g, '_')                     // 移除开头的点
-    .replace(/\s+/g, ' ')                      // 将连续空格替换为单个空格
-    .slice(0, 255)                             // 限制长度
+    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_') // 移除危险字符
+    .replace(/^\.+/g, '_') // 移除开头的点
+    .replace(/\s+/g, ' ') // 将连续空格替换为单个空格
+    .slice(0, 255) // 限制长度
 }
 
 /**
@@ -191,7 +205,7 @@ export const sanitizeFileName = (fileName: string): string => {
  * @param url URL字符串
  * @returns 文件名
  */
-export const getFileNameFromUrl = (url: string): string => {
+export function getFileNameFromUrl (url: string): string {
   try {
     const urlObj = new URL(url)
     const pathname = urlObj.pathname
@@ -211,12 +225,10 @@ export const getFileNameFromUrl = (url: string): string => {
  * @param quality 图片质量 0-1
  * @returns Promise<Blob>
  */
-export const createImageThumbnail = (
-  file: File,
-  maxWidth: number = 200,
-  maxHeight: number = 200,
-  quality: number = 0.8
-): Promise<Blob> => {
+export function createImageThumbnail (file: File,
+  maxWidth = 200,
+  maxHeight = 200,
+  quality = 0.8): Promise<Blob> {
   return new Promise((resolve, reject) => {
     if (!file.type.startsWith('image/')) {
       reject(new Error('只支持图片文件'))
@@ -231,7 +243,7 @@ export const createImageThumbnail = (
     }
 
     const img = new Image()
-    img.onload = () => {
+    img.addEventListener('load', () => {
       // 计算缩略图尺寸
       let { width, height } = img
       const aspectRatio = width / height
@@ -253,14 +265,14 @@ export const createImageThumbnail = (
       ctx.drawImage(img, 0, 0, width, height)
 
       // 转换为Blob
-      canvas.toBlob((blob) => {
+      canvas.toBlob(blob => {
         if (blob) {
           resolve(blob)
         } else {
           reject(new Error('无法生成缩略图'))
         }
       }, file.type, quality)
-    }
+    })
 
     img.onerror = () => reject(new Error('图片加载失败'))
     img.src = URL.createObjectURL(file)
@@ -272,7 +284,7 @@ export const createImageThumbnail = (
  * @param url 文件URL
  * @param fileName 文件名
  */
-export const downloadFromUrl = (url: string, fileName?: string): void => {
+export function downloadFromUrl (url: string, fileName?: string): void {
   const link = document.createElement('a')
   link.href = url
   link.download = fileName || getFileNameFromUrl(url)
@@ -280,9 +292,9 @@ export const downloadFromUrl = (url: string, fileName?: string): void => {
   // 处理跨域下载
   link.setAttribute('crossorigin', 'anonymous')
 
-  document.body.appendChild(link)
+  document.body.append(link)
   link.click()
-  document.body.removeChild(link)
+  link.remove()
 }
 
 /**
@@ -290,7 +302,7 @@ export const downloadFromUrl = (url: string, fileName?: string): void => {
  * @param file 文件对象
  * @returns 是否为图片
  */
-export const isImageFile = (file: File): boolean => {
+export function isImageFile (file: File): boolean {
   return shouldCacheFully(file)
 }
 
@@ -299,7 +311,7 @@ export const isImageFile = (file: File): boolean => {
  * @param file 文件对象
  * @returns 是否为视频
  */
-export const isVideoFile = (file: File): boolean => {
+export function isVideoFile (file: File): boolean {
   return getFileType(file) === FileType.VIDEO || file.type.startsWith('video/')
 }
 
@@ -308,7 +320,7 @@ export const isVideoFile = (file: File): boolean => {
  * @param file 文件对象
  * @returns 是否为音频
  */
-export const isAudioFile = (file: File): boolean => {
+export function isAudioFile (file: File): boolean {
   return getFileType(file) === FileType.AUDIO || file.type.startsWith('audio/')
 }
 
@@ -317,7 +329,7 @@ export const isAudioFile = (file: File): boolean => {
  * @param file 文件对象
  * @returns 是否为文档
  */
-export const isDocumentFile = (file: File): boolean => {
+export function isDocumentFile (file: File): boolean {
   return getFileType(file) === FileType.DOCUMENT
 }
 
@@ -326,7 +338,7 @@ export const isDocumentFile = (file: File): boolean => {
  * @param fileType 文件类型
  * @returns 中文标签
  */
-export const getFileTypeLabel = (fileType: FileType): string => {
+export function getFileTypeLabel (fileType: FileType): string {
   const labels = {
     [FileType.IMAGE]: '图片',
     [FileType.VIDEO]: '视频',
@@ -334,7 +346,7 @@ export const getFileTypeLabel = (fileType: FileType): string => {
     [FileType.DOCUMENT]: '文档',
     [FileType.ARCHIVE]: '压缩包',
     [FileType.CODE]: '代码',
-    [FileType.UNKNOWN]: '文件'
+    [FileType.UNKNOWN]: '文件',
   }
   return labels[fileType] || '文件'
 }
@@ -351,8 +363,7 @@ export const getFileTypeLabel = (fileType: FileType): string => {
  * @param metadata 上传元数据
  * @returns FormData对象
  */
-export const createFileFormData = (
-  file: File,
+export function createFileFormData (file: File,
   metadata?: {
     fileName?: string
     fileType?: string
@@ -360,8 +371,7 @@ export const createFileFormData = (
       type: 'avatar' | 'chat' | 'group' | 'announcement'
       relatedId?: string
     }
-  }
-): FormData => {
+  }): FormData {
   const formData = new FormData()
 
   // 添加文件本身
@@ -387,10 +397,8 @@ export const createFileFormData = (
  * @param wait 等待时间（毫秒）
  * @returns 防抖后的函数
  */
-export const debounce = <T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): ((...args: Parameters<T>) => void) => {
+export function debounce<T extends (...args: any[]) => any> (func: T,
+  wait: number): ((...args: Parameters<T>) => void) {
   let timeout: number | null = null
 
   return (...args: Parameters<T>) => {

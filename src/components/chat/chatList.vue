@@ -42,10 +42,10 @@
       </v-list-item>
     </v-list>
     <div v-if="chatList.length === 0" class="no-results">
-          <v-icon class="mb-2" icon="mdi-comment-off" size="24" />
-          <p>暂无聊天</p>
-          <p class="text-caption text-grey">与好友或群聊开始聊天后，可以在此查看</p>
-        </div>
+      <v-icon class="mb-2" icon="mdi-comment-off" size="24" />
+      <p>暂无聊天</p>
+      <p class="text-caption text-grey">与好友或群聊开始聊天后，可以在此查看</p>
+    </div>
   </div>
 </template>
 

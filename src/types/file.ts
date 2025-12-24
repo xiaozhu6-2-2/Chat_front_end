@@ -11,7 +11,7 @@ export enum FileType {
   AUDIO = 'audio',
   ARCHIVE = 'archive',
   CODE = 'code',
-  UNKNOWN = 'unknown'
+  UNKNOWN = 'unknown',
 }
 
 // 文件上传上下文
@@ -38,8 +38,8 @@ export interface FileMetadata {
   file_type: string
   upload_time: string
   owner_uid: string
-  url?: string        // 在线访问URL
-  thumbnail?: string  // 缩略图URL
+  url?: string // 在线访问URL
+  thumbnail?: string // 缩略图URL
 }
 
 // 上传结果
@@ -61,13 +61,13 @@ export interface ImageCache {
   fileName: string
   fileSize: number
   mimeType: string
-  blob: Blob          // 完整文件数据
-  blobUrl: string     // 本地访问URL
-  thumbnail?: string  // 缩略图URL
+  blob: Blob // 完整文件数据
+  blobUrl: string // 本地访问URL
+  thumbnail?: string // 缩略图URL
   metadata: FileMetadata
   lastAccess: number
   accessCount: number
-  size: number        // 实际占用的内存大小
+  size: number // 实际占用的内存大小
 }
 
 // 预览缓存接口（仅元数据）
@@ -77,8 +77,8 @@ export interface PreviewCache {
   fileSize: number
   mimeType: string
   file_type: string
-  previewUrl?: string  // 在线预览URL
-  thumbnail?: string   // 缩略图（如果有）
+  previewUrl?: string // 在线预览URL
+  thumbnail?: string // 缩略图（如果有）
   metadata: FileMetadata
   lastAccess: number
   accessCount: number
@@ -110,19 +110,19 @@ export interface DownloadTask {
 // 缓存配置
 export interface CacheConfig {
   imageCache: {
-    maxSize: number        // 最大缓存大小（字节）
-    maxFiles: number       // 最大文件数量
-    maxFileSize: number    // 单个文件最大大小
+    maxSize: number // 最大缓存大小（字节）
+    maxFiles: number // 最大文件数量
+    maxFileSize: number // 单个文件最大大小
   }
   previewCache: {
-    maxFiles: number       // 最大预览缓存数量
+    maxFiles: number // 最大预览缓存数量
   }
 }
 
 // 文件验证规则
 export interface FileValidationRule {
-  maxSize?: number         // 最大文件大小
-  allowedTypes?: string[]  // 允许的文件类型
+  maxSize?: number // 最大文件大小
+  allowedTypes?: string[] // 允许的文件类型
   allowedMimeTypes?: string[] // 允许的MIME类型
 }
 
@@ -135,34 +135,34 @@ export interface FilePreviewInfo {
   fileType: FileType
   previewUrl?: string
   thumbnail?: string
-  canPreview: boolean      // 是否支持预览
-  needDownload: boolean    // 是否需要下载才能查看
+  canPreview: boolean // 是否支持预览
+  needDownload: boolean // 是否需要下载才能查看
 }
 
 // 错误类型
 export class FileError extends Error {
-  constructor(message: string, public originalError?: any) {
+  constructor (message: string, public originalError?: any) {
     super(message)
     this.name = 'FileError'
   }
 }
 
 export class FileUploadError extends FileError {
-  constructor(message: string, originalError?: any) {
+  constructor (message: string, originalError?: any) {
     super(message, originalError)
     this.name = 'FileUploadError'
   }
 }
 
 export class FileDownloadError extends FileError {
-  constructor(message: string, originalError?: any) {
+  constructor (message: string, originalError?: any) {
     super(message, originalError)
     this.name = 'FileDownloadError'
   }
 }
 
 export class FileValidationError extends FileError {
-  constructor(message: string, originalError?: any) {
+  constructor (message: string, originalError?: any) {
     super(message, originalError)
     this.name = 'FileValidationError'
   }

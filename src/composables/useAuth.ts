@@ -9,8 +9,8 @@ import { useFriend } from './useFriend'
 import { useFriendRequest } from './useFriendRequest'
 import { useGroup } from './useGroup'
 import { useGroupRequest } from './useGroupRequest'
-import { useUser } from './useUser'
 import { useMessage } from './useMessage'
+import { useUser } from './useUser'
 
 export function useAuth () {
   const authStore = useAuthStore()
@@ -185,7 +185,7 @@ export function useAuth () {
       showSuccess('注册成功')
       return {
         success: true,
-        token: response.token  // 返回注册后获得的临时token
+        token: response.token, // 返回注册后获得的临时token
       }
     } catch (error: any) {
       console.error('useAuth: 注册失败', error)

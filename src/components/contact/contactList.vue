@@ -135,8 +135,8 @@
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { useFriend } from '../../composables/useFriend'
-  import { useSnackbar } from '../../composables/useSnackbar'
   import { useGroup } from '../../composables/useGroup'
+  import { useSnackbar } from '../../composables/useSnackbar'
   // 定义 emits
 
   const emit = defineEmits<ContactListEmits>()
@@ -173,7 +173,7 @@
   const { showError } = useSnackbar()
 
   // 从usegroup拿到所在的群聊
-  const groups = allGroups 
+  const groups = allGroups
 
   // 将好友数据转换为联系人格式
   const contacts = computed(() => {

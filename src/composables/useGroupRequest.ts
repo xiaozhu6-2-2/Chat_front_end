@@ -17,12 +17,12 @@
  */
 
 import type { GroupRequest, GroupRequestStatus } from '@/types/groupRequest'
+import { useGroup } from '@/composables/useGroup'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { groupRequestService } from '@/service/groupRequestService'
 import { useAuthStore } from '@/stores/authStore'
 import { useGroupRequestStore } from '@/stores/groupRequestStore'
 import { useGroupStore } from '@/stores/groupStore'
-import { useGroup } from '@/composables/useGroup'
 import { transformGroupApprovalFromApi, transformGroupRequestFromApi, transformUserGroupRequestFromApi } from '@/types/groupRequest'
 
 export function useGroupRequest () {
@@ -32,7 +32,7 @@ export function useGroupRequest () {
   console.log('useGroupRequest - groupRequestStore methods available:', {
     setLoading: typeof groupRequestStore.setLoading,
     setLoadingApprovals: typeof groupRequestStore.setLoadingApprovals,
-    allMethods: Object.getOwnPropertyNames(Object.getPrototypeOf(groupRequestStore)).filter(name => typeof groupRequestStore[name] === 'function')
+    allMethods: Object.getOwnPropertyNames(Object.getPrototypeOf(groupRequestStore)).filter(name => typeof groupRequestStore[name] === 'function'),
   })
   const groupStore = useGroupStore()
   const authStore = useAuthStore()

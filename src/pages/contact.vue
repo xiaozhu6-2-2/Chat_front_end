@@ -17,23 +17,23 @@
 
       <contactCard
         v-else-if="activeItem.type === 'contact'"
-        :contact="activeItem.data"
         v-model="showContactCard"
+        :contact="activeItem.data"
       />
 
       <!-- 群聊详情 -->
       <groupCard
         v-else-if="activeItem.type === 'group'"
-        :group="activeItem.data"
         v-model="showGroupCard"
+        :group="activeItem.data"
       />
     </template>
   </maincontent>
 </template>
 
 <script lang="ts" setup>
-  import type { GroupProfile } from '../types/group'
   import type { FriendWithUserInfo } from '../types/friend'
+  import type { GroupProfile } from '../types/group'
   import { ref } from 'vue'
   import { useRouter } from 'vue-router'
   import maincontent from '../layouts/maincontent.vue'

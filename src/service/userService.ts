@@ -4,9 +4,9 @@
  */
 
 import type { User, UserProfileUpdateOptions } from '@/types/user'
+import axios from 'axios'
 import { UserApiToUser } from '@/types/user'
 import { authApi } from './api'
-import axios from 'axios'
 
 export const userService = {
   /**
@@ -123,7 +123,7 @@ export const userService = {
     try {
       console.log('userService: 更新用户头像', fileId)
       const response = await authApi.post('/user/update-user-avatar', {
-        file_id: fileId
+        file_id: fileId,
       })
 
       if (response.status === 200 && response.data?.success) {
@@ -159,7 +159,7 @@ export const userService = {
       tempAuthApi.defaults.headers.common['Authorization'] = `Bearer ${token}`
 
       const response = await tempAuthApi.post('/user/update-user-avatar', {
-        file_id: fileId
+        file_id: fileId,
       })
 
       if (response.status === 200 && response.data?.success) {

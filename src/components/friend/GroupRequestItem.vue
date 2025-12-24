@@ -125,8 +125,7 @@
 </template>
 
 <script setup lang="ts">
-  import type { GroupRequest } from '../../types/groupRequest'
-  import type { GroupRequestStatus } from '../../types/groupRequest'
+  import type { GroupRequest, GroupRequestStatus } from '../../types/groupRequest'
 
   interface GroupRequestItemProps {
     request: GroupRequest
@@ -142,7 +141,7 @@
   const emit = defineEmits<GroupRequestItemEmits>()
 
   // 获取显示名称
-  function getDisplayName() {
+  function getDisplayName () {
     if (props.type === 'received') {
       // 收到的申请：显示申请人名称
       return props.request.userProfile?.name || `用户${props.request.sender_uid}`
@@ -153,7 +152,7 @@
   }
 
   // 获取用户头像
-  function getUserAvatar() {
+  function getUserAvatar () {
     if (props.type === 'received' && props.request.userProfile) {
       return props.request.userProfile.avatar
     }
@@ -161,7 +160,7 @@
   }
 
   // 获取群聊头像
-  function getGroupAvatar() {
+  function getGroupAvatar () {
     if (props.type === 'sent' && props.request.groupProfile) {
       return props.request.groupProfile.avatar
     }
@@ -169,7 +168,7 @@
   }
 
   // 获取状态颜色
-  function getStatusColor() {
+  function getStatusColor () {
     switch (props.request.status) {
       case 'pending': {
         return 'warning'
@@ -190,7 +189,7 @@
   }
 
   // 获取状态变体
-  function getStatusVariant() {
+  function getStatusVariant () {
     switch (props.request.status) {
       case 'pending': {
         return 'elevated'
@@ -202,7 +201,7 @@
   }
 
   // 获取状态文本
-  function getStatusText() {
+  function getStatusText () {
     switch (props.request.status) {
       case 'pending': {
         return props.type === 'sent' ? '等待处理' : '待处理'
@@ -223,7 +222,7 @@
   }
 
   // 获取状态图标
-  function getStatusIcon() {
+  function getStatusIcon () {
     switch (props.request.status) {
       case 'pending': {
         return 'mdi-clock-outline'
@@ -244,7 +243,7 @@
   }
 
   // 格式化请求时间
-  function formatRequestTime() {
+  function formatRequestTime () {
     const date = new Date(props.request.create_time)
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
@@ -262,7 +261,7 @@
   }
 
   // 格式化处理时间
-  function formatHandleTime() {
+  function formatHandleTime () {
     if (!props.request.create_time) return ''
 
     const date = new Date(props.request.create_time)

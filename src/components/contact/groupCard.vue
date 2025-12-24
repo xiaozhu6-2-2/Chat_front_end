@@ -5,10 +5,10 @@
       <v-card-item>
         <div class="group-header">
           <div class="group-avatar-large">
-            <v-img 
-              v-if="groupDetail?.avatar" 
-              :src="groupDetail.avatar" 
+            <v-img
+              v-if="groupDetail?.avatar"
               alt="群头像"
+              :src="groupDetail.avatar"
             />
           </div>
           <div class="group-info">
@@ -65,12 +65,12 @@
 </template>
 
 <script setup lang="ts">
+  import type { ChatType } from '../../types/chat'
   import type { GetGroupCardParams, GroupCard, GroupCardProps } from '../../types/group'
-  import { useGroup } from '../../composables/useGroup';
-  import { useChat } from '../../composables/useChat';
-  import { useRouter } from 'vue-router';
-  import { computed, onMounted, ref, watch } from 'vue';
-  import type { ChatType } from '../../types/chat';
+  import { computed, onMounted, ref, watch } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { useChat } from '../../composables/useChat'
+  import { useGroup } from '../../composables/useGroup'
 
   const props = defineProps<GroupCardProps>()
   const { getGroupCard } = useGroup()
@@ -78,7 +78,7 @@
   const router = useRouter()
 
   // 进入群聊处理函数
-  const handleEnterGroupChat = async () => {
+  async function handleEnterGroupChat () {
     if (!props.group?.id) return
 
     try {
@@ -98,52 +98,52 @@
   const groupDetail = ref<GroupCard | null>(null)
   const loading = ref(false)
 
-// 计算属性格式化显示数据
-const formattedData = computed(() => {
-  if (!groupDetail.value) return null
+  // 计算属性格式化显示数据
+  const formattedData = computed(() => {
+    if (!groupDetail.value) return null
 
-  return {
-    groupManager: groupDetail.value.manager_uid,
-    createTime: new Date(groupDetail.value.created_at).toLocaleDateString('zh-CN', {
-      year: 'numeric',
-      month: 'long'
-    }),
-    groupName: groupDetail.value.name,
-    groupId: groupDetail.value.id,
-    groupIntro: groupDetail.value.group_intro || '暂无群介绍'
-  }
-})
-
-// 获取群组详细数据的函数
-const fetchGroupDetail = async (groupId: string) => {
-  if (!groupId) return
-
-  loading.value = true
-  try {
-    const params: GetGroupCardParams = {
-      gid: groupId
+    return {
+      groupManager: groupDetail.value.manager_uid,
+      createTime: new Date(groupDetail.value.created_at).toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: 'long',
+      }),
+      groupName: groupDetail.value.name,
+      groupId: groupDetail.value.id,
+      groupIntro: groupDetail.value.group_intro || '暂无群介绍',
     }
-    groupDetail.value = await getGroupCard(params)
-  } catch (error) {
-    console.error('获取群组详情失败:', error)
-  } finally {
-    loading.value = false
-  }
-}
+  })
 
-// 组件挂载时获取详细数据
-onMounted(() => {
-  if (props.group?.id) {
-    fetchGroupDetail(props.group.id)
-  }
-})
+  // 获取群组详细数据的函数
+  async function fetchGroupDetail (groupId: string) {
+    if (!groupId) return
 
-// 监听群聊ID的变化，当切换群聊时重新获取数据
-watch(() => props.group?.id, (newGroupId) => {
-  if (newGroupId) {
-    fetchGroupDetail(newGroupId)
+    loading.value = true
+    try {
+      const params: GetGroupCardParams = {
+        gid: groupId,
+      }
+      groupDetail.value = await getGroupCard(params)
+    } catch (error) {
+      console.error('获取群组详情失败:', error)
+    } finally {
+      loading.value = false
+    }
   }
-}, { immediate: false })
+
+  // 组件挂载时获取详细数据
+  onMounted(() => {
+    if (props.group?.id) {
+      fetchGroupDetail(props.group.id)
+    }
+  })
+
+  // 监听群聊ID的变化，当切换群聊时重新获取数据
+  watch(() => props.group?.id, newGroupId => {
+    if (newGroupId) {
+      fetchGroupDetail(newGroupId)
+    }
+  }, { immediate: false })
 </script>
 
   <style scoped>

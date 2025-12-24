@@ -6,14 +6,14 @@
         <template #prepend>
           <v-avatar>
             <v-img
-              :src="group.avatar || defaultGroupAvatar"
               :alt="group.group_name"
+              :src="group.avatar || defaultGroupAvatar"
             >
               <template #placeholder>
                 <v-icon
-                  size="32"
                   color="grey-lighten-1"
                   icon="mdi-account-group"
+                  size="32"
                 />
               </template>
             </v-img>
@@ -30,12 +30,12 @@
 
     <v-card-actions>
       <v-btn
-        variant="outlined"
         color="primary"
         :loading="isJoining"
+        variant="outlined"
         @click="showJoinDialog = true"
       >
-        <v-icon start icon="mdi-account-plus" />
+        <v-icon icon="mdi-account-plus" start />
         申请加入
       </v-btn>
     </v-card-actions>
@@ -60,16 +60,16 @@
           <!-- 群组信息摘要 -->
           <div class="mb-4 pa-3 bg-grey-lighten-5 rounded-lg">
             <div class="d-flex align-center mb-2">
-              <v-avatar size="40" class="mr-3">
+              <v-avatar class="mr-3" size="40">
                 <v-img
-                  :src="group.avatar || defaultGroupAvatar"
                   :alt="group.group_name"
+                  :src="group.avatar || defaultGroupAvatar"
                 >
                   <template #placeholder>
                     <v-icon
-                      size="24"
                       color="grey-lighten-1"
                       icon="mdi-account-group"
+                      size="24"
                     />
                   </template>
                 </v-img>
@@ -86,12 +86,12 @@
           <!-- 申请信息输入 -->
           <v-textarea
             v-model="applyText"
-            label="申请信息"
-            placeholder="请简单介绍您自己，说明申请加入的理由"
             auto-grow
-            rows="3"
-            max-rows="5"
             counter="200"
+            label="申请信息"
+            max-rows="5"
+            placeholder="请简单介绍您自己，说明申请加入的理由"
+            rows="3"
             :rules="[v => (v || '').length <= 200 || '申请信息不能超过200字']"
             variant="outlined"
           />
@@ -100,9 +100,9 @@
         <v-card-actions>
           <v-spacer />
           <v-btn
+            :disabled="isJoining"
             variant="text"
             @click="showJoinDialog = false"
-            :disabled="isJoining"
           >
             取消
           </v-btn>
@@ -120,8 +120,8 @@
 </template>
 
 <script setup lang="ts">
-  import { ref } from 'vue'
   import type { GroupSearchResult } from '../../types/search'
+  import { ref } from 'vue'
   import { useGroupRequest } from '../../composables/useGroupRequest'
   import { useSnackbar } from '../../composables/useSnackbar'
 
@@ -148,7 +148,7 @@
   const applyText = ref('')
 
   // 处理申请加入群组
-  const handleJoinGroup = async () => {
+  async function handleJoinGroup () {
     if (!applyText.value.trim()) {
       showError('请输入申请信息')
       return
@@ -159,7 +159,7 @@
       console.log('GroupSearchResultCard: 开始申请加入群组', {
         gid: props.group.gid,
         groupName: props.group.group_name,
-        applyText: applyText.value
+        applyText: applyText.value,
       })
 
       // 调用服务发送申请

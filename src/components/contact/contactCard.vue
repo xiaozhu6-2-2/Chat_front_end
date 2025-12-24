@@ -73,7 +73,7 @@
     <v-card v-else class="mx-auto" max-width="400">
       <v-card-text class="text-center">
         <v-progress-circular v-if="isLoading" color="primary" indeterminate />
-        <v-icon v-else color="error" size="48" icon="mdi-alert-circle" />
+        <v-icon v-else color="error" icon="mdi-alert-circle" size="48" />
         <div class="mt-4">
           {{ isLoading ? '正在加载联系人信息...' : '无法加载联系人信息' }}
         </div>
@@ -86,13 +86,13 @@
 </template>
 
   <script setup lang="ts">
+  import type { ChatType } from '../../types/chat'
   import type { ContactCardProps, FriendWithUserInfo } from '../../types/friend'
   import { onMounted, ref, watch } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { useChat } from '../../composables/useChat'
   import { useFriend } from '../../composables/useFriend'
   import { useSnackbar } from '../../composables/useSnackbar'
-  import { useChat } from '../../composables/useChat'
-  import { useRouter } from 'vue-router'
-  import type { ChatType } from '../../types/chat'
 
   const props = defineProps<ContactCardProps>()
   const { getFriendProfile } = useFriend()
@@ -101,7 +101,7 @@
   const router = useRouter()
 
   // 发送消息处理函数
-  const handleSendMessage = async () => {
+  async function handleSendMessage () {
     if (!detailedProfile.value?.id) return
 
     try {

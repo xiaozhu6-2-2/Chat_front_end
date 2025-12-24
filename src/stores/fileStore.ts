@@ -3,18 +3,18 @@
  * 实现智能缓存策略：只缓存图片，其余文件只缓存预览信息
  */
 
-import { defineStore } from 'pinia'
-import { ref, computed, readonly } from 'vue'
 import type {
+  CacheConfig,
+  DownloadTask,
+  FileCache,
+  FileMetadata,
   ImageCache,
   PreviewCache,
   UploadTask,
-  DownloadTask,
-  CacheConfig,
-  FileMetadata,
-  FileCache
 } from '@/types/file'
-import { shouldCacheFullyByMimeType, formatFileSize } from '@/utils/fileUtils'
+import { defineStore } from 'pinia'
+import { computed, readonly, ref } from 'vue'
+import { formatFileSize, shouldCacheFullyByMimeType } from '@/utils/fileUtils'
 
 export const useFileStore = defineStore('file', () => {
   // ========== 状态定义 ==========
@@ -34,13 +34,13 @@ export const useFileStore = defineStore('file', () => {
   // 缓存配置
   const config = ref<CacheConfig>({
     imageCache: {
-      maxSize: 50 * 1024 * 1024,  // 50MB
+      maxSize: 50 * 1024 * 1024, // 50MB
       maxFiles: 50,
-      maxFileSize: 10 * 1024 * 1024  // 单个图片最大10MB
+      maxFileSize: 10 * 1024 * 1024, // 单个图片最大10MB
     },
     previewCache: {
-      maxFiles: 200
-    }
+      maxFiles: 200,
+    },
   })
 
   // ========== 计算属性 ==========
@@ -123,7 +123,7 @@ export const useFileStore = defineStore('file', () => {
     fileId: string,
     metadata: FileMetadata,
     blob?: Blob,
-    mimeType?: string
+    mimeType?: string,
   ): void => {
     const fileType = mimeType || metadata.mime_type
 
@@ -147,7 +147,7 @@ export const useFileStore = defineStore('file', () => {
     fileId: string,
     metadata: FileMetadata,
     blob?: Blob,
-    mimeType?: string
+    mimeType?: string,
   ): void => {
     if (!blob) {
       console.warn('缓存图片文件需要提供blob数据')
@@ -185,7 +185,7 @@ export const useFileStore = defineStore('file', () => {
       metadata,
       lastAccess: Date.now(),
       accessCount: 1,
-      size: blob.size
+      size: blob.size,
     })
   }
 
@@ -198,7 +198,7 @@ export const useFileStore = defineStore('file', () => {
   const cachePreviewFile = (
     fileId: string,
     metadata: FileMetadata,
-    mimeType?: string
+    mimeType?: string,
   ): void => {
     // 检查数量限制
     if (previewCache.value.size >= config.value.previewCache.maxFiles) {
@@ -216,7 +216,7 @@ export const useFileStore = defineStore('file', () => {
       thumbnail: metadata.thumbnail,
       metadata,
       lastAccess: Date.now(),
-      accessCount: 1
+      accessCount: 1,
     })
   }
 
@@ -238,7 +238,9 @@ export const useFileStore = defineStore('file', () => {
         URL.revokeObjectURL(cache.blobUrl)
       }
 
-      if (freedSpace >= requiredSpace) break
+      if (freedSpace >= requiredSpace) {
+        break
+      }
     }
 
     console.log(`清理图片缓存，释放空间: ${formatFileSize(freedSpace)}`)
@@ -447,17 +449,17 @@ export const useFileStore = defineStore('file', () => {
         count: imageCacheCount.value,
         size: currentImageCacheSize.value,
         maxSize: config.value.imageCache.maxSize,
-        sizeUsage: (currentImageCacheSize.value / config.value.imageCache.maxSize * 100).toFixed(2) + '%'
+        sizeUsage: (currentImageCacheSize.value / config.value.imageCache.maxSize * 100).toFixed(2) + '%',
       },
       previewCache: {
         count: previewCacheCount.value,
         maxFiles: config.value.previewCache.maxFiles,
-        usage: (previewCacheCount.value / config.value.previewCache.maxFiles * 100).toFixed(2) + '%'
+        usage: (previewCacheCount.value / config.value.previewCache.maxFiles * 100).toFixed(2) + '%',
       },
       tasks: {
         activeUploads: activeUploadTasks.value,
-        activeDownloads: activeDownloadTasks.value
-      }
+        activeDownloads: activeDownloadTasks.value,
+      },
     }
   }
 
@@ -498,6 +500,6 @@ export const useFileStore = defineStore('file', () => {
     updateConfig,
 
     // 调试和统计
-    getCacheStats
+    getCacheStats,
   }
 })

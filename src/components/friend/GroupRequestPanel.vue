@@ -29,10 +29,10 @@
         <!-- 加载状态 -->
         <div v-if="isLoadingApprovals" class="text-center py-8">
           <v-progress-circular
-            indeterminate
             color="primary"
+            indeterminate
             size="40"
-          ></v-progress-circular>
+          />
           <p class="text-grey mt-4">加载中...</p>
         </div>
 
@@ -60,10 +60,10 @@
         <!-- 加载状态 -->
         <div v-if="isLoading" class="text-center py-8">
           <v-progress-circular
-            indeterminate
             color="primary"
+            indeterminate
             size="40"
-          ></v-progress-circular>
+          />
           <p class="text-grey mt-4">加载中...</p>
         </div>
 
@@ -91,14 +91,14 @@
   import type { GroupRequest } from '../../types/groupRequest'
   import { computed, onMounted, ref } from 'vue'
   import { useGroupRequest } from '../../composables/useGroupRequest'
-  import { useGroupRequestStore } from '../../stores/groupRequestStore'
   import { useSnackbar } from '../../composables/useSnackbar'
+  import { useGroupRequestStore } from '../../stores/groupRequestStore'
   import GroupRequestItem from './GroupRequestItem.vue'
 
   // 获取composable方法
   const {
-    respondGroupRequest,  // 响应申请
-    init                  // 初始化
+    respondGroupRequest, // 响应申请
+    init, // 初始化
   } = useGroupRequest()
 
   // 获取store状态
@@ -117,7 +117,7 @@
   const activeTab = ref<'received' | 'sent'>('received')
 
   // 处理接受群聊申请
-  async function handleAcceptRequest(request: GroupRequest) {
+  async function handleAcceptRequest (request: GroupRequest) {
     try {
       await respondGroupRequest(request.req_id, 'accept', request.gid)
       showSuccess('已接受加群申请')
@@ -129,7 +129,7 @@
   }
 
   // 处理拒绝群聊申请
-  async function handleRejectRequest(request: GroupRequest) {
+  async function handleRejectRequest (request: GroupRequest) {
     try {
       await respondGroupRequest(request.req_id, 'reject', request.gid)
       showSuccess('已拒绝加群申请')

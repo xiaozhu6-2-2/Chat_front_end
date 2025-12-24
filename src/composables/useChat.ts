@@ -20,7 +20,9 @@ export function useChat () {
 
   // 当前聊天类型
   const activeChatType = computed(() => {
-    if (!activeChat.value) return 'private' as ChatType
+    if (!activeChat.value) {
+      return 'private' as ChatType
+    }
     return activeChat.value.type
   })
 
@@ -60,7 +62,7 @@ export function useChat () {
   }
 
   // 用户点击某个会话；改变activeChatId；未读消息数归零；
-  const selectChat = (chatId: string): Chat | null => {
+  const selectChat = async (chatId: string): Promise<Chat | null> => {
     console.log(`useChat: 选择会话 ${chatId}`)
 
     // 1. 设置当前激活的聊天
@@ -76,11 +78,14 @@ export function useChat () {
     // 3. 重置未读数
     chatStore.resetUnreadCount(chatId)
 
-    // 4. 加载历史消息
-    const { loadHistoryMessages } = useMessage()
-    loadHistoryMessages(chatId, chat.type)
+    // 4. 加载历史消息（等待完成）
+    const { loadHistoryMessages, sortCurrentChatMessages } = useMessage()
+    await loadHistoryMessages(chatId, chat.type)
 
-    // 5. 标记消息为已读
+    // 5. 对消息按时间戳排序（确保 WebSocket 新消息和历史消息正确排序）
+    sortCurrentChatMessages()
+
+    // 6. 标记消息为已读
     const { markCurrentChatAsRead } = useMessage()
     markCurrentChatAsRead()
 
