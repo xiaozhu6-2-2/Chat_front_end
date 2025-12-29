@@ -361,27 +361,23 @@ export function useMessage () {
       const currentPage = currentPagination?.page || 0
       const pageSize = currentPagination?.pageSize || 20
 
-      // 计算偏移量：每页大小 * 当前页码
-      const offset = loadMore ? currentPage * pageSize : 0
+      // 后端的offset实际上是page（页码），从0开始
+      // 首次加载：page=0，加载更多：page=currentPage
+      const offset = loadMore ? currentPage : 0
 
       // 调用服务层获取历史消息
-      let messages: any[] = []
-      if (type === 'private') {
-        messages = await messageService.fetchHistoryPrivateMessages(
-          chatId,
-          pageSize,
-          offset,
-        )
-      } else if (type === 'group') {
-        messages = await messageService.fetchHistoryGroupMessages(
-          chatId,
-          pageSize,
-          offset,
-        )
-      }
+      const result = type === 'private'
+        ? await messageService.fetchHistoryPrivateMessages(chatId, pageSize, offset)
+        : await messageService.fetchHistoryGroupMessages(chatId, pageSize, offset)
 
       // 将获取到的消息转换为 LocalMessage
-      const localMessages = batchApiResponseToLocalMessages(messages, authStore.userId)
+      const localMessages = batchApiResponseToLocalMessages(result.messages, authStore.userId)
+
+      // 使用后端返回的分页信息判断是否还有更多
+      // 后端 totalPages 从 1 开始，currentPage 从 0 开始
+      // 例如：totalPages=2，currentPage 可能是 0 或 1
+      // 当 currentPage + 1 < totalPages 时，说明还有更多页
+      const hasMoreMessages = result.currentPage + 1 < result.totalPages
 
       // 按时间戳排序（旧消息在前，新消息在后）
       localMessages.sort((a, b) =>
@@ -394,22 +390,21 @@ export function useMessage () {
         messageStore.addHistoryMessages(chatId, localMessages, type, loadMore)
 
         // 更新分页信息
-        const hasMore = localMessages.length === pageSize // 如果返回的消息数等于pageSize，可能还有更多
         messageStore.updatePagination(chatId, {
           page: currentPage + 1,
           pageSize,
-          hasMore,
+          hasMore: hasMoreMessages,
           oldestMessageId: localMessages[0]?.payload.message_id,
           newestMessageId: localMessages[localMessages.length - 1]?.payload.message_id,
         })
 
         // 首次加载且没有更多消息时，标记为已完整加载
-        if (!loadMore && !hasMore) {
+        if (!loadMore && !hasMoreMessages) {
           messageStore.setHistoryFullyLoaded(chatId, true)
           console.log(`聊天 ${chatId} 历史加载完成，已标记为完整加载`)
         }
 
-        console.log(`成功加载${type}聊天${chatId}的${localMessages.length}条历史消息（第${currentPage + 1}页，hasMore: ${hasMore}）`)
+        console.log(`成功加载${type}聊天${chatId}的${localMessages.length}条历史消息（第${currentPage + 1}页，总页数: ${result.totalPages}，当前页: ${result.currentPage}，hasMore: ${hasMoreMessages}）`)
       } else {
         // 没有更多消息了
         messageStore.updatePagination(chatId, {

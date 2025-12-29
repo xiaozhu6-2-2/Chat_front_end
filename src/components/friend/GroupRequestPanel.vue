@@ -160,14 +160,24 @@
 
 .v-window {
   flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
-.v-window-item {
-  height: auto;
+:deep(.v-window__container) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.v-window-item) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .request-list {
-  max-height: 500px;
+  flex: 1;
   overflow-y: auto;
 }
 

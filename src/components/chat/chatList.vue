@@ -5,7 +5,7 @@
         v-for="chat in chatList"
         :key="chat.id"
         class="chat-item"
-        :class="{ 'active-chat': isActiveChat(chat.id) }"
+        :class="{ 'active-chat': isActiveChat(chat.id), 'pinned-chat': chat.isPinned }"
         @click="handleChatClick(chat)"
       >
         <template #prepend>
@@ -34,6 +34,15 @@
 
         <template #append>
           <div class="chat-meta">
+            <!-- 置顶按钮 -->
+            <v-btn
+              :icon="chat.isPinned ? 'mdi-pin' : 'mdi-pin-outline'"
+              size="x-small"
+              variant="text"
+              color="grey-lighten-1"
+              class="pin-btn"
+              @click.stop="handlePinToggle(chat)"
+            />
             <span v-if="chat.updatedAt" class="chat-time">
               {{ formatTime(chat.updatedAt) }}
             </span>
@@ -54,18 +63,7 @@
   import Avatar from '../../components/global/Avatar.vue'
   import { useChat } from '../../composables/useChat'
 
-  const { activeChatId } = useChat()
-
-  // 取消props，改用pinia缓存的活跃id
-  // const props = withDefaults(defineProps<ChatListProps>(), {
-  //   activeChatId: undefined
-  // })
-  // 使用usechat 中的函数
-  // const emit = defineEmits<{
-  //   chatSelected: [chat: Chat]
-  // }>()
-
-  const { chatList, selectChat } = useChat()
+  const { activeChatId, chatList, selectChat, togglePinChat } = useChat()
 
   function isActiveChat (chatId: string) {
     return activeChatId.value === chatId
@@ -73,6 +71,10 @@
 
   function handleChatClick (chat: Chat) {
     selectChat(chat.id)
+  }
+
+  async function handlePinToggle (chat: Chat) {
+    await togglePinChat(chat.id, chat.type, !chat.isPinned)
   }
 
   function formatUnreadCount (count: number) {
@@ -125,6 +127,10 @@
     background-color: #2a2a2e;
   }
 
+  &.pinned-chat {
+    background-color: #25252a;
+  }
+
   &.active-chat {
     background-color: #3a3a3e;
   }
@@ -171,6 +177,15 @@
 .chat-time {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.5);
+}
+
+.pin-btn {
+  margin-left: 8px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  &:hover {
+    opacity: 1;
+  }
 }
 
 .no-results {

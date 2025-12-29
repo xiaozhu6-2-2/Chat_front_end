@@ -66,8 +66,9 @@
 
   const selectedTab = ref('search')
 
-  // 待处理的请求的总数
-  const { totalPending } = useFriendRequest()
+  // 待处理的请求的总数 - 只统计收到的好友请求
+  const { pendingReceivedRequests } = useFriendRequest()
+  const totalPending = computed(() => pendingReceivedRequests.length)
 
   // 获取群聊请求store
   const groupRequestStore = useGroupRequestStore()

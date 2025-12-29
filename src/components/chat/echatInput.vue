@@ -8,9 +8,6 @@
         <v-icon>mdi-emoticon-outline</v-icon>
       </v-btn>
       <v-btn color="#000000" icon variant="text" @click="handleFileUpload">
-        <v-icon>mdi-image-outline</v-icon>
-      </v-btn>
-      <v-btn color="#000000" icon variant="text" @click="handleFileUpload">
         <v-icon>mdi-file-outline</v-icon>
       </v-btn>
       <v-btn color="#000000" icon variant="text" @click="handleVoiceRecord">

@@ -28,7 +28,6 @@ import {
   generateFileId,
   generateTaskId,
   shouldCacheFully,
-  shouldCacheFullyByMimeType,
   validateFile,
 } from '@/utils/fileUtils'
 
@@ -97,7 +96,6 @@ export function useFile () {
             }, file, file.type)
           }
         } catch (error) {
-          console.error('创建缩略图失败:', error)
           // 即使缩略图创建失败，仍然缓存原文件
           fileStore.cacheFile(result.file_id, metadata, file, file.type)
         }
@@ -146,13 +144,11 @@ export function useFile () {
       const results = await FileService.uploadFiles(
         files,
         options,
-        (fileIndex, progress) => {
+        () => {
           // 单个文件进度更新
-          console.log(`文件 ${fileIndex + 1}/${files.length} 进度: ${progress}%`)
         },
-        overallProgress => {
+        () => {
           // 总体进度更新（可以显示进度条）
-          console.log(`总体上传进度: ${overallProgress}%`)
         },
       )
 
@@ -257,7 +253,6 @@ export function useFile () {
         throw new Error('上传响应格式错误')
       }
     } catch (error: any) {
-      console.error('uploadFileWithTempToken:', error)
       fileStore.markUploadTaskError(taskId, error instanceof Error ? error.message : '上传失败')
       throw new FileUploadError(
         error.response?.data?.message || error.message || '文件上传失败',
@@ -356,34 +351,40 @@ export function useFile () {
         metadata = await FileService.getFileInfo(fileId)
       }
 
-      // 3. 生成预览URL
-      const previewUrl = FileService.generatePreviewUrl(fileId, metadata)
+      // 3. 判断是否为图片文件（头像通常是图片）
+      // 注意：后端API可能不返回mime_type，所以使用file_type判断
+      const isImageByMime = metadata.mime_type?.startsWith('image/')
+      const isImageByType = metadata.file_type?.toLowerCase() === 'image'
+      const isImageFile = isImageByMime || isImageByType
 
-      // 4. 根据文件类型处理缓存
-      if (shouldCacheFullyByMimeType(metadata.mime_type)) {
-        // 图片文件：下载并缓存
+      if (isImageFile) {
+        // 图片文件：直接下载并返回 blob URL
         try {
           const blob = await FileService.downloadFile(fileId)
-          fileStore.cacheFile(fileId, metadata, blob, metadata.mime_type)
+
+          // 使用 mime_type 或默认值
+          const mimeType = metadata.mime_type || 'image/jpeg'
+          fileStore.cacheFile(fileId, metadata, blob, mimeType)
 
           // 返回新的blobUrl
           const newCachedFile = fileStore.getFile(fileId)
           if (newCachedFile && 'blobUrl' in newCachedFile) {
             return newCachedFile.blobUrl
           }
+
+          // 如果缓存未成功，直接创建 blob URL
+          return URL.createObjectURL(blob)
         } catch (error) {
-          console.error('缓存图片失败:', error)
-          // 如果缓存失败，仍然返回在线URL
+          return null
         }
       } else {
         // 其他文件：仅缓存预览信息
         fileStore.cacheFile(fileId, metadata)
+        // 生成预览URL（可能为空）
+        return FileService.generatePreviewUrl(fileId, metadata) || null
       }
-
-      return previewUrl
     } catch (error) {
-      console.error('预览文件失败:', error)
-      showError('无法预览文件')
+      // 不显示错误提示，让 Avatar 组件使用 fallback
       return null
     }
   }
@@ -427,7 +428,6 @@ export function useFile () {
         needDownload: true,
       }
     } catch (error) {
-      console.error('获取文件预览信息失败:', error)
       throw error
     }
   }

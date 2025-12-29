@@ -1,5 +1,7 @@
 // ./types/chat.ts
 
+import type { LocalMessage } from './message'
+
 // 聊天类型定义
 export enum ChatType {
   PRIVATE = 'private',
@@ -83,12 +85,15 @@ interface VirtualMessageListProps {
   currentUserId?: string
   autoScroll?: boolean
   containerHeight?: number
+  hasMore?: boolean       // 是否还有更多历史消息
+  isLoadingMore?: boolean // 是否正在加载更多
 }
 
 /** 虚拟消息列表 Emits */
 interface VirtualMessageListEmits {
   (e: 'imagePreview', imageUrl: string): void
   (e: 'scrollNearBottom', isNearBottom: boolean): void
+  (e: 'scrollNearTop', isNearTop: boolean): void
 }
 
 /** 在线用户面板 Props */

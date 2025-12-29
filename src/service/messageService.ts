@@ -30,12 +30,13 @@ class MessageService {
 
   /**
    * 获取私聊历史消息
+   * @returns 包含消息列表和分页信息
    */
   async fetchHistoryPrivateMessages (
     pid: string,
     limit = 50,
     offset = 0,
-  ): Promise<any[]> {
+  ): Promise<{ messages: any[]; totalPages: number; currentPage: number; totalItems: number }> {
     try {
       const response = await authApi.post<HistoryMessageResponse>('/message/private_history', {
         pid,
@@ -44,10 +45,14 @@ class MessageService {
       })
 
       if (response.status === 200 && response.data.messages) {
-        // 返回原始消息数据，由 Store 层进行转换
-        return response.data.messages
+        return {
+          messages: response.data.messages,
+          totalPages: response.data.total_pages,
+          currentPage: response.data.current_page,
+          totalItems: response.data.total_items,
+        }
       }
-      return []
+      return { messages: [], totalPages: 0, currentPage: 0, totalItems: 0 }
     } catch (error) {
       console.error('Failed to fetch private history messages:', error)
       throw error
@@ -56,12 +61,13 @@ class MessageService {
 
   /**
    * 获取群聊历史消息
+   * @returns 包含消息列表和分页信息
    */
   async fetchHistoryGroupMessages (
     gid: string,
     limit = 50,
     offset = 0,
-  ): Promise<any[]> {
+  ): Promise<{ messages: any[]; totalPages: number; currentPage: number; totalItems: number }> {
     try {
       const response = await authApi.post<HistoryMessageResponse>('/message/group_history', {
         gid,
@@ -70,10 +76,14 @@ class MessageService {
       })
 
       if (response.status === 200 && response.data.messages) {
-        // 返回原始消息数据，由 Store 层进行转换
-        return response.data.messages
+        return {
+          messages: response.data.messages,
+          totalPages: response.data.total_pages,
+          currentPage: response.data.current_page,
+          totalItems: response.data.total_items,
+        }
       }
-      return []
+      return { messages: [], totalPages: 0, currentPage: 0, totalItems: 0 }
     } catch (error) {
       console.error('Failed to fetch group history messages:', error)
       throw error

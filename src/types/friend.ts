@@ -60,6 +60,9 @@ interface ContactCardProps {
   contact: FriendWithUserInfo
 }
 
+interface ContactCardEmits {
+  (e: 'delete'): void
+}
 // =================结构体类型转换函数==================
 // 将API的响应体转为好友列表的结构体
 function FriendApiToFriendWithUserInfo (apiData: FriendProfileFromApi): FriendWithUserInfo {
@@ -101,6 +104,7 @@ function FriendApiToFriendWithUserInfo (apiData: FriendProfileFromApi): FriendWi
 // 基础数据类型导出
 export type {
   ContactCardProps,
+  ContactCardEmits,
   FriendProfileFromApi,
   FriendUpdateOptions,
   FriendWithUserInfo,

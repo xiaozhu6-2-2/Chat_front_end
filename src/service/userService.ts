@@ -72,49 +72,6 @@ export const userService = {
   },
 
   /**
-   * 上传用户头像
-   * @param file 头像文件
-   * @returns 头像URL
-   */
-  async uploadAvatar (file: File): Promise<string> {
-    try {
-      console.log('userService: 上传头像', file.name)
-
-      // 验证文件类型
-      if (!file.type.startsWith('image/')) {
-        throw new Error('只能上传图片文件')
-      }
-
-      // 验证文件大小 (5MB)
-      const maxSize = 5 * 1024 * 1024
-      if (file.size > maxSize) {
-        throw new Error('头像文件大小不能超过5MB')
-      }
-
-      // 创建FormData
-      const formData = new FormData()
-      formData.append('avatar', file)
-
-      const response = await authApi.post('/user/upload-avatar', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      })
-
-      if (response.status === 200) {
-        const avatarUrl = response.data.url
-        console.log('userService: 上传头像成功', avatarUrl)
-        return avatarUrl
-      } else {
-        throw new Error(`上传头像失败：${response.status}`)
-      }
-    } catch (error) {
-      console.error('userService: 上传头像失败', error)
-      throw error
-    }
-  },
-
-  /**
    * 使用文件ID更新用户头像
    * @param fileId 上传后的文件ID
    * @returns 更新结果

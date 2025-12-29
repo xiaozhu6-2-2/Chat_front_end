@@ -2,7 +2,7 @@
 <template>
   <maincontent>
     <template #detailbar>
-      <contactList :active-item="activeItem" @item-click="handleItemClick" />
+      <contactList @item-click="handleItemClick"/>
     </template>
     <template #main class="d-flex align-center justify-center">
       <!-- 默认界面 -->
@@ -19,6 +19,7 @@
         v-else-if="activeItem.type === 'contact'"
         v-model="showContactCard"
         :contact="activeItem.data"
+        @delete="activeItem = null"
       />
 
       <!-- 群聊详情 -->
@@ -35,22 +36,17 @@
   import type { FriendWithUserInfo } from '../types/friend'
   import type { GroupProfile } from '../types/group'
   import { ref } from 'vue'
-  import { useRouter } from 'vue-router'
   import maincontent from '../layouts/maincontent.vue'
 
   type ActiveItem
     = | { type: 'contact', data: FriendWithUserInfo }
       | { type: 'group', data: GroupProfile }
 
-  // Stores
-  const router = useRouter()
 
   // Refs
   const activeItem = ref<ActiveItem | null>(null)
-  const showUserCard = ref(false)
   const showContactCard = ref(false)
   const showGroupCard = ref(false)
-  const showEditProfile = ref(false)
 
   function handleItemClick (type: 'contact' | 'group', data: FriendWithUserInfo | GroupProfile) {
     if (type === 'contact') {
@@ -67,30 +63,6 @@
       activeItem.value = { type, data: data as GroupProfile }
       showGroupCard.value = true
     }
-  }
-
-  // 处理发送消息
-  // const handleSendMessage = (contact: ContactData) => {
-  //   // 跳转到聊天页面
-  //   router.push(`/chat/${contact.uid}`);
-  // };
-
-  // 处理编辑资料
-  function handleEditProfile () {
-    showEditProfile.value = true
-    // 关闭当前打开的卡片
-    if (showUserCard.value) {
-      showUserCard.value = false
-    } else if (showContactCard.value) {
-      showContactCard.value = false
-    }
-  }
-
-  function handleAddFriend (uid: string) {}
-
-  // 处理资料更新完成
-  function handleProfileUpdated (profile: any) {
-    console.log('资料已更新:', profile)
   }
 </script>
 

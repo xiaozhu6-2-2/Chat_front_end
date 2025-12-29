@@ -74,8 +74,13 @@
             @click="setActiveItem(contact.id)"
           >
             <div class="contact_content">
-              <div class="contact-avatar">
-                {{ contact.name.charAt(0) }}
+              <div>
+                <Avatar
+                  avatar-class="profile-avatar"
+                  :name="contact.name || '用户'"
+                  :size="40"
+                  :url="contact.avatar"
+                />
               </div>
               <div class="d-flex flex-column align-start flex-grow-1">
                 <div class="contact-name">{{ contact.name }}</div>
@@ -106,6 +111,13 @@
         class="contact-item add-friend-item"
         @click="navigateToAddFriend"
       >
+        <template #append>
+          <v-badge
+            v-if="totalPendingRequests > 0"
+            color="error"
+            :content="totalPendingRequests"
+          />
+        </template>
         <div class="contact_content">
           <div class="contact-avatar add-friend-avatar">
             <v-icon color="white" icon="mdi-account-plus" />
@@ -134,9 +146,12 @@
   import type { ContactListEmits } from '../../types/global'
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
+  import { pinyin } from 'pinyin-pro'
   import { useFriend } from '../../composables/useFriend'
   import { useGroup } from '../../composables/useGroup'
   import { useSnackbar } from '../../composables/useSnackbar'
+  import { useFriendRequestStore } from '../../stores/friendRequestStore'
+  import { useGroupRequestStore } from '../../stores/groupRequestStore'
   // 定义 emits
 
   const emit = defineEmits<ContactListEmits>()
@@ -145,7 +160,7 @@
   const router = useRouter()
   const { allGroups } = useGroup()
   // 用于展示在contactlist中的结构体
-  // 该结构体只再这个组件内使用，未泄露
+  // 该结构体只在这个组件内使用，未泄露
   interface Contact {
     id: string // 对应 friend.fid
     uid: string // 对应 friend.uid
@@ -172,6 +187,16 @@
   const { activeFriends, getFriendByUid } = useFriend()
   const { showError } = useSnackbar()
 
+  // 获取请求 store
+  const friendRequestStore = useFriendRequestStore()
+  const groupRequestStore = useGroupRequestStore()
+
+  // 未处理请求总数 = 收到的好友请求 + 需要审核的群聊请求
+  const totalPendingRequests = computed(() => {
+    return friendRequestStore.pendingReceivedRequests.length +
+           groupRequestStore.pendingApprovalRequests.length
+  })
+
   // 从usegroup拿到所在的群聊
   const groups = allGroups
 
@@ -189,9 +214,26 @@
 
   // 提取首字母的辅助函数
   function getInitial (name: string): string {
-    // 对于中文，提取第一个字符作为首字母
-    // 对于英文，提取首字母的大写形式
-    return name.charAt(0).toUpperCase()
+    if (!name) return '#'
+
+    const firstChar = name.charAt(0)
+
+    // 检查是否为英文字母
+    if (/^[a-zA-Z]$/.test(firstChar)) {
+      return firstChar.toUpperCase()
+    }
+
+    // 对于中文，使用拼音获取首字母
+    // pinyin 函数会返回中文字符的拼音
+    const pinyinResult = pinyin(firstChar, { pattern: 'first', toneType: 'none' })
+
+    // 如果成功获取拼音首字母，返回大写形式
+    if (pinyinResult && /^[a-zA-Z]$/.test(pinyinResult)) {
+      return pinyinResult.toUpperCase()
+    }
+
+    // 如果无法识别，返回 # 号作为默认分组
+    return '#'
   }
 
   // 计算属性 - 排序后的群聊

@@ -127,7 +127,7 @@ export const useFileStore = defineStore('file', () => {
   ): void => {
     const fileType = mimeType || metadata.mime_type
 
-    if (shouldCacheFullyByMimeType(fileType)) {
+    if (fileType && shouldCacheFullyByMimeType(fileType)) {
       // 图片文件：完整缓存
       cacheImageFile(fileId, metadata, blob, fileType)
     } else {

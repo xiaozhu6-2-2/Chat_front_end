@@ -26,6 +26,11 @@ export const useChatStore = defineStore('chat', () => {
     return (chatId: string) => chatList.value.find((chat: Chat) => chat.id === chatId)
   })
 
+  // 计算所有聊天的未读消息总数
+  const totalUnreadCount = computed(() => {
+    return chatList.value.reduce((sum, chat) => sum + (chat.unreadCount || 0), 0)
+  })
+
   // Actions
   /**
    * 设置聊天列表
@@ -216,6 +221,7 @@ export const useChatStore = defineStore('chat', () => {
 
     // Computed
     chatById,
+    totalUnreadCount,
 
     // Actions
     setChatList, // 新增：设置聊天列表

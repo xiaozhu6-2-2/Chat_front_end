@@ -39,29 +39,42 @@
 <script setup lang="ts">
   import type { VirtualMessageListProps } from '../../types/chat'
   import type { LocalMessage } from '../../types/message'
-  import { computed, nextTick, onMounted, ref, watch } from 'vue'
+  import { nextTick, onMounted, ref, watch } from 'vue'
   import MessageBubble from './Message/MessageBubble.vue'
 
   const props = withDefaults(defineProps<VirtualMessageListProps>(), {
     currentUserId: 'current-user',
     autoScroll: true,
     containerHeight: 500,
+    hasMore: false,
+    isLoadingMore: false,
   })
 
   const emit = defineEmits<{
     imagePreview: [imageUrl: string]
     scrollNearBottom: [isNearBottom: boolean]
+    scrollNearTop: [isNearTop: boolean]
   }>()
+
   // 组件的实例ref
   const virtualScrollRef = ref()
   const showScrollToBottom = ref(false)
   const isNearBottom = ref(true)
+  const isNearTop = ref(false)
+
+  // 保存滚动状态，用于加载历史消息后恢复位置
+  const previousScrollHeight = ref(0)
+  const scrollPositionBeforeLoad = ref(0)
+  const firstVisibleItemIndex = ref(0)
+
+  // 用于控制是否处理滚动事件（设置滚动位置时禁用）
+  const shouldHandleScroll = ref(true)
 
   // 检查是否接近底部
   function checkIsNearBottom () {
     if (!virtualScrollRef.value) return
 
-    const scrollElement = virtualScrollRef.value.$el?.querySelector('.v-virtual-scroll__container')
+    const scrollElement = virtualScrollRef.value.$el
     if (!scrollElement) return
 
     const { scrollTop, scrollHeight, clientHeight } = scrollElement
@@ -73,25 +86,117 @@
     emit('scrollNearBottom', isNearBottom.value)
   }
 
+  // 检查是否接近顶部
+  function checkIsNearTop () {
+    if (!virtualScrollRef.value) return
+
+    const scrollElement = virtualScrollRef.value.$el
+    if (!scrollElement) return
+
+    const { scrollTop } = scrollElement
+    const threshold = 100 // 距离顶部100px时触发加载更多
+
+    const wasNearTop = isNearTop.value
+    isNearTop.value = scrollTop <= threshold
+
+    // 只在状态变化时触发 emit
+    if (wasNearTop !== isNearTop.value) {
+      emit('scrollNearTop', isNearTop.value)
+    }
+  }
+
   // 滚动处理
   function handleScroll () {
+    if (!shouldHandleScroll.value) return
     checkIsNearBottom()
+    checkIsNearTop()
   }
 
   // 滚动到底部
   async function scrollToBottom () {
     await nextTick()
     if (virtualScrollRef.value && props.messages.length > 0) {
-      // 找到滚动容器
-      const scrollContainer = virtualScrollRef.value.$el?.querySelector('.v-virtual-scroll__container')
+      const scrollContainer = virtualScrollRef.value.$el
       if (scrollContainer) {
-        // scrolltop:当前滚动的位置，距离顶部的像素
-        // scrollHeight:整个内容的总高度
         scrollContainer.scrollTop = scrollContainer.scrollHeight
       }
-      // 隐藏按钮
       showScrollToBottom.value = false
     }
+  }
+
+  // 直接设置滚动位置到底部（不触发滚动事件）
+  function setScrollToBottomDirectly () {
+    // 禁用滚动事件处理
+    shouldHandleScroll.value = false
+
+    nextTick(() => {
+      if (!virtualScrollRef.value || props.messages.length === 0) {
+        shouldHandleScroll.value = true
+        return
+      }
+
+      // Vuetify v-virtual-scroll 的滚动容器在根元素上
+      const scrollContainer = virtualScrollRef.value.$el
+      if (!scrollContainer) {
+        shouldHandleScroll.value = true
+        return
+      }
+
+      // 直接设置 scrollTop
+      scrollContainer.scrollTop = scrollContainer.scrollHeight
+
+      // 更新内部状态
+      showScrollToBottom.value = false
+      isNearBottom.value = true
+
+      // 延迟恢复滚动事件处理，确保设置完成
+      setTimeout(() => {
+        shouldHandleScroll.value = true
+      }, 50)
+    })
+  }
+
+  // 保存当前滚动状态（在加载更多历史消息前调用）
+  function saveScrollState () {
+    if (!virtualScrollRef.value) return
+
+    const scrollElement = virtualScrollRef.value.$el
+    if (!scrollElement) return
+
+    previousScrollHeight.value = scrollElement.scrollHeight
+    scrollPositionBeforeLoad.value = scrollElement.scrollTop
+
+    // 计算当前视野中的第一条消息的索引位置
+    // 使用 scrollTop 和 item-height (80px) 来估算
+    const approxItemIndex = Math.floor(scrollElement.scrollTop / 80)
+    firstVisibleItemIndex.value = approxItemIndex
+  }
+
+  // 恢复滚动位置（在加载更多历史消息后调用）
+  function restoreScrollPosition () {
+    nextTick(() => {
+      if (!virtualScrollRef.value) return
+
+      const scrollElement = virtualScrollRef.value.$el
+      if (!scrollElement) return
+
+      // 新增的消息数量（从加载前后的消息数量差计算）
+      const messagesAdded = props.messages.length - previousScrollHeight.value / 80
+
+      // 如果用户在顶部（scrollTop 接近 0），保持在顶部
+      if (scrollPositionBeforeLoad.value < 10) {
+        scrollElement.scrollTop = 0
+      } else {
+        // 否则，滚动到原来的第一条可见消息（索引增加了新增消息数）
+        const newScrollTop = (firstVisibleItemIndex.value + messagesAdded) * 80
+        scrollElement.scrollTop = newScrollTop
+      }
+    })
+  }
+
+  // 处理图片预览
+  function handleImagePreview (imageUrl: string) {
+    emit('imagePreview', imageUrl)
   }
 
   // 监听消息变化，自动滚动到底部
@@ -102,11 +207,6 @@
     }
   }, { flush: 'post' })
 
-  // 处理图片预览
-  function handleImagePreview (imageUrl: string) {
-    emit('imagePreview', imageUrl)
-  }
-
   onMounted(() => {
     scrollToBottom()
   })
@@ -114,7 +214,11 @@
   // 暴露方法给父组件
   defineExpose({
     scrollToBottom,
+    setScrollToBottomDirectly,
     checkIsNearBottom,
+    checkIsNearTop,
+    saveScrollState,
+    restoreScrollPosition,
   })
 </script>
 

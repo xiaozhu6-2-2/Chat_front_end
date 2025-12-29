@@ -132,7 +132,7 @@ export const ChatService = {
     try {
       const response = await authApi.post('/chat/updateIsPinned', {
         id: chatId,
-        type: chatType,
+        chat_type: chatType,
         is_pinned: isPinned,
       })
 

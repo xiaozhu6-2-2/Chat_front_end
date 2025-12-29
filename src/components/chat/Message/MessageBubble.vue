@@ -1,5 +1,13 @@
 <template>
-  <div class="message-bubble" :class="messageClasses">
+  <!-- 撤回消息 -->
+  <div v-if="isRevokedMessage" class="message-bubble revoked-message">
+    <div class="revoked-content">
+      <span class="revoked-text">消息已撤回</span>
+    </div>
+  </div>
+
+  <!-- 正常消息 -->
+  <div v-else class="message-bubble" :class="messageClasses">
     <div v-if="!isOwnMessage" class="message-avatar-container">
       <Avatar
         avatar-class="custom-avatar"
@@ -88,7 +96,7 @@
   import { useFriendStore } from '../../../stores/friendStore'
   import { useUserStore } from '../../../stores/userStore'
   import { ContentType } from '../../../types/message'
-import { MessageType } from '../../../types/websocket'
+  import { MessageType } from '../../../types/websocket'
   const props = defineProps<MessageBubbleProps>()
 
   const friendStore = useFriendStore()
@@ -98,7 +106,6 @@ import { MessageType } from '../../../types/websocket'
     currentUser,
     currentUserAvatar,
     currentUserId,
-    currentUsername,
     currentAccount,
   } = storeToRefs(userStore)
   const emit = defineEmits<{
@@ -108,10 +115,13 @@ import { MessageType } from '../../../types/websocket'
   const showContactCard = ref(false)
   const selectedContactInfo = ref<FriendWithUserInfo>()
   const showProfileEditModal = ref(false)
-  const isOwnMessage = computed(() =>
-    props.message.userIsSender || props.message.payload.sender_id === currentUserId.value,
+  const isRevokedMessage = computed(() =>
+    props.message.is_revoked
   )
-
+  const isOwnMessage = computed(() =>
+    props.message.userIsSender
+  )
+  
   const messageClasses = computed(() => ({
     'own-message': isOwnMessage.value,
     'other-message': !isOwnMessage.value,
@@ -120,19 +130,17 @@ import { MessageType } from '../../../types/websocket'
   const bubbleClasses = computed(() => ({
     'own-bubble': isOwnMessage.value,
     'other-bubble': !isOwnMessage.value,
-    'system-bubble': props.message.type === 'System',
   }))
 
   const senderName = computed(() => {
-    // 这里可以根据需要从用户服务中获取用户名
-    // todo 消息发送者的name
+    // 直接使用消息记录的 sender_name
     return props.message.payload.sender_name || '未知用户'
   })
 
   const senderAvatar = computed(() => {
-    // 这里可以根据需要从用户服务中获取用户头像
-    // todo 消息发送者的头像
-    return '/src/assets/default-avatar.png'
+    // 使用消息记录的 sender_avatar（存储的是 fileId）
+    // Avatar 组件会自动处理 fileId 的加载
+    return props.message.payload.sender_avatar || ''
   })
 
   const statusIcon = computed(() => {
@@ -384,5 +392,26 @@ import { MessageType } from '../../../types/websocket'
 .message-status {
   display: flex;
   align-items: center;
+}
+
+// 撤回消息样式
+.revoked-message {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.revoked-content {
+  display: inline-block;
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 4px 12px;
+  border-radius: 4px;
+}
+
+.revoked-text {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
 }
 </style>

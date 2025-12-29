@@ -20,13 +20,6 @@ export function useMessageInput () {
     showEmojiPicker.value = false
   }
 
-  const scrollToBottom = () => {
-    nextTick(() => {
-      if (messagesContainer.value) {
-        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-      }
-    })
-  }
 
   const handleEnterKey = (event: KeyboardEvent, callback?: () => void) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -46,7 +39,6 @@ export function useMessageInput () {
     insertEmoji,
     toggleEmojiPicker,
     clearInput,
-    scrollToBottom,
     handleEnterKey,
   }
 }
