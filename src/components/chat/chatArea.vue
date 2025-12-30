@@ -58,6 +58,22 @@
     <!-- 底部输入区域 -->
     <div class="input-container">
 
+      <!-- 上传进度条 -->
+      <v-expand-transition>
+        <div v-if="isUploading" class="upload-progress-banner">
+          <v-progress-linear
+            :model-value="uploadProgress"
+            color="primary"
+            height="4"
+            striped
+          />
+          <div class="upload-info">
+            <v-icon size="small">mdi-cloud-upload</v-icon>
+            <span class="ml-2">正在上传 {{ uploadingFileName }}... {{ uploadProgress }}%</span>
+          </div>
+        </div>
+      </v-expand-transition>
+
       <!-- 表情选择器 -->
       <div v-if="showEmojiPicker" class="emoji-picker">
         <v-btn
@@ -74,6 +90,7 @@
         v-model="inputMessage"
         @keydown.enter.exact.prevent="handleSendMessage"
         @send-message="handleSendMessage"
+        @send-file="handleFileUpload"
       />
 
     </div>
@@ -95,6 +112,7 @@
   import { useChatStore } from '../../stores/chatStore'
   import { useMessageStore } from '../../stores/messageStore'
   import { useUserStore } from '../../stores/userStore'
+  import { useSnackbar } from '../../composables/useSnackbar'
 
   import echatInput from './echatInput.vue'
   import OnlineBoard from './onlineBoard.vue'
@@ -122,16 +140,24 @@
     loading,
     hasMore,
     sendTextMessage,
+    sendFileMessage,
     init,
     loadHistoryMessages,
   } = useMessage()
   const userStore = useUserStore()
   const { currentUser, currentUserId } = storeToRefs(userStore)
+  const { showSuccess, showError } = useSnackbar()
+
   // Local state
   const showOnlineBoard = ref(false)
   const showContactCard = ref(false)
   const isSending = ref(false)
   const virtualMessageList = ref()
+
+  // 上传状态
+  const isUploading = ref(false)
+  const uploadProgress = ref(0)
+  const uploadingFileName = ref('')
 
   // 新消息提示状态
   const showNewMessageTip = ref(false)
@@ -310,9 +336,46 @@
     emit('imagePreview', imageUrl)
   }
 
-  function handleFileUpload () {
-    // TODO: Implement file upload
-    console.log('File upload clicked')
+  /**
+   * 处理文件上传
+   */
+  async function handleFileUpload (file: File | null, fileType: string, errorMsg?: string) {
+    // 处理错误消息
+    if (errorMsg) {
+      showError(errorMsg)
+      return
+    }
+
+    if (!file || isUploading.value) {
+      if (isUploading.value) {
+        showError('正在上传文件，请稍候')
+      }
+      return
+    }
+
+    try {
+      isUploading.value = true
+      uploadingFileName.value = file.name
+      uploadProgress.value = 0
+
+      // 使用 useMessage 的 sendFileMessage 方法
+      await sendFileMessage(file, fileType as 'image' | 'file')
+
+      showSuccess('文件发送成功')
+
+      // 滚动到底部显示新消息
+      await nextTick()
+      virtualMessageList.value?.scrollToBottom()
+      showNewMessageTip.value = false
+      newMessageCount.value = 0
+    } catch (error) {
+      console.error('Failed to send file:', error)
+      showError('文件发送失败')
+    } finally {
+      isUploading.value = false
+      uploadProgress.value = 0
+      uploadingFileName.value = ''
+    }
   }
 
   function handleVoiceRecord () {
@@ -408,6 +471,20 @@
 .input-container {
   background-color: #1a1a25;
   padding: 10px;
+}
+
+.upload-progress-banner {
+  background-color: rgba(25, 118, 210, 0.1);
+  border-bottom: 1px solid rgba(25, 118, 210, 0.3);
+  padding: 8px 16px;
+
+  .upload-info {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    color: #1976d2;
+    margin-top: 4px;
+  }
 }
 
 .emoji-picker {

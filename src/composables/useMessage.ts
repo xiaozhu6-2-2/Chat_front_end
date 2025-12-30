@@ -32,9 +32,10 @@ import { useChatStore } from '@/stores/chatStore'
 import { useFriendStore } from '@/stores/friendStore'
 import { type MessageStoreType, useMessageStore } from '@/stores/messageStore'
 import { useUserStore } from '@/stores/userStore'
-import { batchApiResponseToLocalMessages, createTextMessage, LocalMessage, MessageStatus } from '@/types/message'
+import { batchApiResponseToLocalMessages, createFileMessage, createTextMessage, LocalMessage, MessageStatus } from '@/types/message'
 import { MessageType } from '@/types/websocket'
 import { useChat } from './useChat'
+import { useFile } from './useFile'
 import { useFriend } from './useFriend'
 import { useUser } from './useUser'
 
@@ -309,6 +310,82 @@ export function useMessage () {
         }
       }
       showError('消息发送失败，请重试')
+      throw error
+    }
+  }
+
+  /**
+   * 发送文件消息
+   *
+   * 流程：
+   * 1. 上传文件（带进度追踪）
+   * 2. 创建文件消息
+   * 3. 添加到 messageStore（立即显示）
+   * 4. 通过 WebSocket 发送
+   * 5. 加入队列等待 ACK
+   */
+  const sendFileMessage = async (file: File, fileType: 'image' | 'file' = 'file') => {
+    try {
+      // 检查是否有激活的聊天
+      if (!activeChatId.value) {
+        showError('请先选择一个聊天')
+        return
+      }
+
+      // 获取当前聊天信息
+      const chatId = activeChatId.value
+      const chatType = activeChatType.value === 'private' ? 'private' : 'group'
+      const receiverId = getReceiverId(chatId, chatType)
+
+      // 获取上传函数
+      const { uploadFile } = useFile()
+
+      // 上传文件
+      const uploadResult = await uploadFile(file, {
+        fileType,
+        onProgress: (progress: number) => {
+          console.log(`Upload progress: ${progress}%`)
+        },
+      })
+
+      // 创建文件消息
+      const message = createFileMessage(
+        chatType === 'private' ? MessageType.PRIVATE : MessageType.MESGROUP,
+        getCurrentUserId(),
+        getCurrentUsername(),
+        getCurrentUserAvatar(),
+        receiverId,
+        uploadResult.file_id,
+        uploadResult.display_name,
+        uploadResult.url || '',
+        chatId,
+        true,
+        uploadResult.file_size,
+        uploadResult.mime_type,
+      )
+
+      // 添加到 store（立即显示）
+      messageStore.addMessage(chatId, message, chatType)
+
+      // 更新会话最新消息
+      const chatStore = useChatStore()
+      const messageContent = formatMessageContent(message)
+      chatStore.updateChatLastMessage(chatId, messageContent)
+
+      // 通过 WebSocket 发送
+      websocketService.send(message)
+
+      // 加入队列等待 ACK
+      if (message.type === 'Private' || message.type === 'MesGroup') {
+        message.sendStatus = MessageStatus.SENDING
+        addToQueue(message)
+        startQueueProcessing()
+      }
+
+      return message.payload.message_id
+    } catch (error) {
+      console.error('发送文件消息失败:', error)
+      showError('文件发送失败，请重试')
       throw error
     }
   }
@@ -595,6 +672,8 @@ export function useMessage () {
         }
         default: {
           console.warn('未知消息类型:', localMessage.type)
+          //报错时调试
+          console.warn("[localMessage]" + ":" + JSON.stringify(localMessage))
           return
         }
       }
@@ -829,6 +908,7 @@ export function useMessage () {
 
     // 核心方法
     sendTextMessage,
+    sendFileMessage,
     loadHistoryMessages,
     markAsRead,
     resendMessage,

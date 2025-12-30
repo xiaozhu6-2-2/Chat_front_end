@@ -8,6 +8,24 @@
 
   <!-- 正常消息 -->
   <div v-else class="message-bubble" :class="messageClasses">
+    <!-- 撤回按钮 -->
+    <div v-if="isOwnMessage" class="revoke-btn-container">
+      <v-tooltip>
+        <template #activator="{ props }">
+          <v-btn
+            v-bind="props"
+            icon="mdi-undo-variant"
+            size="x-small"
+            variant="text"
+            color="grey-lighten-1"
+            class="revoke-btn"
+            @click.stop="handleRevokeMessage"
+          />
+        </template>
+        <span>撤回消息</span>
+      </v-tooltip>
+    </div>
+
     <div v-if="!isOwnMessage" class="message-avatar-container">
       <Avatar
         avatar-class="custom-avatar"
@@ -32,14 +50,19 @@
 
         <!-- Image Message -->
         <div v-else-if="isImageMessage" class="message-image">
+          <!-- 调试信息：用于触发响应式更新 -->
+          <div class="reactive-debug">{{ displayUrl || '空' }}</div>
           <v-img
+            v-if="displayUrl"
+            :src="displayUrl"
             :alt="'图片'"
             cover
             max-height="200"
-            max-width="200"
-            :src="message.payload.detail"
             @click="previewImage"
           />
+          <div v-else class="image-loading">
+            <v-progress-circular indeterminate size="24" />
+          </div>
         </div>
 
         <!-- File Message -->
@@ -55,6 +78,11 @@
           <v-icon
             :color="statusColor"
             :icon="statusIcon"
+            size="16"
+          />
+          <v-icon
+            :color="isReadColor"
+            :icon="isReadIcon"
             size="16"
           />
         </span>
@@ -91,14 +119,15 @@
   import type { MessageBubbleProps } from '../../../types/chat'
   import type { FriendWithUserInfo } from '../../../types/friend'
   import { storeToRefs } from 'pinia'
-  import { computed, ref } from 'vue'
+  import { computed, onMounted, ref, watch } from 'vue'
+  import { useFile } from '../../../composables/useFile'
   import { useFriend } from '../../../composables/useFriend'
   import { useFriendStore } from '../../../stores/friendStore'
   import { useUserStore } from '../../../stores/userStore'
   import { ContentType } from '../../../types/message'
   import { MessageType } from '../../../types/websocket'
   const props = defineProps<MessageBubbleProps>()
-
+  
   const friendStore = useFriendStore()
   const { updateFriendProfile } = useFriend()
   const userStore = useUserStore()
@@ -108,10 +137,11 @@
     currentUserId,
     currentAccount,
   } = storeToRefs(userStore)
+  const { previewFile } = useFile()
   const emit = defineEmits<{
     imagePreview: [imageUrl: string]
   }>()
-
+  const displayUrl = ref<string>('')
   const showContactCard = ref(false)
   const selectedContactInfo = ref<FriendWithUserInfo>()
   const showProfileEditModal = ref(false)
@@ -145,22 +175,29 @@
 
   const statusIcon = computed(() => {
     switch (props.message.sendStatus) {
-      case 'pending': {
-        return 'mdi-clock-outline'
-      }
+      case 'pending':
       case 'sending': {
         return 'mdi-clock-outline'
-      }
-      case 'sent': {
-        return 'mdi-check'
       }
       case 'failed': {
         return 'mdi-alert-circle'
       }
       default: {
-        return 'mdi-check'
+        return '' // 成功发送不显示图标
       }
     }
+  })
+
+  const isReadIcon = computed(() => {
+    if(props.message.is_read){
+      return 'mdi-check-circle'
+    }else{
+      return 'mdi-checkbox-blank-circle-outline'
+    }
+  })
+
+  const isReadColor = computed(() => {
+    return props.message.is_read ? '#1976d2' : 'grey'
   })
 
   const statusColor = computed(() => {
@@ -185,10 +222,35 @@
     if (!timestamp) return ''
     // timestamp 是秒级 Unix 时间戳，需要转换为毫秒
     const date = new Date(timestamp * 1000)
-    return date.toLocaleTimeString('zh-CN', {
-      hour: '2-digit',
-      minute: '2-digit',
-    })
+    const now = new Date()
+
+    const isToday = date.toDateString() === now.toDateString()
+    const isSameYear = date.getFullYear() === now.getFullYear()
+
+    if (isToday) {
+      // 今天的消息：只显示时间
+      return date.toLocaleTimeString('zh-CN', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    } else if (isSameYear) {
+      // 今年的消息：显示日期+时间
+      return date.toLocaleString('zh-CN', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    } else {
+      // 往年的消息：显示年份+日期+时间
+      return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    }
   }
 
   function getFileName (filePath: string) {
@@ -209,7 +271,12 @@
   })
 
   function previewImage () {
-    if (isImageMessage.value && props.message.payload.detail) {
+    // 使用 displayUrl 而不是 detail，因为 displayUrl 是经过处理的可用 URL
+    // detail 可能是 fileId，而 displayUrl 是通过 previewFile 加载的真实 URL
+    if (isImageMessage.value && displayUrl.value) {
+      emit('imagePreview', displayUrl.value)
+    } else if (isImageMessage.value && props.message.payload.detail) {
+      // 如果 displayUrl 未加载，fallback 到原始 detail
       emit('imagePreview', props.message.payload.detail)
     }
   }
@@ -258,6 +325,50 @@
   function handleEditProfile () {
     showProfileEditModal.value = true
   }
+
+  // 处理撤回消息事件
+  function handleRevokeMessage () {
+    console.log('撤回消息:', props.message.payload.message_id)
+    // TODO: 实现撤回消息逻辑
+  }
+
+  //处理图片预览
+  const loadUrl = async () => {
+    if (!props.message.payload.detail) {
+      displayUrl.value = ''
+      return
+    }
+
+    const detail = props.message.payload.detail
+
+    // 检查是否是完整的 URL（http://, https://, blob:, data:）
+    if (/^(https?:|blob:|data:)/.test(detail)) {
+      displayUrl.value = detail
+      return
+    }
+
+    // 检查是否是本地资源路径（以 /src/assets/ 或 /assets/ 开头）
+    if (detail.startsWith('/src/assets/') || detail.startsWith('/assets/') || detail.startsWith('@/assets/')) {
+      displayUrl.value = detail
+      return
+    }
+
+    // 否则假设是 fileId，使用文件模块加载
+    try {
+      const url = await previewFile(detail)
+      displayUrl.value = url || ''
+    } catch (error) {
+      displayUrl.value = ''
+    }
+  }
+
+onMounted(async () => {
+    if (isImageMessage.value) {
+    await loadUrl()
+    }
+  })
+
+
 </script>
 
 <style lang="scss" scoped>
@@ -353,6 +464,16 @@
   }
 }
 
+.reactive-debug {
+  color: white;
+  font-size: 10px;
+  padding: 2px;
+  opacity: 0;
+  pointer-events: none;
+  height: 0;
+  overflow: hidden;
+}
+
 .message-file {
   display: flex;
   align-items: center;
@@ -413,5 +534,24 @@
   font-size: 12px;
   color: rgba(255, 255, 255, 0.5);
   font-style: italic;
+}
+
+.revoke-btn-container {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin-right: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  position: relative;
+}
+
+.revoke-btn {
+  position: relative;
+  top: -10px;
+}
+
+.message-bubble:hover .revoke-btn-container {
+  opacity: 1;
 }
 </style>

@@ -78,7 +78,7 @@
     if (!scrollElement) return
 
     const { scrollTop, scrollHeight, clientHeight } = scrollElement
-    const threshold = 100 // 距离底部100px认为接近底部
+    const threshold = 0 // 距离底部100px认为接近底部
 
     isNearBottom.value = scrollTop + clientHeight >= scrollHeight - threshold
     showScrollToBottom.value = !isNearBottom.value

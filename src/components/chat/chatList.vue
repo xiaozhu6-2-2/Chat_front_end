@@ -35,14 +35,20 @@
         <template #append>
           <div class="chat-meta">
             <!-- 置顶按钮 -->
-            <v-btn
-              :icon="chat.isPinned ? 'mdi-pin' : 'mdi-pin-outline'"
-              size="x-small"
-              variant="text"
-              color="grey-lighten-1"
-              class="pin-btn"
-              @click.stop="handlePinToggle(chat)"
-            />
+            <v-tooltip>
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  :icon="chat.isPinned ? 'mdi-pin' : 'mdi-pin-outline'"
+                  size="x-small"
+                  variant="text"
+                  color="grey-lighten-1"
+                  class="pin-btn"
+                  @click.stop="handlePinToggle(chat)"
+                />
+              </template>
+              <span>{{ chat.isPinned ? '取消置顶' : '置顶聊天' }}</span>
+            </v-tooltip>
             <span v-if="chat.updatedAt" class="chat-time">
               {{ formatTime(chat.updatedAt) }}
             </span>
