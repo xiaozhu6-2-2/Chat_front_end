@@ -19,18 +19,53 @@
             variant="outlined"
           />
 
-          <!-- 群头像 -->
-          <v-file-input
-            v-model="avatarFile"
-            accept="image/*"
-            class="mb-4"
-            hint="支持 jpg、png 格式，大小不超过 2MB"
-            label="群头像（可选）"
-            persistent-hint
-            prepend-inner-icon="mdi-camera"
-            show-size
-            variant="outlined"
-          />
+          <!-- 群头像预览和上传 -->
+          <div class="mb-4">
+            <div class="avatar-upload-container">
+              <!-- 头像预览 -->
+              <div class="avatar-preview">
+                <Avatar
+                  v-if="previewAvatarUrl"
+                  :name="groupData.group_name || '群聊'"
+                  :size="100"
+                  :url="previewAvatarUrl"
+                />
+                <v-icon v-else icon="mdi-account-group" size="80" />
+              </div>
+
+              <!-- 上传按钮和文件输入 -->
+              <div class="avatar-upload-controls">
+                <v-btn
+                  color="primary"
+                  prepend-icon="mdi-upload"
+                  variant="outlined"
+                  @click="triggerFileInput"
+                >
+                  {{ avatarFile ? '更换头像' : '上传头像' }}
+                </v-btn>
+                <v-btn
+                  v-if="avatarFile || previewAvatarUrl"
+                  class="ml-2"
+                  color="error"
+                  prepend-icon="mdi-delete"
+                  variant="text"
+                  @click="removeAvatar"
+                >
+                  移除
+                </v-btn>
+                <input
+                  ref="fileInput"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  class="d-none"
+                  type="file"
+                  @change="handleFileChange"
+                />
+              </div>
+            </div>
+            <div class="text-caption text-grey mt-2">
+              支持 jpg、png、gif、webp 格式，大小不超过 2MB
+            </div>
+          </div>
 
           <!-- 群介绍 -->
           <v-textarea
@@ -65,24 +100,42 @@
 
 <script setup lang="ts">
   import type { CreateGroupParams } from '../types/group'
-  import { reactive, ref } from 'vue'
+  import { computed, reactive, ref } from 'vue'
   import { useRouter } from 'vue-router'
+  import Avatar from '../components/global/Avatar.vue'
   import { useGroup } from '../composables/useGroup'
+  import { useFile } from '../composables/useFile'
 
   const router = useRouter()
   const { createGroup: createGroupAPI } = useGroup()
+  const { uploadFile } = useFile()
 
   // 表单状态
   const form = ref()
   const formValid = ref(false)
   const creating = ref(false)
-  const avatarFile = ref<File[]>([])
+  const fileInput = ref<HTMLInputElement>()
+  const avatarFile = ref<File | null>(null)
+  const uploadedAvatarFileId = ref<string>('')
 
   // 群组数据
   const groupData = reactive<CreateGroupParams>({
     group_name: '',
     avatar: '',
     group_intro: '',
+  })
+
+  // 头像预览URL
+  const previewAvatarUrl = computed(() => {
+    if (uploadedAvatarFileId.value) {
+      // 使用上传后的文件ID生成预览URL
+      return `${import.meta.env.VITE_API_BASE_URL}/auth/file/preview/${uploadedAvatarFileId.value}`
+    }
+    if (avatarFile.value) {
+      // 使用本地文件预览
+      return URL.createObjectURL(avatarFile.value)
+    }
+    return ''
   })
 
   // 验证规则
@@ -96,13 +149,58 @@
     (v: string) => !v || v.length <= 100 || '群介绍不能超过100个字符',
   ]
 
+  // 触发文件选择
+  function triggerFileInput () {
+    fileInput.value?.click()
+  }
+
+  // 处理文件选择
+  function handleFileChange (event: Event) {
+    const target = event.target as HTMLInputElement
+    const file = target.files?.[0]
+
+    if (!file) {
+      return
+    }
+
+    // 验证文件类型
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+    if (!validTypes.includes(file.type)) {
+      // 显示错误提示（可以在这里添加 snackbar）
+      console.error('不支持的文件类型')
+      return
+    }
+
+    // 验证文件大小（2MB）
+    const maxSize = 2 * 1024 * 1024
+    if (file.size > maxSize) {
+      console.error('文件大小超过2MB')
+      return
+    }
+
+    // 保存文件引用
+    avatarFile.value = file
+    // 清空之前上传的文件ID
+    uploadedAvatarFileId.value = ''
+  }
+
+  // 移除头像
+  function removeAvatar () {
+    avatarFile.value = null
+    uploadedAvatarFileId.value = ''
+    if (fileInput.value) {
+      fileInput.value.value = ''
+    }
+  }
+
   // 重置表单
   function resetForm () {
     form.value?.reset()
-    avatarFile.value = []
+    removeAvatar()
     Object.assign(groupData, {
       group_name: '',
       group_intro: '',
+      avatar: '',
     })
   }
 
@@ -114,18 +212,24 @@
 
     creating.value = true
     try {
-      // 处理头像上传（如果有）
-      let avatarUrl = ''
-      if (avatarFile.value.length > 0) {
-        // TODO: 实现头像上传逻辑
-        // 这里应该调用上传API，获取头像URL
-        console.log('头像上传功能待实现')
+      // 1. 如果有新选择的头像文件，先上传
+      let avatarFileId = ''
+      if (avatarFile.value && !uploadedAvatarFileId.value) {
+        const uploadResult = await uploadFile(avatarFile.value, {
+          fileType: 'image',
+          fileName: `group_avatar_${Date.now()}`,
+        })
+        avatarFileId = uploadResult.file_id
+        uploadedAvatarFileId.value = avatarFileId
+      } else if (uploadedAvatarFileId.value) {
+        avatarFileId = uploadedAvatarFileId.value
       }
 
+      // 2. 创建群聊
       const params: CreateGroupParams = {
         group_name: groupData.group_name,
         group_intro: groupData.group_intro || undefined,
-        avatar: avatarUrl || undefined,
+        avatar: avatarFileId || undefined,
       }
 
       const group = await createGroupAPI(params)
@@ -135,6 +239,7 @@
       }
     } catch (error) {
       console.error('创建群聊失败:', error)
+      // 这里可以显示错误提示
     } finally {
       creating.value = false
     }
@@ -153,5 +258,33 @@
   width: 100%;
   max-width: 600px;
   margin: 20px;
+}
+
+.avatar-upload-container {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+}
+
+.avatar-preview {
+  flex-shrink: 0;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: #f5f5f5;
+}
+
+.avatar-upload-controls {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 </style>

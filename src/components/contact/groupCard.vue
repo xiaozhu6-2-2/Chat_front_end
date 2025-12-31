@@ -4,13 +4,12 @@
     <v-card class="mx-auto" max-width="400">
       <v-card-item>
         <div class="group-header">
-          <div class="group-avatar-large">
-            <v-img
-              v-if="groupDetail?.avatar"
-              alt="群头像"
-              :src="groupDetail.avatar"
-            />
-          </div>
+          <Avatar
+            :name="formattedData?.groupName || '群聊'"
+            :size="60"
+            :url="groupDetail?.avatar"
+            avatar-class="custom-avatar"
+          />
           <div class="group-info">
             <v-card-title>{{ formattedData?.groupName }}</v-card-title>
             <v-card-subtitle>群聊 ID: {{ formattedData?.groupId }}</v-card-subtitle>
@@ -23,7 +22,7 @@
           <v-list lines="two">
             <v-list-item prepend-icon="mdi-account" title="群主">
               <template #subtitle>
-                群主uid: {{ formattedData?.groupManager }}
+                {{ formattedData?.groupManager || '未知' }}
               </template>
             </v-list-item>
 
@@ -69,8 +68,10 @@
   import type { GetGroupCardParams, GroupCard, GroupCardProps } from '../../types/group'
   import { computed, onMounted, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
+  import Avatar from '../global/Avatar.vue'
   import { useChat } from '../../composables/useChat'
   import { useGroup } from '../../composables/useGroup'
+  import { strangerUserService } from '../../service/strangerUserService'
 
   const props = defineProps<GroupCardProps>()
   const { getGroupCard } = useGroup()
@@ -96,6 +97,7 @@
   }
   // 存储详细的群组数据
   const groupDetail = ref<GroupCard | null>(null)
+  const groupManagerName = ref<string>('')
   const loading = ref(false)
 
   // 计算属性格式化显示数据
@@ -103,7 +105,7 @@
     if (!groupDetail.value) return null
 
     return {
-      groupManager: groupDetail.value.manager_uid,
+      groupManager: groupManagerName.value || groupDetail.value.manager_uid,
       createTime: new Date(groupDetail.value.created_at).toLocaleDateString('zh-CN', {
         year: 'numeric',
         month: 'long',
@@ -124,6 +126,17 @@
         gid: groupId,
       }
       groupDetail.value = await getGroupCard(params)
+
+      // 获取群主名称
+      if (groupDetail.value.manager_uid) {
+        try {
+          const ownerProfile = await strangerUserService.getUserProfile(groupDetail.value.manager_uid)
+          groupManagerName.value = ownerProfile.username || ''
+        } catch (error) {
+          console.error('获取群主信息失败:', error)
+          groupManagerName.value = ''
+        }
+      }
     } catch (error) {
       console.error('获取群组详情失败:', error)
     } finally {
@@ -155,16 +168,6 @@
     display: flex;
     align-items: center;
     gap: 16px;
-  }
-
-  .group-avatar-large {
-    width: 60px;
-    height: 60px;
-    border-radius: 8px;
-    background-color: #07c160;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 
   .group-info {

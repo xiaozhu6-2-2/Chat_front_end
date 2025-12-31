@@ -4,6 +4,7 @@
  */
 
 import { websocketService } from '@/service/websocket'
+import { messageService } from '@/service/messageService'
 import { useFriendRequestStore } from '@/stores/friendRequestStore'
 import { useGroupRequestStore } from '@/stores/groupRequestStore'
 import { useFriendStore } from '@/stores/friendStore'
@@ -222,8 +223,10 @@ const handleMessage = async (wsMessage: WSMessage): Promise<void> => {
       // 2. 增加未读数（仅当不是当前激活的会话时）
       if (chatStore.activeChatId !== localMessage.payload.chat_id) {
         chatStore.incrementUnreadCount(localMessage.payload.chat_id)
+      } else {
+        // 如果是当前会话，则调用已读API
+        markChatAsRead(localMessage.payload.chat_id, storeType)
       }
-      //如果是当前会话，则调用已读API
     }
 
     console.log(`[消息] 收到${storeType}消息:`, localMessage.payload)
@@ -358,8 +361,9 @@ const handleFriendRequestResultNotification = (notification: FriendRequestResult
       isBlacklisted: false,
     }
     friendStore.addFriend(friend)
+    const {showSuccess} = useSnackbar()
+    showSuccess(`${notification.payload.username} 已同意您的好友请求`)
   }
-
   console.log('[WebSocketHandler] 好友请求结果通知已处理:', notification.payload)
 }
 
@@ -724,6 +728,64 @@ const formatMessageContent = (message: LocalMessage): string => {
     default: {
       return message.payload.detail || '[消息]'
     }
+  }
+}
+
+/**
+ * 标记聊天为已读
+ * 特殊防抖策略：首次立即执行，后续1秒防抖
+ * @param chatId 聊天ID
+ * @param storeType 消息存储类型（private/group）
+ */
+
+// 防抖状态管理
+type DebounceState = {
+  timer: ReturnType<typeof setTimeout> | null
+  lastMessageTime: number
+}
+
+// 每个聊天ID维护独立的防抖状态
+const debounceMap = new Map<string, DebounceState>()
+
+const markChatAsRead = async (chatId: string, storeType: MessageStoreType): Promise<void> => {
+  try {
+    const now = Date.now()
+
+    // 获取或创建该聊天的防抖状态
+    let state = debounceMap.get(chatId)
+    if (!state) {
+      state = { timer: null, lastMessageTime: 0 }
+      debounceMap.set(chatId, state)
+    }
+
+    // 清除之前的定时器
+    if (state.timer) {
+      clearTimeout(state.timer)
+      state.timer = null
+    }
+
+    const executeMark = async () => {
+      const timestamp = Math.floor(Date.now() / 1000)
+      await messageService.markMessagesAsRead(chatId, storeType, timestamp)
+      console.log(`[WebSocketHandler] 已标记聊天 ${chatId} 为已读`)
+    }
+
+    // 判断是否应该立即执行（距离上次收到消息超过2秒，或首次执行）
+    const shouldExecuteImmediately = now - state.lastMessageTime > 2000
+
+    state.lastMessageTime = now
+
+    if (shouldExecuteImmediately) {
+      // 立即执行
+      await executeMark()
+    } else {
+      // 1秒防抖
+      state.timer = setTimeout(async () => {
+        await executeMark()
+      }, 1000)
+    }
+  } catch (error) {
+    console.error('标记聊天已读失败:', error)
   }
 }
 
