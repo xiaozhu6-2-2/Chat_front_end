@@ -1,5 +1,31 @@
 <template>
-  <div class="message-bubble" :class="messageClasses">
+  <!-- 撤回消息 -->
+  <div v-if="isRevokedMessage" class="message-bubble revoked-message">
+    <div class="revoked-content">
+      <span class="revoked-text">消息已撤回</span>
+    </div>
+  </div>
+
+  <!-- 正常消息 -->
+  <div v-else class="message-bubble" :class="messageClasses">
+    <!-- 撤回按钮 -->
+    <div v-if="isOwnMessage" class="revoke-btn-container">
+      <v-tooltip>
+        <template #activator="{ props }">
+          <v-btn
+            v-bind="props"
+            icon="mdi-undo-variant"
+            size="x-small"
+            variant="text"
+            color="grey-lighten-1"
+            class="revoke-btn"
+            @click.stop="handleRevokeMessage"
+          />
+        </template>
+        <span>撤回消息</span>
+      </v-tooltip>
+    </div>
+
     <div v-if="!isOwnMessage" class="message-avatar-container">
       <Avatar
         avatar-class="custom-avatar"
@@ -24,20 +50,46 @@
 
         <!-- Image Message -->
         <div v-else-if="isImageMessage" class="message-image">
+          <!-- 调试信息：用于触发响应式更新 -->
+          <div class="reactive-debug">{{ displayUrl || '空' }}</div>
           <v-img
+            v-if="displayUrl"
+            :src="displayUrl"
             :alt="'图片'"
             cover
             max-height="200"
-            max-width="200"
-            :src="message.payload.detail"
             @click="previewImage"
           />
+          <div v-else class="image-loading">
+            <v-progress-circular indeterminate size="24" />
+          </div>
         </div>
 
-        <!-- File Message -->
-        <div v-else-if="isFileMessage" class="message-file">
-          <v-icon class="mr-2">mdi-file</v-icon>
-          <span>{{ getFileName(message.payload.detail || '') }}</span>
+        <!-- File Message - WeChat Style Card -->
+        <div v-else-if="isFileMessage" class="message-file-card" :class="{ 'loading': isLoadingFile }" @click="handleFileDownload">
+          <!-- Loading State -->
+          <div v-if="isLoadingFile" class="file-card-loading">
+            <v-progress-circular indeterminate size="24" color="grey-lighten-1" />
+          </div>
+
+          <!-- File Card Content -->
+          <template v-else-if="filePreviewInfo">
+            <div class="file-card-info">
+              <div class="file-name">{{ filePreviewInfo.fileName }}</div>
+              <div class="file-size">{{ formatFileSize(filePreviewInfo.fileSize) }}</div>
+            </div>
+            <div class="file-card-icon">
+              <v-icon size="40">
+                {{ getFileIcon(filePreviewInfo.fileName, filePreviewInfo.mimeType) }}
+              </v-icon>
+            </div>
+          </template>
+
+          <!-- Fallback -->
+          <div v-else class="file-card-fallback">
+            <v-icon class="mr-2">mdi-file-alert</v-icon>
+            <span>文件加载失败</span>
+          </div>
         </div>
       </div>
 
@@ -49,6 +101,23 @@
             :icon="statusIcon"
             size="16"
           />
+          
+          <v-icon
+            v-if="props.message.type === 'Private'"
+            :color="isReadColor"
+            :icon="isReadIcon"
+            size="16"
+          />
+          <!-- TODO 群聊消息显示几人已读，可点击，点击后出现已读和未读列表，类似钉钉
+          <v-chip
+            v-if="props.message.type === 'MesGroup' && isOwnMessage && props.message.read_count?"
+            size="x-small"
+            variant="text"
+            class="read-count-chip"
+            @click="showReadDialog = true"
+          >
+              {{ props.message.read_count }}人已读
+          </v-chip> -->
         </span>
       </div>
     </div>
@@ -82,15 +151,17 @@
 <script setup lang="ts">
   import type { MessageBubbleProps } from '../../../types/chat'
   import type { FriendWithUserInfo } from '../../../types/friend'
+  import type { FilePreviewInfo } from '../../../types/file'
   import { storeToRefs } from 'pinia'
-  import { computed, ref } from 'vue'
+  import { computed, onMounted, ref, watch } from 'vue'
+  import { useFile } from '../../../composables/useFile'
   import { useFriend } from '../../../composables/useFriend'
   import { useFriendStore } from '../../../stores/friendStore'
   import { useUserStore } from '../../../stores/userStore'
   import { ContentType } from '../../../types/message'
-import { MessageType } from '../../../types/websocket'
+  import { MessageType } from '../../../types/websocket'
   const props = defineProps<MessageBubbleProps>()
-
+  
   const friendStore = useFriendStore()
   const { updateFriendProfile } = useFriend()
   const userStore = useUserStore()
@@ -98,20 +169,26 @@ import { MessageType } from '../../../types/websocket'
     currentUser,
     currentUserAvatar,
     currentUserId,
-    currentUsername,
     currentAccount,
   } = storeToRefs(userStore)
+  const { previewFile, getFilePreviewInfo, downloadFile, formatFileSize } = useFile()
   const emit = defineEmits<{
     imagePreview: [imageUrl: string]
   }>()
-
+  const displayUrl = ref<string>('')
+  const filePreviewInfo = ref<FilePreviewInfo | null>(null)
+  const isLoadingFile = ref(false)
   const showContactCard = ref(false)
   const selectedContactInfo = ref<FriendWithUserInfo>()
   const showProfileEditModal = ref(false)
-  const isOwnMessage = computed(() =>
-    props.message.userIsSender || props.message.payload.sender_id === currentUserId.value,
+  const showReadDialog = ref(false)
+  const isRevokedMessage = computed(() =>
+    props.message.is_revoked
   )
-
+  const isOwnMessage = computed(() =>
+    props.message.userIsSender
+  )
+  
   const messageClasses = computed(() => ({
     'own-message': isOwnMessage.value,
     'other-message': !isOwnMessage.value,
@@ -120,19 +197,17 @@ import { MessageType } from '../../../types/websocket'
   const bubbleClasses = computed(() => ({
     'own-bubble': isOwnMessage.value,
     'other-bubble': !isOwnMessage.value,
-    'system-bubble': props.message.type === 'System',
   }))
 
   const senderName = computed(() => {
-    // 这里可以根据需要从用户服务中获取用户名
-    // todo 消息发送者的name
+    // 直接使用消息记录的 sender_name
     return props.message.payload.sender_name || '未知用户'
   })
 
   const senderAvatar = computed(() => {
-    // 这里可以根据需要从用户服务中获取用户头像
-    // todo 消息发送者的头像
-    return '/src/assets/default-avatar.png'
+    // 使用消息记录的 sender_avatar（存储的是 fileId）
+    // Avatar 组件会自动处理 fileId 的加载
+    return props.message.payload.sender_avatar || ''
   })
 
   const statusIcon = computed(() => {
@@ -143,22 +218,29 @@ import { MessageType } from '../../../types/websocket'
 
     // 否则根据发送状态显示图标
     switch (props.message.sendStatus) {
-      case 'pending': {
-        return 'mdi-clock-outline'
-      }
+      case 'pending':
       case 'sending': {
         return 'mdi-clock-outline'
-      }
-      case 'sent': {
-        return 'mdi-check'
       }
       case 'failed': {
         return 'mdi-alert-circle'
       }
       default: {
-        return 'mdi-check'
+        return '' // 成功发送不显示图标
       }
     }
+  })
+
+  const isReadIcon = computed(() => {
+    if(props.message.is_read){
+      return 'mdi-check-circle'
+    }else{
+      return 'mdi-checkbox-blank-circle-outline'
+    }
+  })
+
+  const isReadColor = computed(() => {
+    return props.message.is_read ? '#1976d2' : 'grey'
   })
 
   const statusColor = computed(() => {
@@ -184,14 +266,35 @@ import { MessageType } from '../../../types/websocket'
     if (!timestamp) return ''
     // timestamp 是秒级 Unix 时间戳，需要转换为毫秒
     const date = new Date(timestamp * 1000)
-    return date.toLocaleTimeString('zh-CN', {
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
+    const now = new Date()
 
-  function getFileName (filePath: string) {
-    return filePath.split('/').pop() || filePath
+    const isToday = date.toDateString() === now.toDateString()
+    const isSameYear = date.getFullYear() === now.getFullYear()
+
+    if (isToday) {
+      // 今天的消息：只显示时间
+      return date.toLocaleTimeString('zh-CN', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    } else if (isSameYear) {
+      // 今年的消息：显示日期+时间
+      return date.toLocaleString('zh-CN', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    } else {
+      // 往年的消息：显示年份+日期+时间
+      return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    }
   }
 
   const isImageMessage = computed(() => {
@@ -207,8 +310,83 @@ import { MessageType } from '../../../types/websocket'
     return props.message.payload.content_type === ContentType.FILE
   })
 
+  // 获取文件类型图标
+  function getFileIcon (fileName: string, mimeType?: string): string {
+    const ext = fileName.split('.').pop()?.toLowerCase()
+
+    if (mimeType?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext || '')) {
+      return 'mdi-file-image'
+    }
+    if (ext === 'pdf' || mimeType?.includes('pdf')) {
+      return 'mdi-file-pdf-box'
+    }
+    if (['doc', 'docx'].includes(ext || '') || mimeType?.includes('word')) {
+      return 'mdi-file-word'
+    }
+    if (['xls', 'xlsx'].includes(ext || '') || mimeType?.includes('sheet')) {
+      return 'mdi-file-excel'
+    }
+    if (['ppt', 'pptx'].includes(ext || '') || mimeType?.includes('presentation')) {
+      return 'mdi-file-powerpoint'
+    }
+    if (mimeType?.startsWith('video/') || ['mp4', 'mov', 'avi', 'mkv'].includes(ext || '')) {
+      return 'mdi-file-video'
+    }
+    if (mimeType?.startsWith('audio/') || ['mp3', 'wav', 'flac', 'aac'].includes(ext || '')) {
+      return 'mdi-file-music'
+    }
+    if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext || '')) {
+      return 'mdi-file-zip'
+    }
+    if (['js', 'ts', 'html', 'css', 'json', 'py', 'java', 'cpp'].includes(ext || '')) {
+      return 'mdi-file-code'
+    }
+    if (ext === 'txt' || mimeType?.startsWith('text/')) {
+      return 'mdi-file-document'
+    }
+    return 'mdi-file-outline'
+  }
+
+  // 加载文件预览信息
+  async function loadFileInfo () {
+    const fileId = props.message.payload.detail
+    if (!fileId) {
+      filePreviewInfo.value = null
+      return
+    }
+
+    isLoadingFile.value = true
+    try {
+      const info = await getFilePreviewInfo(fileId)
+      filePreviewInfo.value = info
+    } catch (error) {
+      console.error('Failed to load file info:', error)
+      filePreviewInfo.value = null
+    } finally {
+      isLoadingFile.value = false
+    }
+  }
+
+  // 处理文件下载
+  async function handleFileDownload () {
+    const fileId = props.message.payload.detail
+    const fileName = filePreviewInfo.value?.fileName
+    if (!fileId) return
+
+    try {
+      await downloadFile(fileId, fileName)
+    } catch (error) {
+      console.error('Failed to download file:', error)
+    }
+  }
+
   function previewImage () {
-    if (isImageMessage.value && props.message.payload.detail) {
+    // 使用 displayUrl 而不是 detail，因为 displayUrl 是经过处理的可用 URL
+    // detail 可能是 fileId，而 displayUrl 是通过 previewFile 加载的真实 URL
+    if (isImageMessage.value && displayUrl.value) {
+      emit('imagePreview', displayUrl.value)
+    } else if (isImageMessage.value && props.message.payload.detail) {
+      // 如果 displayUrl 未加载，fallback 到原始 detail
       emit('imagePreview', props.message.payload.detail)
     }
   }
@@ -257,6 +435,53 @@ import { MessageType } from '../../../types/websocket'
   function handleEditProfile () {
     showProfileEditModal.value = true
   }
+
+  // 处理撤回消息事件
+  function handleRevokeMessage () {
+    console.log('撤回消息:', props.message.payload.message_id)
+    // TODO: 实现撤回消息逻辑
+  }
+
+  //处理图片预览
+  const loadUrl = async () => {
+    if (!props.message.payload.detail) {
+      displayUrl.value = ''
+      return
+    }
+
+    const detail = props.message.payload.detail
+
+    // 检查是否是完整的 URL（http://, https://, blob:, data:）
+    if (/^(https?:|blob:|data:)/.test(detail)) {
+      displayUrl.value = detail
+      return
+    }
+
+    // 检查是否是本地资源路径（以 /src/assets/ 或 /assets/ 开头）
+    if (detail.startsWith('/src/assets/') || detail.startsWith('/assets/') || detail.startsWith('@/assets/')) {
+      displayUrl.value = detail
+      return
+    }
+
+    // 否则假设是 fileId，使用文件模块加载
+    try {
+      const url = await previewFile(detail)
+      displayUrl.value = url || ''
+    } catch (error) {
+      displayUrl.value = ''
+    }
+  }
+
+onMounted(async () => {
+    if (isImageMessage.value) {
+    await loadUrl()
+    }
+    if (isFileMessage.value) {
+    await loadFileInfo()
+    }
+  })
+
+
 </script>
 
 <style lang="scss" scoped>
@@ -352,14 +577,104 @@ import { MessageType } from '../../../types/websocket'
   }
 }
 
-.message-file {
+.reactive-debug {
+  color: white;
+  font-size: 10px;
+  padding: 2px;
+  opacity: 0;
+  pointer-events: none;
+  height: 0;
+  overflow: hidden;
+}
+
+// WeChat-style file card (250px × 100px)
+.message-file-card {
+  width: 250px;
+  height: 100px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
   cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
 
-  &:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+  &.loading {
+    justify-content: center;
   }
+
+  .own-bubble & {
+    color: #333;
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.3);
+    }
+  }
+
+  .other-bubble & {
+    color: #fff;
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+.file-card-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding-right: 12px;
+}
+
+.file-name {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 6px;
+
+  .own-bubble & { color: #1a1a1a; }
+  .other-bubble & { color: #ffffff; }
+}
+
+.file-size {
+  font-size: 12px;
+  opacity: 0.7;
+
+  .own-bubble & { color: #666; }
+  .other-bubble & { color: rgba(255, 255, 255, 0.7); }
+}
+
+.file-card-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+
+  .own-bubble & { color: #1976d2; }
+  .other-bubble & { color: rgba(255, 255, 255, 0.9); }
+}
+
+.file-card-loading,
+.file-card-fallback {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-card-fallback {
+  padding: 12px;
+  font-size: 13px;
+
+  .own-bubble & { color: #666; }
+  .other-bubble & { color: rgba(255, 255, 255, 0.7); }
 }
 
 .message-system {
@@ -391,5 +706,45 @@ import { MessageType } from '../../../types/websocket'
 .message-status {
   display: flex;
   align-items: center;
+}
+
+// 撤回消息样式
+.revoked-message {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.revoked-content {
+  display: inline-block;
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 4px 12px;
+  border-radius: 4px;
+}
+
+.revoked-text {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+}
+
+.revoke-btn-container {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin-right: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  position: relative;
+}
+
+.revoke-btn {
+  position: relative;
+  top: -10px;
+}
+
+.message-bubble:hover .revoke-btn-container {
+  opacity: 1;
 }
 </style>

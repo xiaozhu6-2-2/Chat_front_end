@@ -4,16 +4,13 @@
     <div class="shadow__input" />
     <!-- 工具栏 -->
     <div class="toolbar">
-      <v-btn color="#000000" icon variant="text" @click="toggleEmojiPicker">
+      <v-btn icon variant="text" @click="toggleEmojiPicker">
         <v-icon>mdi-emoticon-outline</v-icon>
       </v-btn>
-      <v-btn color="#000000" icon variant="text" @click="handleFileUpload">
-        <v-icon>mdi-image-outline</v-icon>
-      </v-btn>
-      <v-btn color="#000000" icon variant="text" @click="handleFileUpload">
+      <v-btn icon variant="text" @click="handleFileUpload">
         <v-icon>mdi-file-outline</v-icon>
       </v-btn>
-      <v-btn color="#000000" icon variant="text" @click="handleVoiceRecord">
+      <v-btn icon variant="text" @click="handleVoiceRecord">
         <v-icon>mdi-microphone</v-icon>
       </v-btn>
       <v-spacer />
@@ -21,6 +18,14 @@
         <v-icon>mdi-dots-horizontal</v-icon>
       </v-btn>
     </div>
+
+    <!-- 隐藏的文件输入 -->
+    <input
+      ref="fileInputRef"
+      type="file"
+      style="display: none"
+      @change="handleFileSelected"
+    >
     <input
       class="chat_input"
       name="chat_input"
@@ -34,7 +39,6 @@
     <!-- 发送按钮 -->
     <div class="send-button-container">
       <v-btn
-        class="input__button__shadow"
         color="primary"
         variant="flat"
         @click="handleSendMessage"
@@ -46,13 +50,21 @@
 </template>
 
 <script setup>
+  import { ref } from 'vue'
+
   defineProps({
     modelValue: {
       type: String,
       default: '',
     },
   })
-  const emit = defineEmits(['update:modelValue', 'keydown.enter.exact.prevent', 'send-message'])
+  const emit = defineEmits(['update:modelValue', 'keydown.enter.exact.prevent', 'send-message', 'send-file'])
+
+  // 文件输入引用
+  const fileInputRef = ref(null)
+
+  // 常量：文件大小限制（100MB）
+  const MAX_FILE_SIZE = 100 * 1024 * 1024
 
   // 处理发送按钮点击
   function handleSendMessage () {
@@ -64,8 +76,55 @@
     console.warn('表情选择器功能待实现')
   }
 
+  /**
+   * 处理文件上传按钮点击
+   */
   function handleFileUpload () {
-    console.warn('文件上传功能待实现')
+    fileInputRef.value?.click()
+  }
+
+  /**
+   * 验证文件大小
+   */
+  function validateFileSize (file) {
+    if (file.size > MAX_FILE_SIZE) {
+      emit('send-file', null, 'error', `文件大小超出限制（最大 100MB，当前文件：${formatFileSize(file.size)}）`)
+      return false
+    }
+    return true
+  }
+
+  /**
+   * 格式化文件大小
+   */
+  function formatFileSize (bytes) {
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  /**
+   * 处理文件选择
+   */
+  function handleFileSelected (event) {
+    const target = event.target
+    const file = target.files?.[0]
+
+    if (!file) return
+
+    if (!validateFileSize(file)) {
+      target.value = '' // 重置 input
+      return
+    }
+
+    // 判断文件类型
+    const fileType = file.type.startsWith('image/') ? 'image' : 'file'
+
+    // 触发文件上传事件
+    emit('send-file', file, fileType)
+    target.value = '' // 重置 input
   }
 
   function handleVoiceRecord () {
@@ -73,32 +132,16 @@
   }
 </script>
 
-<style>
-/* From Uiverse.io by 0xnihilism */
+<style scoped>
+/* 深色主题输入框样式 */
 .input__container {
     position: relative;
-    background: #f0f0f0;
-    padding-left: 30px;
-    padding-right: 30px;
-    padding-top: 20px;
-    padding-bottom: 20px;
-    margin-right: 20px;
-    margin-bottom: 30px;
+    background: #1c1c1e;
+    padding: 16px 20px;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
-    /* align-items: flex-start; */
-    gap: 15px;
-    border: 4px solid #000;
-    transition: all 400ms cubic-bezier(0.23, 1, 0.32, 1);
-    transform-style: preserve-3d;
-    perspective: 1000px;
-    box-shadow: 10px 10px 0 #000;
-}
-
-.input__container:hover {
-    transform: rotateX(5deg) rotateY(1 deg) scale(1.05);
-    box-shadow: 25px 25px 0 -5px #1976d2, 25px 25px 0 0 #000;
+    gap: 12px;
+    border-radius: 12px;
 }
 
 .shadow__input {
@@ -109,77 +152,56 @@
     left: 0;
     bottom: 0;
     z-index: -1;
-    transform: translateZ(-50px);
-    background: linear-gradient(45deg,
-            rgba(255, 107, 107, 0.4) 0%,
-            rgba(255, 107, 107, 0.1) 100%);
+    background: rgba(25, 118, 210, 0.1);
     filter: blur(20px);
+    border-radius: 12px;
 }
 
 .toolbar {
     display: flex;
-    padding: 5px 0;
+    padding: 4px 0;
+    gap: 8px;
 }
 
-.input__button__shadow {
-    cursor: pointer;
-    border: 3px solid #000;
-    background: #1976d2;
-    transition: all 400ms cubic-bezier(0.23, 1, 0.32, 1);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 10px;
-    transform: translateZ(20px);
-    position: relative;
-    z-index: 3;
-    font-weight: bold;
-    text-transform: uppercase;
+.toolbar :deep(.v-btn) {
+    color: rgba(255, 255, 255, 0.7);
 }
 
-.input__button__shadow:hover
-.input__button__shadow:focus {
-    background: #1976d2;
-    transform: translateZ(10px) translateX(-5px) translateY(-5px);
-    box-shadow: 5px 5px 0 0 #000;
-}
-
-.input__button__shadow svg {
-    fill: #000;
-    width: 25px;
-    height: 25px;
+.toolbar :deep(.v-btn:hover) {
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .chat_input {
     width: 100%;
     outline: none;
-    border: 3px solid #000;
-    padding: 15px;
-    font-size: 18px;
-    background: #fff;
-    color: #000;
-    transform: translateZ(10px);
-    transition: all 400ms cubic-bezier(0.23, 1, 0.32, 1);
-    position: relative;
-    z-index: 3;
-    font-family: "Roboto", Arial, sans-serif;
-    letter-spacing: -0.5px;
+    border: none;
+    padding: 14px 16px;
+    font-size: 15px;
+    background: #2c2c2e;
+    color: #fff;
+    border-radius: 10px;
+    transition: all 200ms ease;
+    font-family: inherit;
 }
 
 .chat_input::placeholder {
-    color: #666;
-    font-weight: bold;
+    color: rgba(255, 255, 255, 0.4);
 }
 
-.chat_input:hover,
 .chat_input:focus {
-    background: #f0f0f0;
-    transform: translateZ(20px) translateX(-5px) translateY(-5px);
-    box-shadow: 5px 5px 0 0 #000;
+    background: #323234;
+    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.5);
 }
+
 .send-button-container {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 5px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.send-button-container :deep(.v-btn) {
+    min-width: 70px;
+    border-radius: 10px;
+    font-weight: 500;
 }
 </style>

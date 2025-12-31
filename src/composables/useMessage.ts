@@ -32,9 +32,10 @@ import { useChatStore } from '@/stores/chatStore'
 import { useFriendStore } from '@/stores/friendStore'
 import { type MessageStoreType, useMessageStore } from '@/stores/messageStore'
 import { useUserStore } from '@/stores/userStore'
-import { batchApiResponseToLocalMessages, createTextMessage, LocalMessage, MessageStatus } from '@/types/message'
+import { batchApiResponseToLocalMessages, createFileMessage, createTextMessage, LocalMessage, MessageStatus } from '@/types/message'
 import { MessageType } from '@/types/websocket'
 import { useChat } from './useChat'
+import { useFile } from './useFile'
 import { useFriend } from './useFriend'
 import { useUser } from './useUser'
 
@@ -266,6 +267,82 @@ export function useMessage () {
   }
 
   /**
+   * 发送文件消息
+   *
+   * 流程：
+   * 1. 上传文件（带进度追踪）
+   * 2. 创建文件消息
+   * 3. 添加到 messageStore（立即显示）
+   * 4. 通过 WebSocket 发送
+   * 5. 加入队列等待 ACK
+   */
+  const sendFileMessage = async (file: File, fileType: 'image' | 'file' = 'file') => {
+    try {
+      // 检查是否有激活的聊天
+      if (!activeChatId.value) {
+        showError('请先选择一个聊天')
+        return
+      }
+
+      // 获取当前聊天信息
+      const chatId = activeChatId.value
+      const chatType = activeChatType.value === 'private' ? 'private' : 'group'
+      const receiverId = getReceiverId(chatId, chatType)
+
+      // 获取上传函数
+      const { uploadFile } = useFile()
+
+      // 上传文件
+      const uploadResult = await uploadFile(file, {
+        fileType,
+        onProgress: (progress: number) => {
+          console.log(`Upload progress: ${progress}%`)
+        },
+      })
+
+      // 创建文件消息
+      const message = createFileMessage(
+        chatType === 'private' ? MessageType.PRIVATE : MessageType.MESGROUP,
+        getCurrentUserId(),
+        getCurrentUsername(),
+        getCurrentUserAvatar(),
+        receiverId,
+        uploadResult.file_id,
+        uploadResult.display_name,
+        uploadResult.url || '',
+        chatId,
+        true,
+        uploadResult.file_size,
+        uploadResult.mime_type,
+      )
+
+      // 添加到 store（立即显示）
+      messageStore.addMessage(chatId, message, chatType)
+
+      // 更新会话最新消息
+      const chatStore = useChatStore()
+      const messageContent = formatMessageContent(message)
+      chatStore.updateChatLastMessage(chatId, messageContent)
+
+      // 通过 WebSocket 发送
+      websocketService.send(message)
+
+      // 加入队列等待 ACK
+      if (message.type === 'Private' || message.type === 'MesGroup') {
+        message.sendStatus = MessageStatus.SENDING
+        addToQueue(message)
+        startQueueProcessing()
+      }
+
+      return message.payload.message_id
+    } catch (error) {
+      console.error('发送文件消息失败:', error)
+      showError('文件发送失败，请重试')
+      throw error
+    }
+  }
+
+  /**
    * 加载历史消息
    *
    * 执行流程：
@@ -313,27 +390,23 @@ export function useMessage () {
       const currentPage = currentPagination?.page || 0
       const pageSize = currentPagination?.pageSize || 20
 
-      // 计算偏移量：每页大小 * 当前页码
-      const offset = loadMore ? currentPage * pageSize : 0
+      // 后端的offset实际上是page（页码），从0开始
+      // 首次加载：page=0，加载更多：page=currentPage
+      const offset = loadMore ? currentPage : 0
 
       // 调用服务层获取历史消息
-      let messages: any[] = []
-      if (type === 'private') {
-        messages = await messageService.fetchHistoryPrivateMessages(
-          chatId,
-          pageSize,
-          offset,
-        )
-      } else if (type === 'group') {
-        messages = await messageService.fetchHistoryGroupMessages(
-          chatId,
-          pageSize,
-          offset,
-        )
-      }
+      const result = type === 'private'
+        ? await messageService.fetchHistoryPrivateMessages(chatId, pageSize, offset)
+        : await messageService.fetchHistoryGroupMessages(chatId, pageSize, offset)
 
       // 将获取到的消息转换为 LocalMessage
-      const localMessages = batchApiResponseToLocalMessages(messages, authStore.userId)
+      const localMessages = batchApiResponseToLocalMessages(result.messages, authStore.userId)
+
+      // 使用后端返回的分页信息判断是否还有更多
+      // 后端 totalPages 从 1 开始，currentPage 从 0 开始
+      // 例如：totalPages=2，currentPage 可能是 0 或 1
+      // 当 currentPage + 1 < totalPages 时，说明还有更多页
+      const hasMoreMessages = result.currentPage + 1 < result.totalPages
 
       // 按时间戳排序（旧消息在前，新消息在后）
       localMessages.sort((a, b) =>
@@ -346,22 +419,21 @@ export function useMessage () {
         messageStore.addHistoryMessages(chatId, localMessages, type, loadMore)
 
         // 更新分页信息
-        const hasMore = localMessages.length === pageSize // 如果返回的消息数等于pageSize，可能还有更多
         messageStore.updatePagination(chatId, {
           page: currentPage + 1,
           pageSize,
-          hasMore,
+          hasMore: hasMoreMessages,
           oldestMessageId: localMessages[0]?.payload.message_id,
           newestMessageId: localMessages[localMessages.length - 1]?.payload.message_id,
         })
 
         // 首次加载且没有更多消息时，标记为已完整加载
-        if (!loadMore && !hasMore) {
+        if (!loadMore && !hasMoreMessages) {
           messageStore.setHistoryFullyLoaded(chatId, true)
           console.log(`聊天 ${chatId} 历史加载完成，已标记为完整加载`)
         }
 
-        console.log(`成功加载${type}聊天${chatId}的${localMessages.length}条历史消息（第${currentPage + 1}页，hasMore: ${hasMore}）`)
+        console.log(`成功加载${type}聊天${chatId}的${localMessages.length}条历史消息（第${currentPage + 1}页，总页数: ${result.totalPages}，当前页: ${result.currentPage}，hasMore: ${hasMoreMessages}）`)
       } else {
         // 没有更多消息了
         messageStore.updatePagination(chatId, {
@@ -596,6 +668,7 @@ export function useMessage () {
 
     // 核心方法
     sendTextMessage,
+    sendFileMessage,
     loadHistoryMessages,
     markAsRead,
     resendMessage,

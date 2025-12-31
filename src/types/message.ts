@@ -202,12 +202,17 @@ export function apiMessageToLocal (
   sendStatus?: MessageStatus,
   userIsSender?: boolean,
 ): LocalMessage {
-  return new LocalMessage(
+  const localMessage = new LocalMessage(
     apiMessage.type,
     apiMessage.payload,
     sendStatus || MessageStatus.SENT,
     userIsSender || false,
   )
+  // 保留 API 返回的状态字段
+  localMessage.is_read = apiMessage.is_read
+  localMessage.is_revoked = apiMessage.is_revoked
+  localMessage.read_count = apiMessage.read_count
+  return localMessage
 }
 
 /**
@@ -328,6 +333,48 @@ export function createTextMessage (
     is_announcement: is_announcement ?? false,
     mentioned_uids: mentioned_uids ?? null,
     quote_msg_id: quote_msg_id ?? null,
+  }
+
+  return new LocalMessage(type, payload, MessageStatus.PENDING, userIsSender)
+}
+
+/**
+ * 创建文件消息的便捷函数
+ * 注意：message_id 和 timestamp 会自动生成
+ */
+export function createFileMessage (
+  type: MessageType.PRIVATE | MessageType.MESGROUP,
+  sender_id: string,
+  sender_name: string,
+  sender_avatar: string,
+  receiver_id: string,
+  file_id: string,
+  file_name: string,
+  file_url: string,
+  chat_id: string,
+  userIsSender?: boolean,
+  file_size?: number,
+  mime_type?: string,
+): LocalMessage {
+  // 根据MIME类型判断内容类型
+  const contentType = mime_type?.startsWith('image/')
+    ? ContentType.IMAGE
+    : ContentType.FILE
+
+  // detail字段：对于文件，使用 file_id（与图片消息使用URL的方式一致）
+  const detail = file_id
+
+  const payload: BasePayload = {
+    sender_id,
+    sender_name,
+    sender_avatar,
+    receiver_id,
+    chat_id,
+    content_type: contentType,
+    detail,
+    is_announcement: false,
+    mentioned_uids: null,
+    quote_msg_id: null,
   }
 
   return new LocalMessage(type, payload, MessageStatus.PENDING, userIsSender)

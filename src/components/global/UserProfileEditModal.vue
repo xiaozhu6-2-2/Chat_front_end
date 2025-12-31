@@ -31,7 +31,7 @@
                   clickable
                   :name="form.name || '用户'"
                   :size="100"
-                  :url="form.avatar"
+                  :url="avatarPreview || form.avatar"
                   @click="triggerFileInput"
                 />
                 <!-- 头像上传提示 -->
@@ -61,7 +61,7 @@
                   点击头像或相机图标上传新头像
                 </p>
                 <p class="text-caption text-medium-emphasis mt-1">
-                  支持 JPG、PNG 格式，文件大小不超过 2MB
+                  支持 JPG、PNG 格式，文件大小不超过 10MB
                 </p>
               </div>
             </div>
@@ -219,8 +219,11 @@
   import type { UserProfileUpdateOptions } from '../../types/user'
   import { computed, reactive, ref, watch } from 'vue'
   import { useUser } from '../../composables/useUser'
+  import { useFile } from '../../composables/useFile'
+  import { useSnackbar } from '../../composables/useSnackbar'
   import { useAuthStore } from '../../stores/authStore'
   import { useUserStore } from '../../stores/userStore'
+  import { userService } from '../../service/userService'
   import Avatar from './Avatar.vue'
 
   defineOptions({
@@ -252,6 +255,12 @@
   const saving = ref(false)
   const selectedFile = ref<File | null>(null)
   const avatarPreview = ref<string>('')
+
+  // 文件模块
+  const { uploadFile } = useFile()
+
+  // 消息提示
+  const { showSuccess, showError, showInfo } = useSnackbar()
 
   // 表单数据
   const form = reactive({
@@ -326,8 +335,9 @@
       || form.gender !== originalForm.gender
       || form.region !== originalForm.region
       || form.email !== originalForm.email
-      || form.avatar !== originalForm.avatar
+      // || form.avatar !== originalForm.avatar
       || form.bio !== originalForm.bio
+      || !!selectedFile.value  // 检查是否选择了新头像
     )
   })
 
@@ -403,21 +413,17 @@
       return
     }
 
-    // 验证文件大小（2MB）
-    if (file.size > 2 * 1024 * 1024) {
-      alert('图片大小不能超过 2MB')
+    // 验证文件大小（10MB，使用文件模块的限制）
+    if (file.size > 10 * 1024 * 1024) {
+      alert('图片大小不能超过 10MB')
       return
     }
 
     selectedFile.value = file
 
-    // 创建预览
-    const reader = new FileReader()
-    reader.addEventListener('load', e => {
-      avatarPreview.value = e.target?.result as string
-      form.avatar = avatarPreview.value
-    })
-    reader.readAsDataURL(file)
+    // 创建本地预览（使用 URL.createObjectURL 更高效）
+    avatarPreview.value = URL.createObjectURL(file)
+    // form.avatar 保持原有的 fileId，等上传成功后再更新
   }
 
   function removeAvatar () {
@@ -435,37 +441,77 @@
     saving.value = true
 
     try {
+      let avatarFileId = form.avatar
+      let hasNewAvatar = false
+
+      // 如果选择了新头像，先上传
+      if (selectedFile.value) {
+        try {
+          showInfo('正在上传头像...')
+
+          // 使用文件模块上传头像
+          const uploadResult = await uploadFile(selectedFile.value, {
+            fileName: `avatar_${form.name}_${Date.now()}`,
+            fileType: 'image',
+          })
+
+          avatarFileId = uploadResult.file_id
+          hasNewAvatar = true
+          showSuccess('头像上传成功')
+        } catch (error: any) {
+          console.error('头像上传失败:', error)
+          showError('头像上传失败: ' + (error.message || '未知错误'))
+          return
+        }
+      }
+
       // 准备更新数据
       const updates: UserProfileUpdateOptions = {
         username: form.name,
         gender: form.gender,
         region: form.region,
         email: form.email,
-        avatar: form.avatar,
+        avatar: avatarFileId,
         bio: form.bio,
       }
 
-      console.log(updates)
-      // 更新用户资料 todo
-
-      const success = await User.updateUserProfile(updates)
-      if (success) {
-        // 更新原始数据备份
-        Object.assign(originalForm, {
-          name: form.name,
-          gender: form.gender,
-          region: form.region,
-          email: form.email,
-          avatar: form.avatar,
-          bio: form.bio,
-        })
-
-        // 关闭对话框
-        dialog.value = false
+      console.log('更新用户资料:', updates)
+      // 如果上传了新头像，需要调用 updateUserAvatar 接口
+      if (hasNewAvatar && avatarFileId) {
+        try {
+          await userService.updateUserAvatar(avatarFileId)
+          showSuccess('头像更新成功')
+        } catch (error: any) {
+          console.error('头像更新失败:', error)
+          showError('头像更新失败: ' + (error.message || '未知错误'))
+          return
+        }
       }
+      // 更新用户资料
+      await User.updateUserProfile(updates)
+      
+      // 更新 form.avatar 为新的 fileId
+      form.avatar = avatarFileId
+
+      // 更新原始数据备份
+      Object.assign(originalForm, {
+        name: form.name,
+        gender: form.gender,
+        region: form.region,
+        email: form.email,
+        avatar: avatarFileId,
+        bio: form.bio,
+      })
+
+      // 清空选中的文件
+      selectedFile.value = null
+      avatarPreview.value = ''
+
+      // 关闭对话框
+      dialog.value = false
     } catch (error) {
       console.error('保存用户资料失败:', error)
-      alert('保存失败，请重试')
+      showError('保存失败，请重试')
     } finally {
       saving.value = false
     }
@@ -525,15 +571,15 @@
 
 .avatar-edit-btn {
   position: absolute;
-  bottom: 0;
-  right: 0;
+  bottom: -15px;
+  right: -15px;
   z-index: 1;
 }
 
 .avatar-delete-btn {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: -15px;
+  right: -15px;
   z-index: 1;
 }
 

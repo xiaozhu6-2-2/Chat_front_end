@@ -84,3 +84,30 @@ export interface BaseProfile {
   name: string
   avatar: string
 }
+
+/** 编辑好友对话框 Props */
+export interface EditFriendModalProps {
+  modelValue: boolean
+  friend: FriendWithUserInfo
+}
+
+/** 编辑好友对话框 Emits */
+export interface EditFriendModalEmits {
+  (e: 'update:modelValue', value: boolean): void
+  (e: 'save', data: {
+    friendId: string
+    remark: string
+    tag: string | null
+    isBlacklisted: boolean
+  }): void
+  (e: 'delete', friendId: string): void
+  (e: 'cancel'): void
+}
+
+/** 编辑好友保存数据类型 */
+export interface EditFriendSaveData {
+  friendId: string
+  remark: string
+  tag: string | null
+  isBlacklisted: boolean
+}

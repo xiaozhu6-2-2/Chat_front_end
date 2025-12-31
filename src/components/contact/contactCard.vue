@@ -4,8 +4,13 @@
     <v-card v-if="detailedProfile" class="mx-auto" max-width="400">
       <v-card-item>
         <div class="contact-header">
-          <div class="avatar-large">
-            {{ detailedProfile.name.charAt(0) }}
+          <div>
+            <Avatar
+              avatar-class="profile-avatar"
+              :name="detailedProfile.name || '用户'"
+              :size="70"
+              :url="detailedProfile.avatar"
+            />
           </div>
           <div class="contact-info">
             <v-card-title>{{ detailedProfile.name }}</v-card-title>
@@ -66,8 +71,25 @@
         <v-btn color="primary" prepend-icon="mdi-message" @click="handleSendMessage">
           发送消息
         </v-btn>
+        <v-btn
+          v-if="isContactFriend"
+          color="primary"
+          prepend-icon="mdi-pencil"
+          @click="openEditModal"
+        >
+          编辑好友
+        </v-btn>
       </v-card-actions>
     </v-card>
+
+    <!-- 编辑好友对话框 -->
+    <EditFriendModal
+      v-if="detailedProfile"
+      v-model="showEditModal"
+      :friend="detailedProfile"
+      @save="handleFriendSave"
+      @delete="handleFriendDelete"
+    />
 
     <!-- 未加载时显示加载状态 -->
     <v-card v-else class="mx-auto" max-width="400">
@@ -86,19 +108,32 @@
 </template>
 
   <script setup lang="ts">
+  import EditFriendModal from '../global/EditFriendModal.vue'
   import type { ChatType } from '../../types/chat'
-  import type { ContactCardProps, FriendWithUserInfo } from '../../types/friend'
-  import { onMounted, ref, watch } from 'vue'
+  import type { ContactCardProps, ContactCardEmits, FriendWithUserInfo } from '../../types/friend'
+  import { computed, onMounted, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { useChat } from '../../composables/useChat'
   import { useFriend } from '../../composables/useFriend'
   import { useSnackbar } from '../../composables/useSnackbar'
 
   const props = defineProps<ContactCardProps>()
-  const { getFriendProfile } = useFriend()
+  const { getFriendProfile, checkUserRelation, updateFriendProfile, removeFriend } = useFriend()
   const { showError } = useSnackbar()
   const { createChat, selectChat } = useChat()
   const router = useRouter()
+
+  // 编辑好友对话框状态
+  const showEditModal = ref(false)
+
+  // 判断是否为好友
+  const isContactFriend = computed(() => {
+    return detailedProfile.value
+      ? checkUserRelation(detailedProfile.value.id).isFriend
+      : false
+  })
+  
+  const emit = defineEmits<ContactCardEmits>()
 
   // 发送消息处理函数
   async function handleSendMessage () {
@@ -116,6 +151,41 @@
     } catch (error) {
       console.error('创建私聊失败:', error)
       showError('创建私聊失败，请重试')
+    }
+  }
+
+  // 打开编辑好友对话框
+  function openEditModal() {
+    showEditModal.value = true
+  }
+
+  // 处理保存好友信息
+  async function handleFriendSave(data: { friendId: string; remark: string; tag: string | null; isBlacklisted: boolean }) {
+    try {
+      await updateFriendProfile(data.friendId, {
+        remark: data.remark,
+        tag: data.tag || undefined,
+        isBlacklisted: data.isBlacklisted,
+      })
+      // 刷新好友数据
+      await fetchDetailedProfile()
+    } catch (error) {
+      showError('更新好友资料失败')
+    }
+  }
+
+  // 处理删除好友
+  async function handleFriendDelete(friendId: string) {
+    try {
+      await removeFriend(friendId)
+      // 先通知父组件清除 activeItem
+      emit("delete")
+      // 延迟跳转，确保父组件收到事件
+      setTimeout(() => {
+        router.push('/contact')
+      }, 100)
+    } catch (error) {
+      showError('删除好友失败')
     }
   }
 
@@ -186,7 +256,7 @@
     gap: 16px;
   }
 
-  .avatar-large {
+  /* .avatar-large {
     width: 60px;
     height: 60px;
     border-radius: 8px;
@@ -197,7 +267,7 @@
     color: white;
     font-size: 24px;
     font-weight: bold;
-  }
+  } */
 
   .contact-info {
     flex: 1;

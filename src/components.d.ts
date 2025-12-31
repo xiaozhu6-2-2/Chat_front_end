@@ -18,6 +18,7 @@ declare module 'vue' {
     EchatInput: typeof import('./components/chat/echatInput.vue')['default']
     EchatLoading: typeof import('./components/global/echatLoading.vue')['default']
     EchatWelcome: typeof import('./components/global/echatWelcome.vue')['default']
+    EditFriendModal: typeof import('./components/global/EditFriendModal.vue')['default']
     FeatureList: typeof import('./components/global/FeatureList.vue')['default']
     FriendRequestItem: typeof import('./components/friend/FriendRequestItem.vue')['default']
     FriendRequestPanel: typeof import('./components/friend/FriendRequestPanel.vue')['default']

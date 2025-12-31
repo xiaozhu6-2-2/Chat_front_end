@@ -7,7 +7,11 @@
           <!-- 头像区域 -->
           <div class="avatar-container">
             <template v-if="currentUser">
-              <ContactCardModal v-model="showContactCard" :contact="currentUser as any" @edit-profile="handleEditProfile">
+              <ContactCardModal
+                v-model="showContactCard"
+                :contact="currentUser as any"
+                @edit-profile="handleEditProfile"
+              >
                 <template #activator="{ props }">
                   <Avatar
                     :clickable="true"
@@ -41,9 +45,13 @@
                   variant="text"
                   @click="navigateTo('/home')"
                 >
-                  <v-img aspect-ratio="1/1" class="fixed-size-image" src="@/assets/echatlogo.png" :width="32" />
+                  <v-img
+                    aspect-ratio="1/1"
+                    class="fixed-size-image"
+                    src="@/assets/echatlogo.png"
+                    :width="32"
+                  />
                 </v-btn>
-                <v-badge v-if="unreadCount.chat > 0" class="badge" color="error" :content="unreadCount.chat" />
               </v-list-item>
               <v-list-item class="nav-item">
                 <v-btn
@@ -55,7 +63,12 @@
                 >
                   <v-icon size="x-large">mdi-forum</v-icon>
                 </v-btn>
-                <v-badge v-if="unreadCount.chat > 0" class="badge" color="error" :content="unreadCount.chat" />
+                <v-badge
+                  v-if="chatStore.totalUnreadCount > 0"
+                  class="badge"
+                  color="error"
+                  :content="chatStore.totalUnreadCount"
+                />
               </v-list-item>
               <v-list-item class="nav-item">
                 <v-btn
@@ -68,16 +81,21 @@
                   <v-icon size="x-large">mdi-account</v-icon>
                 </v-btn>
                 <v-badge
-                  v-if="unreadCount.contact > 0"
+                  v-if="pendingRequestsCount > 0"
                   class="badge"
                   color="error"
-                  :content="unreadCount.contact"
+                  :content="pendingRequestsCount"
                 />
               </v-list-item>
             </div>
 
             <v-list-item class="nav-item">
-              <v-btn class="nav-button" size="large" variant="text" @click="showSettingsDialog = true">
+              <v-btn
+                class="nav-button"
+                size="large"
+                variant="text"
+                @click="showSettingsDialog = true"
+              >
                 <v-icon size="x-large">mdi-cog</v-icon>
                 <v-badge
                   v-if="unreadCount.settings > 0"
@@ -101,42 +119,54 @@
 </template>
 
 <script setup lang="ts">
-  import { storeToRefs } from 'pinia'
-  import { reactive, ref } from 'vue'
-  import { useRoute, useRouter } from 'vue-router'
-  import Avatar from '../components/global/Avatar.vue'
-  import ContactCardModal from '../components/global/ContactCardModal.vue'
-  import UserProfileEditModal from '../components/global/UserProfileEditModal.vue'
-  import { useUserStore } from '../stores/userStore'
+import { storeToRefs } from "pinia";
+import { computed, reactive, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import Avatar from "../components/global/Avatar.vue";
+import ContactCardModal from "../components/global/ContactCardModal.vue";
+import UserProfileEditModal from "../components/global/UserProfileEditModal.vue";
+import { useChatStore } from "../stores/chatStore";
+import { useUserStore } from "../stores/userStore";
+import { useFriendRequestStore } from "../stores/friendRequestStore";
+import { useGroupRequestStore } from "../stores/groupRequestStore";
 
-  const router = useRouter()
-  const $route = useRoute()
-  const userStore = useUserStore()
-  const { currentUser } = storeToRefs(userStore)
-  // 模拟未读消息数量
-  const unreadCount = reactive({
-    chat: 0,
-    contact: 0,
-    settings: 0,
-  })
+const router = useRouter();
+const $route = useRoute();
+const userStore = useUserStore();
+const chatStore = useChatStore();
+const friendRequestStore = useFriendRequestStore();
+const groupRequestStore = useGroupRequestStore();
+const { currentUser } = storeToRefs(userStore);
 
-  // 默认设置页关闭
-  const showSettingsDialog = ref(false)
-  const showContactCard = ref(false)
-  // 控制模态框显示
-  const showProfileEditModal = ref(false)
-  // 处理编辑资料事件
-  function handleEditProfile () {
-    showProfileEditModal.value = true
-  }
-  function navigateTo (path: string) {
-    router.push(path)
-  }
+// 计算未处理请求总数 = 收到的好友请求 + 需要审核的群聊请求
+const pendingRequestsCount = computed(() => {
+  return friendRequestStore.pendingReceivedRequests.length +
+         groupRequestStore.pendingApprovalRequests.length;
+});
+
+// 模拟未读消息数量
+const unreadCount = reactive({
+  contact: 0,
+  settings: 0,
+});
+
+// 默认设置页关闭
+const showSettingsDialog = ref(false);
+const showContactCard = ref(false);
+// 控制模态框显示
+const showProfileEditModal = ref(false);
+// 处理编辑资料事件
+function handleEditProfile() {
+  showProfileEditModal.value = true;
+}
+function navigateTo(path: string) {
+  router.push(path);
+}
 </script>
 
 <style scoped>
 .sidebar {
-  background-color: #1A1A25 !important;
+  background-color: #1a1a25 !important;
   display: flex;
   flex-direction: column;
   padding: 20px 0;
@@ -192,7 +222,7 @@
 }
 
 .nav-button.active {
-  color: #1AAD19 !important;
+  color: #1aad19 !important;
 }
 
 .badge {

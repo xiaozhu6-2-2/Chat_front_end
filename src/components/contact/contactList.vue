@@ -35,7 +35,7 @@
       </v-list-group>
 
       <!-- 联系人分组 -->
-      <v-list-group v-model:opened="openGroups['联系人']" value="联系人">
+      <v-list-group :opened="openGroups['联系人']" @click="toggleGroup('联系人')" value="联系人">
         <template #activator="{ props }">
           <v-list-item v-bind="props" prepend-icon="mdi-account" title="联系人">
             <template #append>
@@ -46,6 +46,7 @@
                 density="compact"
                 mandatory
                 variant="outlined"
+                @click.stop
               >
                 <v-btn size="x-small" value="initial">
                   <v-icon icon="mdi-sort-alphabetical-descending-variant" size="12" />
@@ -74,8 +75,13 @@
             @click="setActiveItem(contact.id)"
           >
             <div class="contact_content">
-              <div class="contact-avatar">
-                {{ contact.name.charAt(0) }}
+              <div>
+                <Avatar
+                  avatar-class="profile-avatar"
+                  :name="contact.name || '用户'"
+                  :size="40"
+                  :url="contact.avatar"
+                />
               </div>
               <div class="d-flex flex-column align-start flex-grow-1">
                 <div class="contact-name">{{ contact.name }}</div>
@@ -93,11 +99,11 @@
           </v-list-item>
         </template>
 
-        <!-- 标签分组模式下显示空状态提示 -->
-        <div v-if="groupBy === 'tag' && Object.keys(currentGroupedContacts).length === 0" class="no-results">
-          <v-icon class="mb-2" icon="mdi-tag-off" size="24" />
-          <p>暂无带标签的联系人</p>
-          <p class="text-caption text-grey">为好友设置标签后，即可在此查看</p>
+        <!-- 空状态提示 -->
+        <div v-if="Object.keys(currentGroupedContacts).length === 0" class="no-results">
+          <v-icon class="mb-2" :icon="groupBy === 'tag' ? 'mdi-tag-off' : 'mdi-account-off'" size="24" />
+          <p>{{ groupBy === 'tag' ? '暂无带标签的联系人' : '暂无联系人' }}</p>
+          <p class="text-caption text-grey">{{ groupBy === 'tag' ? '为好友设置标签后，即可在此查看' : '添加好友后，即可在此查看' }}</p>
         </div>
       </v-list-group>
 
@@ -106,6 +112,13 @@
         class="contact-item add-friend-item"
         @click="navigateToAddFriend"
       >
+        <template #append>
+          <v-badge
+            v-if="totalPendingRequests > 0"
+            color="error"
+            :content="totalPendingRequests"
+          />
+        </template>
         <div class="contact_content">
           <div class="contact-avatar add-friend-avatar">
             <v-icon color="white" icon="mdi-account-plus" />
@@ -134,9 +147,12 @@
   import type { ContactListEmits } from '../../types/global'
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
+  import { pinyin } from 'pinyin-pro'
   import { useFriend } from '../../composables/useFriend'
   import { useGroup } from '../../composables/useGroup'
   import { useSnackbar } from '../../composables/useSnackbar'
+  import { useFriendRequestStore } from '../../stores/friendRequestStore'
+  import { useGroupRequestStore } from '../../stores/groupRequestStore'
   // 定义 emits
 
   const emit = defineEmits<ContactListEmits>()
@@ -145,7 +161,7 @@
   const router = useRouter()
   const { allGroups } = useGroup()
   // 用于展示在contactlist中的结构体
-  // 该结构体只再这个组件内使用，未泄露
+  // 该结构体只在这个组件内使用，未泄露
   interface Contact {
     id: string // 对应 friend.fid
     uid: string // 对应 friend.uid
@@ -172,6 +188,16 @@
   const { activeFriends, getFriendByUid } = useFriend()
   const { showError } = useSnackbar()
 
+  // 获取请求 store
+  const friendRequestStore = useFriendRequestStore()
+  const groupRequestStore = useGroupRequestStore()
+
+  // 未处理请求总数 = 收到的好友请求 + 需要审核的群聊请求
+  const totalPendingRequests = computed(() => {
+    return friendRequestStore.pendingReceivedRequests.length +
+           groupRequestStore.pendingApprovalRequests.length
+  })
+
   // 从usegroup拿到所在的群聊
   const groups = allGroups
 
@@ -189,9 +215,26 @@
 
   // 提取首字母的辅助函数
   function getInitial (name: string): string {
-    // 对于中文，提取第一个字符作为首字母
-    // 对于英文，提取首字母的大写形式
-    return name.charAt(0).toUpperCase()
+    if (!name) return '#'
+
+    const firstChar = name.charAt(0)
+
+    // 检查是否为英文字母
+    if (/^[a-zA-Z]$/.test(firstChar)) {
+      return firstChar.toUpperCase()
+    }
+
+    // 对于中文，使用拼音获取首字母
+    // pinyin 函数会返回中文字符的拼音
+    const pinyinResult = pinyin(firstChar, { pattern: 'first', toneType: 'none' })
+
+    // 如果成功获取拼音首字母，返回大写形式
+    if (pinyinResult && /^[a-zA-Z]$/.test(pinyinResult)) {
+      return pinyinResult.toUpperCase()
+    }
+
+    // 如果无法识别，返回 # 号作为默认分组
+    return '#'
   }
 
   // 计算属性 - 排序后的群聊

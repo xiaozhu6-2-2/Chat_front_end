@@ -49,7 +49,7 @@ export class FileServiceClass {
       const formData = createFileFormData(file, options)
 
       // 4. 发送上传请求
-      const response = await authApi.post<UploadResult>('/auth/file/upload', formData, {
+      const response = await authApi.post<UploadResult>('/file/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -80,7 +80,7 @@ export class FileServiceClass {
    */
   async getFileInfo (fileId: string): Promise<FileMetadata> {
     try {
-      const response = await authApi.post<FileMetadata>('/auth/file/preview', {
+      const response = await authApi.post<FileMetadata>('/file/preview', {
         file_id: fileId,
       })
 
@@ -102,7 +102,7 @@ export class FileServiceClass {
     onProgress?: (progress: number) => void,
   ): Promise<Blob> {
     try {
-      const response = await authApi.post('/auth/file/download', {
+      const response = await authApi.post('/file/download', {
         file_id: fileId,
       }, {
         responseType: 'blob',
@@ -128,7 +128,7 @@ export class FileServiceClass {
    */
   async deleteFile (fileId: string): Promise<{ success: boolean }> {
     try {
-      const response = await authApi.post('/auth/file/delete', {
+      const response = await authApi.post('/file/delete', {
         file_id: fileId,
       })
 
@@ -155,7 +155,7 @@ export class FileServiceClass {
     const fileType = metadata.file_type.toLowerCase()
 
     // 图片文件使用原始URL
-    if (fileType === 'image' || metadata.mime_type.startsWith('image/')) {
+    if (fileType === 'image' || (metadata.mime_type && metadata.mime_type.startsWith('image/'))) {
       return `${import.meta.env.VITE_API_BASE_URL}/auth/file/preview/${fileId}`
     }
 
@@ -175,10 +175,10 @@ export class FileServiceClass {
    */
   canPreviewOnline (metadata: FileMetadata): boolean {
     const fileType = metadata.file_type.toLowerCase()
-    const mimeType = metadata.mime_type.toLowerCase()
+    const mimeType = metadata.mime_type?.toLowerCase()
 
     // 图片文件总是支持预览
-    if (mimeType.startsWith('image/')) {
+    if (mimeType && mimeType.startsWith('image/')) {
       return true
     }
 
