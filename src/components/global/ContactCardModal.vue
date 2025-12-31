@@ -92,11 +92,11 @@
             </v-list-item>
 
             <!-- 添加时间 -->
-            <v-list-item prepend-icon="mdi-calendar" title="添加时间">
+            <!-- <v-list-item prepend-icon="mdi-calendar" title="添加时间">
               <template #subtitle>
                 {{ formatDate(contactInfo.createTime) }}
               </template>
-            </v-list-item>
+            </v-list-item> -->
 
             <!-- 黑名单状态（如果是好友） -->
             <v-list-item v-if="isContactFriend" prepend-icon="mdi-block-helper" title="黑名单">

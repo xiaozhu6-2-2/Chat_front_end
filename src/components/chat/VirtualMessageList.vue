@@ -72,18 +72,20 @@
 
   // 检查是否接近底部
   function checkIsNearBottom () {
-    if (!virtualScrollRef.value) return
+    if (!virtualScrollRef.value) return false
 
     const scrollElement = virtualScrollRef.value.$el
-    if (!scrollElement) return
+    if (!scrollElement) return false
 
     const { scrollTop, scrollHeight, clientHeight } = scrollElement
-    const threshold = 0 // 距离底部100px认为接近底部
+    const threshold = 0 // 距离底部0px认为接近底部
 
     isNearBottom.value = scrollTop + clientHeight >= scrollHeight - threshold
     showScrollToBottom.value = !isNearBottom.value
 
     emit('scrollNearBottom', isNearBottom.value)
+
+    return isNearBottom.value
   }
 
   // 检查是否接近顶部
@@ -114,14 +116,30 @@
 
   // 滚动到底部
   async function scrollToBottom () {
-    await nextTick()
-    if (virtualScrollRef.value && props.messages.length > 0) {
+    if (!virtualScrollRef.value || props.messages.length === 0) return
+
+    // 禁用滚动事件处理，防止触发其他逻辑
+    shouldHandleScroll.value = false
+
+    // 多次尝试滚动，确保到达底部
+    for (let i = 0; i < 3; i++) {
+      await nextTick()
+      await new Promise(resolve => setTimeout(resolve, 50))
+
       const scrollContainer = virtualScrollRef.value.$el
       if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight
+        // 滚动到超过底部的位置，确保能看到最后一条消息
+        scrollContainer.scrollTop = scrollContainer.scrollHeight + 1000
       }
-      showScrollToBottom.value = false
     }
+
+    showScrollToBottom.value = false
+    isNearBottom.value = true
+
+    // 延迟恢复滚动事件处理
+    setTimeout(() => {
+      shouldHandleScroll.value = true
+    }, 100)
   }
 
   // 直接设置滚动位置到底部（不触发滚动事件）

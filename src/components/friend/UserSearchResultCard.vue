@@ -3,9 +3,12 @@
     <v-card-text class="pa-4">
       <!-- 用户信息 -->
       <div class="d-flex align-center mb-3">
-        <v-avatar class="mr-3" :image="user.avatar" size="48">
-          <v-icon v-if="!user.avatar" icon="mdi-account" size="24" />
-        </v-avatar>
+        <Avatar
+          class="mr-3"
+          :name="user.username || '用户'"
+          :size="48"
+          :url="user.avatar"
+        />
 
         <div class="flex-grow-1">
           <h3 class="text-subtitle-1 font-weight-medium mb-1">
@@ -160,9 +163,12 @@
     <v-dialog v-model="showProfileDialog" max-width="500">
       <v-card>
         <v-card-title class="d-flex align-center">
-          <v-avatar class="mr-3" :image="user.avatar" size="40">
-            <v-icon v-if="!user.avatar" icon="mdi-account" />
-          </v-avatar>
+          <Avatar
+            class="mr-3"
+            :name="user.username || '用户'"
+            :size="40"
+            :url="user.avatar"
+          />
           {{ user.username }} 的资料
         </v-card-title>
 

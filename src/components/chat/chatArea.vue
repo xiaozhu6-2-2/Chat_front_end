@@ -188,6 +188,8 @@
 
   // 用于跟踪是否刚切换了聊天
   const justSwitchedChat = ref(false)
+  // 用于跟踪是否正在发送消息（自己发送消息时不显示"有新消息"提示）
+  const isSendingLocalMessage = ref(false)
 
   // 监听聊天切换，重置状态并等待加载完成后滚动到底部
   watch(() => activeChatId.value, async (newChatId) => {
@@ -210,7 +212,10 @@
 
     setTimeout(() => {
       virtualMessageList.value?.setScrollToBottomDirectly()
-      justSwitchedChat.value = false
+      // 延迟恢复 justSwitchedChat 状态，防止滚动过程中触发加载历史消息
+      setTimeout(() => {
+        justSwitchedChat.value = false
+      }, 300)
     }, 150)
   }, { immediate: true })
 
@@ -223,10 +228,27 @@
         return
       }
 
+      // 跳过自己发送消息的情况
+      if (isSendingLocalMessage.value) {
+        return
+      }
+
       // 跳过消息删除的情况
       if (newLength <= oldLength) {
         return
       }
+
+      // 等待 DOM 更新和虚拟滚动组件渲染完成
+      await nextTick()
+
+      // 使用 requestAnimationFrame 确保浏览器已完成渲染
+      await new Promise(resolve => requestAnimationFrame(resolve))
+
+      // 再等待一帧，确保虚拟滚动组件完全更新
+      await new Promise(resolve => requestAnimationFrame(resolve))
+
+      // 额外短暂延迟，确保滚动高度已计算完成
+      await new Promise(resolve => setTimeout(resolve, 100))
 
       // 检查用户是否在底部附近
       const isNearBottom = virtualMessageList.value?.checkIsNearBottom?.() ?? true
@@ -251,7 +273,7 @@
 
   // 处理虚拟滚动接近顶部事件
   async function handleScrollNearTop (isNearTop: boolean) {
-    if (!isNearTop || !hasMore.value || isLoadingMore.value || loading.value || !activeChatId.value) {
+    if (!isNearTop || !hasMore.value || isLoadingMore.value || loading.value || !activeChatId.value || justSwitchedChat.value) {
       return
     }
 
@@ -307,6 +329,8 @@
     if (!inputMessage.value.trim() || isSending.value) return
 
     isSending.value = true
+    // 标记正在发送消息，避免触发"有新消息"提示
+    isSendingLocalMessage.value = true
     try {
       await sendTextMessage(inputMessage.value)
       inputMessage.value = ''
@@ -320,6 +344,10 @@
       console.error('Failed to send message:', error)
     } finally {
       isSending.value = false
+      // 延迟重置标志，确保 watch 已经完成检查
+      setTimeout(() => {
+        isSendingLocalMessage.value = false
+      }, 300)
     }
   }
 
@@ -353,6 +381,8 @@
       return
     }
 
+    // 标记正在发送消息，避免触发"有新消息"提示
+    isSendingLocalMessage.value = true
     try {
       isUploading.value = true
       uploadingFileName.value = file.name
@@ -375,6 +405,10 @@
       isUploading.value = false
       uploadProgress.value = 0
       uploadingFileName.value = ''
+      // 延迟重置标志，确保 watch 已经完成检查
+      setTimeout(() => {
+        isSendingLocalMessage.value = false
+      }, 300)
     }
   }
 

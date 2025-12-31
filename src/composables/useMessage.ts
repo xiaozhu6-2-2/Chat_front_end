@@ -702,6 +702,9 @@ export function useMessage () {
         // 2. 增加未读数（仅当不是当前激活的会话时）
         if (activeChatId.value !== localMessage.payload.chat_id) {
           chatStore.incrementUnreadCount(localMessage.payload.chat_id)
+        } else {
+          // 如果是当前激活的会话，自动标记为已读
+          markAsRead(localMessage.payload.chat_id, localMessage.payload.timestamp)
         }
       }
 

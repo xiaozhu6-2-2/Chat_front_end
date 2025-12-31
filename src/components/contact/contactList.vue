@@ -35,7 +35,7 @@
       </v-list-group>
 
       <!-- 联系人分组 -->
-      <v-list-group v-model:opened="openGroups['联系人']" value="联系人">
+      <v-list-group :opened="openGroups['联系人']" @click="toggleGroup('联系人')" value="联系人">
         <template #activator="{ props }">
           <v-list-item v-bind="props" prepend-icon="mdi-account" title="联系人">
             <template #append>
@@ -46,6 +46,7 @@
                 density="compact"
                 mandatory
                 variant="outlined"
+                @click.stop
               >
                 <v-btn size="x-small" value="initial">
                   <v-icon icon="mdi-sort-alphabetical-descending-variant" size="12" />
@@ -98,11 +99,11 @@
           </v-list-item>
         </template>
 
-        <!-- 标签分组模式下显示空状态提示 -->
-        <div v-if="groupBy === 'tag' && Object.keys(currentGroupedContacts).length === 0" class="no-results">
-          <v-icon class="mb-2" icon="mdi-tag-off" size="24" />
-          <p>暂无带标签的联系人</p>
-          <p class="text-caption text-grey">为好友设置标签后，即可在此查看</p>
+        <!-- 空状态提示 -->
+        <div v-if="Object.keys(currentGroupedContacts).length === 0" class="no-results">
+          <v-icon class="mb-2" :icon="groupBy === 'tag' ? 'mdi-tag-off' : 'mdi-account-off'" size="24" />
+          <p>{{ groupBy === 'tag' ? '暂无带标签的联系人' : '暂无联系人' }}</p>
+          <p class="text-caption text-grey">{{ groupBy === 'tag' ? '为好友设置标签后，即可在此查看' : '添加好友后，即可在此查看' }}</p>
         </div>
       </v-list-group>
 
