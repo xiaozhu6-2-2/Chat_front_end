@@ -155,6 +155,24 @@ export const useFriendStore = defineStore('friend', () => {
     setFriends(friendList)
   }
 
+  /**
+   * 批量更新好友在线状态
+   * @param onlineUserIds 在线用户ID列表
+   */
+  const batchUpdateOnlineState = (onlineUserIds: string[]) => {
+    const onlineSet = new Set(onlineUserIds)
+
+    for (const [fid, friend] of friends.value) {
+      const isOnline = onlineSet.has(friend.id)
+      // 只有状态变化时才更新
+      if (friend.online_state !== isOnline) {
+        friend.online_state = isOnline
+      }
+    }
+
+    console.log(`friendStore: 更新在线状态，${onlineUserIds.length} 个在线`)
+  }
+
   // 获取黑名单列表
   const blacklistedFriends = computed(() => {
     return Array.from(friends.value.values())
@@ -186,6 +204,7 @@ export const useFriendStore = defineStore('friend', () => {
     updateFriendProfile,
     setFriends,
     setFriendsFromApi, // 新增：从API响应设置好友列表
+    batchUpdateOnlineState, // 新增：批量更新在线状态
     reset,
     // 标签相关actions
     updateFriendTag,

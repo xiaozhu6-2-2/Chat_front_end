@@ -31,7 +31,7 @@ export interface BasePayload {
   // 消息元数据
   message_id?: string // 消息ID
   chat_id?: string // pid 或 gid
-  timestamp?: number // send_time 的毫秒时间戳
+  timestamp?: number // send_time 的秒级时间戳
 
   // 发送者信息
   sender_id?: string // sender_id

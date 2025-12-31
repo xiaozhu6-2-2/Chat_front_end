@@ -452,6 +452,44 @@ export const useMessageStore = defineStore('message', () => {
   }
 
   /**
+   * 标记指定时间戳之前的消息为已读
+   * @param chatId 聊天ID
+   * @param readTime 已读时间戳（秒级），该时间之前的消息均标记为已读
+   * @param type 消息类型（可选，不传则在私聊和群聊中都查找）
+   *
+   * 乐观更新策略：从新往旧遍历，遇到已读消息就停止
+   */
+  const markMessagesAsReadBeforeTime = (chatId: string, readTime: number, type?: MessageStoreType) => {
+    const mapsToCheck = type
+      ? (type === 'private' ? [privateMessages.value] : [groupMessages.value])
+      : [privateMessages.value, groupMessages.value]
+
+    let markedCount = 0
+    for (const map of mapsToCheck) {
+      const messages = map.get(chatId)
+      if (messages) {
+        // 从新往旧遍历（消息数组按时间倒序，最新的在前）
+        for (const message of messages) {
+          // 遇到已读消息，停止遍历（更早的消息都已读）
+          if (message.is_read) {
+            break
+          }
+
+          // 只标记别人发送的、时间在 readTime 之前的消息
+          if (!message.userIsSender && message.payload.send_time && message.payload.send_time <= readTime) {
+            message.is_read = true
+            markedCount++
+          }
+        }
+      }
+    }
+
+    if (markedCount > 0) {
+      console.log(`messageStore: 乐观更新：标记聊天 ${chatId} 中 ${readTime} 之前的 ${markedCount} 条消息为已读`)
+    }
+  }
+
+  /**
    * 更新分页信息
    * @param chatId 聊天ID
    * @param paginationInfo 分页信息
@@ -606,6 +644,43 @@ export const useMessageStore = defineStore('message', () => {
     console.warn(`messageStore: 未找到要删除的消息 ${messageId}`)
   }
 
+  /**
+   * 标记消息为已撤回
+   * @param messageId 消息ID
+   */
+  const markMessageAsRevoked = (messageId: string) => {
+    // 先检查队列，如果在队列中则标记为失败并移出
+    const queueIndex = messageQueue.value.findIndex(m => m.payload.message_id === messageId)
+    if (queueIndex !== -1) {
+      const queuedMessage = messageQueue.value[queueIndex]
+      queuedMessage.is_revoked = true
+      queuedMessage.sendStatus = MessageStatus.FAILED
+      // 从队列中移除
+      messageQueue.value.splice(queueIndex, 1)
+      console.log(`messageStore: 消息 ${messageId} 已撤回，从队列中移除并标记为失败`)
+      return
+    }
+
+    // 再检查 store 中的消息
+    const allMaps = [
+      { map: privateMessages.value, type: 'private' as MessageStoreType },
+      { map: groupMessages.value, type: 'group' as MessageStoreType },
+    ]
+
+    for (const { map, type } of allMaps) {
+      for (const [chatId, messages] of map.entries()) {
+        const message = messages.find(m => m.payload.message_id === messageId)
+        if (message) {
+          message.is_revoked = true
+          console.log(`messageStore: 标记 ${type} 聊天 ${chatId} 中消息 ${messageId} 为已撤回`)
+          return
+        }
+      }
+    }
+
+    console.warn(`messageStore: 未找到要撤回的消息 ${messageId}`)
+  }
+
   // ============== Return ==============
 
   return {
@@ -636,6 +711,7 @@ export const useMessageStore = defineStore('message', () => {
     updateMessageStatus,
     sortMessagesByTimestamp,
     markMessagesAsRead,
+    markMessagesAsReadBeforeTime,
     updatePagination,
     setLoading,
     setHistoryFullyLoaded,
@@ -644,6 +720,7 @@ export const useMessageStore = defineStore('message', () => {
     clearAllMessages,
     reloadMessages,
     deleteMessage,
+    markMessageAsRevoked,
 
     // 队列管理 Actions
     addToMessageQueue,

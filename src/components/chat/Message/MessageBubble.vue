@@ -136,6 +136,12 @@ import { MessageType } from '../../../types/websocket'
   })
 
   const statusIcon = computed(() => {
+    // 如果消息已读，显示双勾（覆盖 sendStatus 的判断）
+    if (props.message.is_read) {
+      return 'mdi-check-all'
+    }
+
+    // 否则根据发送状态显示图标
     switch (props.message.sendStatus) {
       case 'pending': {
         return 'mdi-clock-outline'
@@ -156,6 +162,7 @@ import { MessageType } from '../../../types/websocket'
   })
 
   const statusColor = computed(() => {
+    // 已读状态也保持灰色，只有失败状态显示红色
     switch (props.message.sendStatus) {
       case 'pending':
       case 'sending': {
