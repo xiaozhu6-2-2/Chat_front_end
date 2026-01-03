@@ -3,109 +3,170 @@
     <v-card>
       <v-layout>
         <!-- 优化后的侧边栏 -->
-        <v-navigation-drawer width="80" permanent class="sidebar">
+        <v-navigation-drawer class="sidebar" permanent width="80">
           <!-- 头像区域 -->
           <div class="avatar-container">
-            <v-avatar size="56" class="custom-avatar" variant="tonal">
-              <img
-                src="@/assets/yxd.jpg"
-                alt="头像"
-                style="object-fit: cover"
-              />
-            </v-avatar>
+            <template v-if="currentUser">
+              <ContactCardModal
+                v-model="showContactCard"
+                :contact="currentUser as any"
+                @edit-profile="handleEditProfile"
+              >
+                <template #activator="{ props }">
+                  <Avatar
+                    :clickable="true"
+                    :name="currentUser.name"
+                    :size="56"
+                    :url="currentUser.avatar"
+                    v-bind="props"
+                  />
+                </template>
+              </ContactCardModal>
+            </template>
+            <template v-else>
+              <!-- 加载状态 -->
+              <v-skeleton-loader class="skeleton-avatar" type="avatar" />
+            </template>
+            <!-- 新增的 UserProfileEditModal -->
+            <UserProfileEditModal
+              v-model="showProfileEditModal"
+              :user-id="currentUser?.id"
+            />
           </div>
 
           <!-- 导航按钮区域 -->
-          <v-list density="compact" class="button-list" nav>
+          <v-list class="button-list" density="compact" nav>
             <div class="main_buttons">
               <v-list-item class="nav-item">
                 <v-btn
-                  @click="navigateTo('/chat')"
                   class="nav-button"
-                  variant="text"
+                  :class="{ active: $route.path === '/home' }"
                   size="large"
+                  variant="text"
+                  @click="navigateTo('/home')"
+                >
+                  <v-img
+                    aspect-ratio="1/1"
+                    class="fixed-size-image"
+                    src="@/assets/echatlogo.png"
+                    :width="32"
+                  />
+                </v-btn>
+              </v-list-item>
+              <v-list-item class="nav-item">
+                <v-btn
+                  class="nav-button"
                   :class="{ active: $route.path === '/chat' }"
+                  size="large"
+                  variant="text"
+                  @click="navigateTo('/chat')"
                 >
                   <v-icon size="x-large">mdi-forum</v-icon>
                 </v-btn>
                 <v-badge
-                  v-if="unreadCount.chat > 0"
-                  :content="unreadCount.chat"
-                  color="error"
+                  v-if="chatStore.totalUnreadCount > 0"
                   class="badge"
-                ></v-badge>
+                  color="error"
+                  :content="chatStore.totalUnreadCount"
+                />
               </v-list-item>
-              <div class="bottom_buttons">
-                <v-list-item class="nav-item">
-                  <v-btn
-                    @click="navigateTo('/contact')"
-                    class="nav-button"
-                    variant="text"
-                    size="large"
-                    :class="{ active: $route.path === '/contact' }"
-                  >
-                    <v-icon size="x-large">mdi-account</v-icon>
-                  </v-btn>
-                  <v-badge
-                    v-if="unreadCount.contact > 0"
-                    :content="unreadCount.contact"
-                    color="error"
-                    class="badge"
-                  ></v-badge>
-                </v-list-item>
-              </div>
+              <v-list-item class="nav-item">
+                <v-btn
+                  class="nav-button"
+                  :class="{ active: $route.path === '/contact' }"
+                  size="large"
+                  variant="text"
+                  @click="navigateTo('/contact')"
+                >
+                  <v-icon size="x-large">mdi-account</v-icon>
+                </v-btn>
+                <v-badge
+                  v-if="pendingRequestsCount > 0"
+                  class="badge"
+                  color="error"
+                  :content="pendingRequestsCount"
+                />
+              </v-list-item>
             </div>
 
             <v-list-item class="nav-item">
               <v-btn
-                @click="navigateTo('/settings')"
                 class="nav-button"
-                variant="text"
                 size="large"
-                :class="{ active: $route.path === '/settings' }"
+                variant="text"
+                @click="showSettingsDialog = true"
               >
                 <v-icon size="x-large">mdi-cog</v-icon>
+                <v-badge
+                  v-if="unreadCount.settings > 0"
+                  class="badge"
+                  color="error"
+                  :content="unreadCount.settings"
+                />
               </v-btn>
-              <v-badge
-                v-if="unreadCount.settings > 0"
-                :content="unreadCount.settings"
-                color="error"
-                class="badge"
-              ></v-badge>
+
+              <settingsDialog v-model="showSettingsDialog" />
             </v-list-item>
           </v-list>
         </v-navigation-drawer>
 
         <v-main id="mainarea">
-          <router-view></router-view>
+          <router-view />
         </v-main>
       </v-layout>
     </v-card>
   </v-app>
 </template>
-  
-  <script setup>
-import { useRouter, useRoute } from "vue-router";
-import { ref, reactive } from "vue";
+
+<script setup lang="ts">
+import { storeToRefs } from "pinia";
+import { computed, reactive, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import Avatar from "../components/global/Avatar.vue";
+import ContactCardModal from "../components/global/ContactCardModal.vue";
+import UserProfileEditModal from "../components/global/UserProfileEditModal.vue";
+import { useChatStore } from "../stores/chatStore";
+import { useUserStore } from "../stores/userStore";
+import { useFriendRequestStore } from "../stores/friendRequestStore";
+import { useGroupRequestStore } from "../stores/groupRequestStore";
 
 const router = useRouter();
 const $route = useRoute();
+const userStore = useUserStore();
+const chatStore = useChatStore();
+const friendRequestStore = useFriendRequestStore();
+const groupRequestStore = useGroupRequestStore();
+const { currentUser } = storeToRefs(userStore);
+
+// 计算未处理请求总数 = 收到的好友请求 + 需要审核的群聊请求
+const pendingRequestsCount = computed(() => {
+  return friendRequestStore.pendingReceivedRequests.length +
+         groupRequestStore.pendingApprovalRequests.length;
+});
 
 // 模拟未读消息数量
 const unreadCount = reactive({
-  chat: 3,
-  contact: 1,
+  contact: 0,
   settings: 0,
 });
 
-const navigateTo = (path) => {
+// 默认设置页关闭
+const showSettingsDialog = ref(false);
+const showContactCard = ref(false);
+// 控制模态框显示
+const showProfileEditModal = ref(false);
+// 处理编辑资料事件
+function handleEditProfile() {
+  showProfileEditModal.value = true;
+}
+function navigateTo(path: string) {
   router.push(path);
-};
+}
 </script>
-  
-  <style scoped>
+
+<style scoped>
 .sidebar {
-  background-color: #0f0f0f !important;
+  background-color: #1a1a25 !important;
   display: flex;
   flex-direction: column;
   padding: 20px 0;
@@ -118,17 +179,6 @@ const navigateTo = (path) => {
   width: 100%;
 }
 
-.custom-avatar {
-  border-radius: 10px !important; /* 圆角方形 */
-  overflow: hidden;
-}
-
-.custom-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover; /* 等比例压缩适应 */
-}
-
 .button-list {
   display: flex;
   flex-direction: column;
@@ -137,9 +187,16 @@ const navigateTo = (path) => {
   width: 100%;
   height: 100%;
 }
-.main_buttons{
+
+.main_buttons {
   flex-grow: 1;
 }
+
+.fixed-size-image {
+  flex: none !important;
+  /* 防止图片在flex容器中拉伸 */
+}
+
 .nav-item {
   display: flex;
   justify-content: center;
@@ -165,7 +222,7 @@ const navigateTo = (path) => {
 }
 
 .nav-button.active {
-  color: #04BE02 !important;
+  color: #1aad19 !important;
 }
 
 .badge {
@@ -178,6 +235,7 @@ const navigateTo = (path) => {
 #mainarea {
   height: 100vh;
   background-color: #1a1a25;
+  overflow: hidden;
 }
 
 /* 确保头像容器正确显示 */

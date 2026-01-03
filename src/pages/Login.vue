@@ -1,110 +1,237 @@
 <template>
-  <div>
-    <v-form v-model="valid">
-      <v-container>
-        <v-row>
-          <v-col
-            cols="12"
-            md="4"
-          >
-            <v-text-field
-              v-model="account"
-              :rules="emailRules"
-              label="E-mail"
-              required
-            ></v-text-field>
-          </v-col>
+  <!-- 主容器，使用全屏高度 -->
+  <v-container class="fill-height container" fluid>
+    <!-- 行布局，垂直和水平居中 -->
+    <v-row align-content="center" class="fill-height" justify="center">
+      <!-- 登录卡片容器 -->
+      <v-col cols="12" lg="8" md="10" xl="6">
+        <v-card class="elevation-24 rounded-lg overflow-hidden card">
+          <v-row class="fill-height" no-gutters>
+            <!-- 左侧文本信息区域 -->
+            <v-col
+              class="pa-8 d-flex flex-column justify-center text-white"
+              cols="12"
+              md="6"
+            >
+              <!-- 品牌信息 -->
+              <BrandInfo />
 
-          <v-col
-            cols="12"
-            md="4"
-          >
-            <v-text-field
-              v-model="password"
-              label="Password"
-              required
-            ></v-text-field>
-          </v-col>
+              <!-- 特色功能列表 -->
+              <FeatureList class="mt-8" />
+            </v-col>
 
-        </v-row>
-      </v-container>
-      <v-btn
-        @click="loginClick"
-      >
-        登录
-      </v-btn>
-    </v-form>
-  </div>
+            <!-- 右侧登录表单区域 -->
+            <v-col
+              class="pa-8 d-flex flex-column justify-center"
+              cols="12"
+              md="6"
+            >
+              <!-- 表单标题 -->
+              <div class="text-center mb-8">
+                <h2 class="text-h5 font-weight-bold text-grey-darken-3">
+                  欢迎回来
+                </h2>
+                <p class="text-body-2 text-grey">
+                  请登录您的账户继续使用
+                </p>
+              </div>
+
+              <!-- 登录表单 -->
+              <v-form ref="loginFormRef" @submit.prevent="handleLogin">
+                <!-- 用户名/邮箱输入 -->
+                <v-text-field
+                  v-model="loginForm.account"
+                  class="mb-4"
+                  color="primary"
+                  label="用户名或邮箱"
+                  prepend-inner-icon="mdi-account"
+                  required
+                  :rules="accountRules"
+                  variant="outlined"
+                />
+
+                <!-- 密码输入 -->
+                <v-text-field
+                  v-model="loginForm.password"
+                  :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                  class="mb-2"
+                  color="primary"
+                  label="密码"
+                  prepend-inner-icon="mdi-lock"
+                  required
+                  :rules="passwordRules"
+                  :type="showPassword ? 'text' : 'password'"
+                  variant="outlined"
+                  @click:append-inner="showPassword = !showPassword"
+                />
+
+                <!-- 记住我和忘记密码 -->
+                <div class="d-flex justify-space-between align-center mb-6">
+                  <v-checkbox
+                    v-model="loginForm.remember"
+                    color="primary"
+                    density="compact"
+                    hide-details
+                    label="记住我"
+                    style="font-size: 1rem;"
+                  />
+                  <v-btn
+                    color="primary"
+                    size="default"
+                    style="font-size: 1rem; min-width: auto; height: auto;"
+                    variant="text"
+                    @click="handleForgotPassword"
+                  >
+                    忘记密码?
+                  </v-btn>
+                </div>
+
+                <!-- 登录按钮 -->
+                <v-btn
+                  block
+                  class="mb-4"
+                  color="primary"
+                  :loading="loading"
+                  size="large"
+                  type="submit"
+                >
+                  <v-icon start>mdi-login</v-icon>
+                  登录
+                </v-btn>
+
+                <!-- 注册链接 -->
+                <div class="text-center d-flex align-center justify-center">
+                  <span class="text-body-2 text-grey">
+                    还没有账户?
+                  </span>
+                  <v-btn
+                    class="pa-0 ma-0 text-body-2 ml-2"
+                    color="primary"
+                    size="default"
+                    style="min-width: auto; height: auto; font-size: 0.875rem;"
+                    variant="text"
+                    @click="goToRegister"
+                  >
+                    立即注册
+                  </v-btn>
+                </div>
+              </v-form>
+            </v-col>
+          </v-row>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
-<script setup>
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { generateSecureCredentials } from '../service/crypto';
-import { noauthApi } from '../service/api';
-import { websocketService } from '@/service/websocket';
-import { messageService } from '@/service/message';
+<route lang="yaml">
+meta:
+  layout: auth
+</route>
 
-const router = useRouter();
+<script setup lang="ts">
+  import type { VForm } from 'vuetify/components'
+  import { reactive, ref } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { useAuth } from '@/composables/useAuth'
+  import { useSnackbar } from '@/composables/useSnackbar'
 
-const account = ref("");
-const password = ref("");
+  const router = useRouter()
 
-const loginClick = async () => {
-  if(account.value && password.value){
+  const { login } = useAuth()
+  const { showError } = useSnackbar()
+
+  // 响应式数据定义
+  const loginForm = reactive({
+    account: '',
+    password: '',
+    remember: false,
+  })
+
+  const showPassword = ref(false)
+  const loading = ref(false)
+  // 用于验证规则
+  const loginFormRef = ref<VForm | null>(null)
+
+  // 表单验证规则
+  const accountRules = [
+    (value: string) => !!value || '账号不能为空',
+    (value: string) => {
+      // 邮箱正则表达式
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      return emailRegex.test(value) || '请输入有效的邮箱地址'
+    },
+  ]
+
+  const passwordRules = [
+    (value: string) => !!value || '密码不能为空',
+    (value: string) => (value && value.length >= 6) || '密码至少6个字符',
+  ]
+
+  // 登录处理方法
+  async function handleLogin () {
+    // 验证表单
+    if (!loginFormRef.value) return
+    const { valid } = await loginFormRef.value.validate()
+    if (!valid) return
+
+    loading.value = true
+
     try {
-      //账户校验
+      console.log('Login.vue: 开始登录流程')
+      const result = await login(loginForm.account, loginForm.password, loginForm.remember)
 
-      //加密
-      const {encryptedAccount, encryptedPassword} = await generateSecureCredentials(account.value, password.value);
-      //发送请求
-      loginPost(encryptedAccount, encryptedPassword);
-    } catch (error) {
-      console.log(error);
-      alert("登录出错")
-    }
-  }else{
-    alert("请输入账号密码");
-  }
-};
-
-async function loginPost(encryptedAccount, encryptedPassword) {
-  if(encryptedAccount && encryptedPassword){
-    try {
-      const response = await noauthApi.post("/login", {
-        account: encryptedAccount,
-        password: encryptedPassword
-      })
-      //登录后还需要返回userId, 用于senderId
-      if (response.status === 200) {
-        const userName = response.data.userName;
-        const userId = response.data.userId;
-        const token = response.data.token;
-        if (token && userName && userId) {
-          localStorage.setItem('token', token);
-          localStorage.setItem('username', userName);
-          localStorage.setItem('userid', userId);
-          //连接ws，初始化消息服务
-          websocketService.connect(token,userId);
-          messageService.init(token);
-          alert('登录成功');
-          router.push('/chat');
-        }
-      }else{
-        alert('登录失败');
+      if (result.success === true) {
+        console.log('Login.vue: 登录成功，准备跳转到首页')
+        // 登录成功后跳转
+        await router.push('/home')
+      } else {
+        // 登录失败，显示错误信息
+        const errorMsg = result.error || '登录失败，请检查用户名和密码'
+        console.error('Login.vue: 登录失败', errorMsg)
+        showError(errorMsg)
       }
-    } catch (error) {
-      console.log(error);
+    } catch (error: any) {
+      // 捕获异常，显示错误信息
+      console.error('Login.vue: 登录过程中发生异常', error)
+      const errorMsg = error.message || '登录过程中发生错误，请稍后重试'
+      showError(errorMsg)
+    } finally {
+      loading.value = false
     }
   }
-}
+
+  // 跳转到注册页面
+  function goToRegister () {
+    router.push('/register')
+  }
+
+  // 处理忘记密码
+  function handleForgotPassword () {
+    router.push('/forget')
+  }
 
 </script>
 
 <style scoped>
-.btn {
-  height: 50px;
-  width: 50px;
-  background-color: aliceblue;
+.container {
+  background-color: #1c1c1e;
+}
+
+.card {
+  border: 1px solid #1c1c11;
+  background-color: #1c1c1e;
+  box-shadow: 0px 0px 10px 5px rgba(0, 0, 0, 0.3);
+}
+
+.rounded-lg {
+  border-radius: 16px;
+}
+
+/* 响应式调整 */
+@media (max-width: 960px) {
+  .pa-8 {
+    padding: 24px;
+  }
 }
 </style>

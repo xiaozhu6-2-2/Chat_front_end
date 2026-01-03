@@ -1,52 +1,50 @@
 <template>
   <maincontent>
     <template #detailbar>
-      <chatList :active-item="activeItem" @item-click="handleItemClick" />
+      <chatList :active-chat-id="activeChatId" />
     </template>
     <template #main>
       <!-- 默认界面 -->
-      <div
-        v-if="!activeItem"
-        style="height: 100%"
-      >
+      <div v-if="!activeChat" class="welcome-container">
         <echat-welcome />
       </div>
 
       <!-- 聊天界面 -->
-      <chatArea
-        v-else-if="activeItem.type === 'chat'"
-        :chat="activeItem.data"
-      />
+      <chatArea v-else :chat="activeChat" @image-preview="handleImagePreview" />
     </template>
   </maincontent>
 </template>
 
 <script setup lang="ts">
-import maincontent from '@/layouts/maincontent.vue'
-import { ref } from 'vue'
+  import type { Chat } from '../types/chat'
+  import { computed, onMounted } from 'vue'
+  import chatArea from '../components/chat/chatArea.vue'
+  import chatList from '../components/chat/chatList.vue'
+  import { useChat } from '../composables/useChat'
+  import maincontent from '../layouts/maincontent.vue'
+  import { useChatStore } from '../stores/chatStore'
 
-interface Chat {
-  id: string;
-  name: string;
-  avatar?: string;
-  type: 'private' | 'group';
-  lastMessage?: string;
-}
+  // Use chat composable
+  const { activeChatId, activeChat, selectChat, initializeChats } = useChat()
+  // Computed property for active chat ID
+  // const activeChatId = computed(() => currentChat.value?.id)
 
-interface ActiveItem {
-  type: "chat";
-  data: Chat;
-}
+  function handleImagePreview (imageUrl: string) {
+    // TODO: Implement image preview dialog
+    console.log('Image preview:', imageUrl)
+  }
 
-const activeItem = ref<ActiveItem | null>(null);
-
-const handleItemClick = (type: "chat", data: Chat) => {
-  activeItem.value = { type, data };
-};
+  // Initialize chat list on mount
+  onMounted(() => {
+    initializeChats(false) // 不强制初始化，检查缓存
+  })
 </script>
 
 <style scoped>
-.fixed-size-image {
-  flex: none !important;
+.welcome-container {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

@@ -1,284 +1,561 @@
 <template>
   <v-card class="chat-container" elevation="0">
     <!-- 顶部聊天信息栏 -->
-    <v-toolbar density="compact" class="chat-header">
-      <v-avatar size="40" class="mr-3">
-        <v-img :src="currentChat.avatar" alt="头像"></v-img>
-      </v-avatar>
-      <v-toolbar-title>{{ currentChat.name }}</v-toolbar-title>
-      <v-spacer></v-spacer>
-      <v-menu location="bottom">
-        <template v-slot:activator="{ props }">
-          <v-btn icon v-bind="props">
-            <v-icon>mdi-dots-vertical</v-icon>
-          </v-btn>
-        </template>
-        <v-list density="comfortable">
-          <v-list-item v-for="(item, i) in menuItems" :key="i" @click="handleMenuClick(item.action)">
-            <v-list-item-title>{{ item.title }}</v-list-item-title>
-          </v-list-item>
-        </v-list>
-      </v-menu>
-    </v-toolbar>
-    <v-divider></v-divider>
-    <!-- 聊天内容区域 -->
-    <div ref="messagesContainer" class="messages-container">
-      <MyMessage 
-        v-for="message in myMessages" 
-        :key="message.id" 
-        :message="message" 
+    <v-toolbar class="chat-header" density="compact">
+      <Avatar
+        avatar-class="custom-avatar ml-6"
+        :clickable="false"
+        :name="activeChat?.name"
+        :size="40"
+        :url="activeChat?.avatar"
       />
-      <OtherMessage 
-        v-for="message in otherMessages" 
-        :key="message.id" 
-        :message="message" 
+      <v-toolbar-title>{{ activeChat?.name }}</v-toolbar-title>
+      <v-spacer />
+
+      <v-btn v-if="activeChat?.type === 'group'" icon @click="toggleOnlineBoard">
+        <v-icon>mdi-dots-horizontal</v-icon>
+      </v-btn>
+      <v-btn v-if="activeChat?.type === 'private'" icon @click="togglePrivateBoard">
+        <v-icon>mdi-dots-horizontal</v-icon>
+      </v-btn>
+    </v-toolbar>
+    <v-divider />
+
+    <!-- 聊天内容区域 -->
+    <div class="messages-container">
+      <!-- 新消息提示 -->
+      <div
+        v-if="showNewMessageTip"
+        class="new-message-tip"
+        @click="handleNewMessageTipClick"
+      >
+        <v-chip color="primary" size="small" class="tip-chip">
+          <v-icon start size="small">mdi-message-text-outline</v-icon>
+          有新消息
+        </v-chip>
+      </div>
+
+      <div v-if="messages.length === 0" class="empty-state">
+        <p>暂无消息，开始聊天吧！</p>
+      </div>
+
+      <!-- 虚拟滚动消息列表 -->
+      <VirtualMessageList
+        v-else
+        ref="virtualMessageList"
+        :auto-scroll="autoScroll"
+        :container-height="containerHeight"
+        :current-user-id="currentUserId"
+        :messages="messages"
+        :has-more="hasMore"
+        :is-loading-more="isLoadingMore"
+        @image-preview="handleImagePreview"
+        @scroll-near-bottom="handleScrollNearBottom"
+        @scroll-near-top="handleScrollNearTop"
       />
     </div>
-    <v-divider></v-divider>
+
     <!-- 底部输入区域 -->
     <div class="input-container">
-      <!-- 工具栏 -->
-      <div class="toolbar">
-        <v-btn icon variant="text" @click="toggleEmojiPicker">
-          <v-icon>mdi-emoticon-outline</v-icon>
-        </v-btn>
-        <v-btn icon variant="text">
-          <v-icon>mdi-image-outline</v-icon>
-        </v-btn>
-        <v-btn icon variant="text">
-          <v-icon>mdi-file-outline</v-icon>
-        </v-btn>
-        <v-btn icon variant="text">
-          <v-icon>mdi-microphone</v-icon>
-        </v-btn>
-        <v-spacer></v-spacer>
-        <v-btn icon variant="text">
-          <v-icon>mdi-dots-horizontal</v-icon>
-        </v-btn>
-      </div>
+
+      <!-- 上传进度条 -->
+      <v-expand-transition>
+        <div v-if="isUploading" class="upload-progress-banner">
+          <v-progress-linear
+            :model-value="uploadProgress"
+            color="primary"
+            height="4"
+            striped
+          />
+          <div class="upload-info">
+            <v-icon size="small">mdi-cloud-upload</v-icon>
+            <span class="ml-2">正在上传 {{ uploadingFileName }}... {{ uploadProgress }}%</span>
+          </div>
+        </div>
+      </v-expand-transition>
 
       <!-- 表情选择器 -->
       <div v-if="showEmojiPicker" class="emoji-picker">
-        <v-btn v-for="emoji in emojis" :key="emoji" variant="text" @click="addEmoji(emoji)">
+        <v-btn
+          v-for="emoji in emojis"
+          :key="emoji"
+          variant="text"
+          @click="insertEmoji(emoji)"
+        >
           {{ emoji }}
         </v-btn>
       </div>
 
-      <!-- 输入框 -->
-      <v-textarea v-model="newMessage" variant="plain" placeholder="输入消息..." auto-grow rows="1" hide-details
-        class="message-input" @keydown.enter.exact.prevent="sendMessage"></v-textarea>
+      <echatInput
+        v-model="inputMessage"
+        @keydown.enter.exact.prevent="handleSendMessage"
+        @send-message="handleSendMessage"
+        @send-file="handleFileUpload"
+      />
 
-      <!-- 发送按钮 -->
-      <div class="send-button-container">
-        <v-btn color="primary" variant="flat" :disabled="!newMessage.trim()" @click="sendMessage">
-          发送
-        </v-btn>
-      </div>
     </div>
+
+    <!-- Online Board -->
+    <OnlineBoard v-model="showOnlineBoard" />
   </v-card>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch, computed } from 'vue';
-// 接口定义
-interface Chat {
-  id: string;
-  name: string;
-  avatar: string;
-  type: 'private' | 'group';
-}
+  import type { Chat, ChatAreaProps, ChatType } from '../../types/chat'
+  import type { LocalMessage } from '../../types/message'
+  import { storeToRefs } from 'pinia'
+  import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+  import Avatar from '../../components/global/Avatar.vue'
+  import { useChat } from '../../composables/useChat'
+  import { useMessage } from '../../composables/useMessage'
+  import { useMessageInput } from '../../composables/useMessageInput'
+  import { useReadCountPolling } from '../../composables/useReadCountPolling'
+  import { useChatStore } from '../../stores/chatStore'
+  import { useMessageStore } from '../../stores/messageStore'
+  import { useUserStore } from '../../stores/userStore'
+  import { useSnackbar } from '../../composables/useSnackbar'
 
-interface BaseMessage {
-  id: string;
-  text: string;
-  time: Date;
-}
+  import echatInput from './echatInput.vue'
+  import OnlineBoard from './onlineBoard.vue'
+  import VirtualMessageList from './VirtualMessageList.vue'
 
-interface MyMessageType extends BaseMessage {
-  sender: 'me';
-  read: boolean;
-}
+  const props = defineProps<ChatAreaProps>()
 
-interface OtherMessageType extends BaseMessage {
-  sender: 'other';
-}
+  const emit = defineEmits<{
+    imagePreview: [imageUrl: string]
+  }>()
 
-interface Props {
-  chat?: {
-    id: string;
-    name: string;
-    avatar?: string;
-    type: 'private' | 'group';
-  }
-}
+  // Store and composables
+  const chatStore = useChatStore()
+  const messageStore = useMessageStore()
+  const { activeChat, selectChat, activeChatId, activeChatType } = useChat()
 
-const props = defineProps<Props>()
+  // 群聊已读人数轮询
+  const { watchChatChange } = useReadCountPolling()
 
-type Message = MyMessageType | OtherMessageType;
+  // 监听会话变化并启动/停止轮询
+  watchChatChange(activeChatId.value, activeChatType.value)
 
-// 当前聊天对象
-const currentChat = ref<Chat>({
-  id: '1',
-  name: '顶冬季',
-  avatar: 'C:/Users/26761/Desktop/chat/echat_web/echat_web/src/assets/yxd.jpg',
-  type: 'private'
-});
+  const {
+    inputMessage,
+    showEmojiPicker,
+    emojis,
+    insertEmoji,
+    toggleEmojiPicker,
+  } = useMessageInput()
+  const {
+    messages,
+    loading,
+    hasMore,
+    sendTextMessage,
+    sendFileMessage,
+    init,
+    loadHistoryMessages,
+  } = useMessage()
+  const userStore = useUserStore()
+  const { currentUser, currentUserId } = storeToRefs(userStore)
+  const { showSuccess, showError, showInfo } = useSnackbar()
 
-// 菜单项
-const menuItems = ref([
-  { title: '创建群聊', action: 'createGroup' },
-  { title: '添加朋友', action: 'addFriend' },
-  { title: '发起直播', action: 'startLive' },
-  { title: '设置', action: 'settings' }
-]);
+  // Local state
+  const showOnlineBoard = ref(false)
+  const showContactCard = ref(false)
+  const isSending = ref(false)
+  const virtualMessageList = ref()
 
-// 消息列表
-const messages = ref<Message[]>([
-  { id: '1', text: '欢迎使用微信！', time: new Date(Date.now() - 60000), sender: 'other' },
-  { id: '2', text: '你好！', time: new Date(Date.now() - 30000), sender: 'me', read: true },
-  { id: '3', text: '这是一个模仿微信PC端的聊天界面', time: new Date(), sender: 'other' }
-]);
+  // 上传状态
+  const isUploading = ref(false)
+  const uploadProgress = ref(0)
+  const uploadingFileName = ref('')
 
-// 计算属性：分离消息
-const myMessages = computed(() => 
-  messages.value.filter(msg => msg.sender === 'me') as MyMessageType[]
-);
+  // 新消息提示状态
+  const showNewMessageTip = ref(false)
+  const newMessageCount = ref(0)
 
-const otherMessages = computed(() => 
-  messages.value.filter(msg => msg.sender === 'other') as OtherMessageType[]
-);
+  // 加载更多历史消息状态
+  const isLoadingMore = ref(false)
+  const debouncedLoadMore = ref<ReturnType<typeof setTimeout> | null>(null)
 
-// 新消息输入
-const newMessage = ref('');
+  // 当前聊天联系人信息
+  const currentChatContact = computed(() => {
+    if (!props.chat) return null
+    return currentUser.value
+  })
 
-// 表情选择器状态
-const showEmojiPicker = ref(false);
+  // 虚拟滚动配置
+  const autoScroll = ref(true)
+  const containerHeight = computed(() => {
+    // 计算容器高度，减去头部、输入框等高度
+    const headerHeight = 64 // v-toolbar 高度
+    const inputHeight = 120 // 输入区域估计高度
+    const padding = 32 // 上下边距
+    return window.innerHeight - headerHeight - inputHeight - padding - 60 // 侧边栏宽度
+  })
 
-// 常用表情
-const emojis = ref(['😀', '😂', '😍', '👍', '👏', '🙏', '❤️', '🎉', '🤔', '🤗']);
+  // Computed
+  const isLoading = computed(() => loading)
 
-// 消息容器引用
-const messagesContainer = ref<HTMLElement | null>(null);
+  // 用于跟踪是否刚切换了聊天
+  const justSwitchedChat = ref(false)
+  // 用于跟踪是否正在发送消息（自己发送消息时不显示"有新消息"提示）
+  const isSendingLocalMessage = ref(false)
 
-// 发送消息
-const sendMessage = () => {
-  if (!newMessage.value.trim()) return;
+  // 监听聊天切换，重置状态并等待加载完成后滚动到底部
+  watch(() => activeChatId.value, async (newChatId) => {
+    if (!newChatId) return
 
-  const myMessage: MyMessageType = {
-    id: Date.now().toString(),
-    text: newMessage.value,
-    time: new Date(),
-    sender: 'me',
-    read: false // 初始状态为未读
-  };
+    showNewMessageTip.value = false
+    newMessageCount.value = 0
+    isLoadingMore.value = false
 
-  messages.value.push(myMessage);
+    // 标记刚切换了聊天
+    justSwitchedChat.value = true
 
-  // 模拟2秒后消息变为已读
-  setTimeout(() => {
-    const message = messages.value.find(msg => msg.id === myMessage.id);
-    if (message && message.sender === 'me') {
-      (message as MyMessageType).read = true;
+    // 等待当前正在进行的加载完成
+    while (loading.value) {
+      await new Promise(resolve => setTimeout(resolve, 50))
     }
-  }, 2000);
 
-  // 模拟对方回复
-  setTimeout(() => {
-    messages.value.push({
-      id: Date.now().toString(),
-      text: '收到你的消息: ' + newMessage.value,
-      time: new Date(),
-      sender: 'other'
-    });
-    scrollToBottom();
-  }, 1000);
+    // 再等待一个 nextTick 确保 DOM 更新
+    await nextTick()
 
-  newMessage.value = '';
-  scrollToBottom();
-};
+    setTimeout(() => {
+      virtualMessageList.value?.setScrollToBottomDirectly()
+      // 延迟恢复 justSwitchedChat 状态，防止滚动过程中触发加载历史消息
+      setTimeout(() => {
+        justSwitchedChat.value = false
+      }, 300)
+    }, 150)
+  }, { immediate: true })
 
-// 滚动到底部
-const scrollToBottom = () => {
-  nextTick(() => {
-    if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+  // 监听消息长度变化，检测新消息和首次加载
+  watch(
+    () => messages.value.length,
+    async (newLength, oldLength) => {
+      // 跳过刚切换聊天后的首次渲染
+      if (justSwitchedChat.value) {
+        return
+      }
+
+      // 跳过自己发送消息的情况
+      if (isSendingLocalMessage.value) {
+        return
+      }
+
+      // 跳过消息删除的情况
+      if (newLength <= oldLength) {
+        return
+      }
+
+      // 等待 DOM 更新和虚拟滚动组件渲染完成
+      await nextTick()
+
+      // 使用 requestAnimationFrame 确保浏览器已完成渲染
+      await new Promise(resolve => requestAnimationFrame(resolve))
+
+      // 再等待一帧，确保虚拟滚动组件完全更新
+      await new Promise(resolve => requestAnimationFrame(resolve))
+
+      // 额外短暂延迟，确保滚动高度已计算完成
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // 检查用户是否在底部附近
+      const isNearBottom = virtualMessageList.value?.checkIsNearBottom?.() ?? true
+
+      if (!isNearBottom) {
+        // 用户滚动到了非底部位置，显示新消息提示
+        showNewMessageTip.value = true
+        newMessageCount.value += (newLength - oldLength)
+      }
     }
-  });
-};
+  )
 
-// 切换表情选择器
-const toggleEmojiPicker = () => {
-  showEmojiPicker.value = !showEmojiPicker.value;
-};
-
-// 添加表情
-const addEmoji = (emoji: string) => {
-  newMessage.value += emoji;
-};
-
-// 处理菜单点击
-const handleMenuClick = (action: string) => {
-  console.log('Menu action:', action);
-};
-
-// 监听消息变化，自动滚动到底部
-watch(messages, () => {
-  scrollToBottom();
-}, { deep: true });
-
-// 监听chat prop的变化
-watch(() => props.chat, (newChat) => {
-  if (newChat) {
-    currentChat.value = { ...newChat }
+  // 处理虚拟滚动接近底部事件
+  function handleScrollNearBottom (isNearBottom: boolean) {
+    autoScroll.value = isNearBottom
+    // 当用户滚动到底部时，隐藏新消息提示
+    if (isNearBottom) {
+      showNewMessageTip.value = false
+      newMessageCount.value = 0
+    }
   }
-}, { immediate: true })
 
-// 组件挂载时滚动到底部
-onMounted(() => {
-  scrollToBottom();
-});
+  // 记录是否已显示过"没有更多"提示
+  const hasShownNoMoreTip = ref(false)
+
+  // 处理虚拟滚动接近顶部事件
+  async function handleScrollNearTop (isNearTop: boolean) {
+    // 如果接近顶部但没有更多消息，检查是否需要显示提示
+    if (isNearTop && !hasMore.value && !isLoadingMore.value && !loading.value && activeChatId.value) {
+      // 获取当前分页信息，如果是第一页则不显示提示
+      const pagination = messageStore.getPagination(activeChatId.value)
+      const isFirstPage = !pagination || pagination.page <= 1
+
+      // 只有当已经加载过多页（page > 1）时才显示提示
+      if (!isFirstPage && !hasShownNoMoreTip.value) {
+        showInfo('没有更多历史消息了')
+        hasShownNoMoreTip.value = true
+      }
+      return
+    }
+
+    // 如果离开顶部，重置提示标记
+    if (!isNearTop) {
+      hasShownNoMoreTip.value = false
+    }
+
+    if (!isNearTop || !hasMore.value || isLoadingMore.value || loading.value || !activeChatId.value || justSwitchedChat.value) {
+      return
+    }
+
+    // 防抖处理，避免频繁触发
+    if (debouncedLoadMore.value) {
+      clearTimeout(debouncedLoadMore.value)
+    }
+
+    debouncedLoadMore.value = setTimeout(async () => {
+      // 再次检查，因为状态可能在防抖期间发生变化
+      if (hasMore.value && !isLoadingMore.value && !loading.value) {
+        await loadMoreHistoryMessages()
+      }
+    }, 300)
+  }
+
+  // 加载更多历史消息
+  async function loadMoreHistoryMessages () {
+    if (!activeChatId.value || isLoadingMore.value || loading.value || !hasMore.value) {
+      return
+    }
+
+    try {
+      isLoadingMore.value = true
+
+      // 保存滚动位置
+      virtualMessageList.value?.saveScrollState()
+
+      // 加载更多历史消息（loadMore = true）
+      const chatType = activeChatType.value === 'private' ? 'private' : 'group'
+      await loadHistoryMessages(activeChatId.value, chatType, true)
+
+      // 恢复滚动位置
+      await nextTick()
+      virtualMessageList.value?.restoreScrollPosition()
+
+    } catch (error) {
+      console.error('加载更多历史消息失败:', error)
+    } finally {
+      isLoadingMore.value = false
+    }
+  }
+
+  // 处理新消息提示点击
+  function handleNewMessageTipClick () {
+    showNewMessageTip.value = false
+    newMessageCount.value = 0
+    virtualMessageList.value?.scrollToBottom()
+  }
+
+  // Methods
+  async function handleSendMessage () {
+    if (!inputMessage.value.trim() || isSending.value) return
+
+    isSending.value = true
+    // 标记正在发送消息，避免触发"有新消息"提示
+    isSendingLocalMessage.value = true
+    try {
+      await sendTextMessage(inputMessage.value)
+      inputMessage.value = ''
+
+      // 发送后滚动到底部并隐藏新消息提示
+      await nextTick()
+      virtualMessageList.value?.scrollToBottom()
+      showNewMessageTip.value = false
+      newMessageCount.value = 0
+    } catch (error) {
+      console.error('Failed to send message:', error)
+    } finally {
+      isSending.value = false
+      // 延迟重置标志，确保 watch 已经完成检查
+      setTimeout(() => {
+        isSendingLocalMessage.value = false
+      }, 300)
+    }
+  }
+
+  function toggleOnlineBoard () {
+    showOnlineBoard.value = !showOnlineBoard.value
+    chatStore.setOnlineBoardVisible(showOnlineBoard.value)
+  }
+
+  function togglePrivateBoard () {
+  // todo 私聊时点击右上角三个点出现什么界面待设计
+  }
+
+  function handleImagePreview (imageUrl: string) {
+    emit('imagePreview', imageUrl)
+  }
+
+  /**
+   * 处理文件上传
+   */
+  async function handleFileUpload (file: File | null, fileType: string, errorMsg?: string) {
+    // 处理错误消息
+    if (errorMsg) {
+      showError(errorMsg)
+      return
+    }
+
+    if (!file || isUploading.value) {
+      if (isUploading.value) {
+        showError('正在上传文件，请稍候')
+      }
+      return
+    }
+
+    // 标记正在发送消息，避免触发"有新消息"提示
+    isSendingLocalMessage.value = true
+    try {
+      isUploading.value = true
+      uploadingFileName.value = file.name
+      uploadProgress.value = 0
+
+      // 使用 useMessage 的 sendFileMessage 方法
+      await sendFileMessage(file, fileType as 'image' | 'file')
+
+      showSuccess('文件发送成功')
+
+      // 滚动到底部显示新消息
+      await nextTick()
+      virtualMessageList.value?.scrollToBottom()
+      showNewMessageTip.value = false
+      newMessageCount.value = 0
+    } catch (error) {
+      console.error('Failed to send file:', error)
+      showError('文件发送失败')
+    } finally {
+      isUploading.value = false
+      uploadProgress.value = 0
+      uploadingFileName.value = ''
+      // 延迟重置标志，确保 watch 已经完成检查
+      setTimeout(() => {
+        isSendingLocalMessage.value = false
+      }, 300)
+    }
+  }
+
+  function handleVoiceRecord () {
+    // TODO: Implement voice recording
+    console.log('Voice record clicked')
+  }
+
+  // Lifecycle
+  onMounted(() => {
+    // 初始化消息服务（如果需要）
+    if (!init) {
+      // 这里可以添加初始化逻辑，比如传入 token 和 userId
+      console.log('Message service not initialized yet')
+    }
+
+    // 延迟滚动到底部，确保组件已渲染
+    setTimeout(() => {
+      virtualMessageList.value?.scrollToBottom()
+    }, 100)
+  })
+
+  // 组件卸载时清理定时器
+  onUnmounted(() => {
+    if (debouncedLoadMore.value) {
+      clearTimeout(debouncedLoadMore.value)
+    }
+  })
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .chat-container {
   display: flex;
   flex-direction: column;
   height: 100%;
   border-radius: 0;
-  background-color: #1A1A25;
 }
 
 .chat-header {
-  background-color: #1A1A25;
+  background-color: #1a1a25;
   padding-top: 8px;
   padding-bottom: 8px;
 }
 
+.custom-avatar {
+  border-radius: 4px !important;
+  overflow: hidden;
+}
+
 .messages-container {
+  position: relative;
   flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  background-color: #1A1A25;
+  overflow-y: hidden;
+  background-color: #1a1a25;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
+.new-message-tip {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  animation: slideDown 0.3s ease;
+  cursor: pointer;
+
+  .tip-chip {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+}
+
 .input-container {
-  background-color: #1A1A25;
+  background-color: #1a1a25;
   padding: 10px;
 }
 
-.toolbar {
-  display: flex;
-  padding: 5px 0;
+.upload-progress-banner {
+  background-color: rgba(25, 118, 210, 0.1);
+  border-bottom: 1px solid rgba(25, 118, 210, 0.3);
+  padding: 8px 16px;
+
+  .upload-info {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    color: #1976d2;
+    margin-top: 4px;
+  }
 }
 
 .emoji-picker {
   display: flex;
   flex-wrap: wrap;
-  background-color: white;
-  border: 1px solid #e0e0e0;
+  background-color: #2a2a2e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   padding: 5px;
   margin-bottom: 10px;
@@ -286,9 +563,7 @@ onMounted(() => {
   overflow-y: auto;
 }
 
-.send-button-container {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 10px;
+.message-input {
+  margin: 8px 0;
 }
 </style>

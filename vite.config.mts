@@ -1,16 +1,16 @@
+import { fileURLToPath, URL } from 'node:url'
+import Vue from '@vitejs/plugin-vue'
 // Plugins
 import AutoImport from 'unplugin-auto-import/vite'
-import Components from 'unplugin-vue-components/vite'
 import Fonts from 'unplugin-fonts/vite'
-import Layouts from 'vite-plugin-vue-layouts-next'
-import Vue from '@vitejs/plugin-vue'
-import VueRouter from 'unplugin-vue-router/vite'
+import Components from 'unplugin-vue-components/vite'
 import { VueRouterAutoImports } from 'unplugin-vue-router'
-import Vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
-
+import VueRouter from 'unplugin-vue-router/vite'
 // Utilities
 import { defineConfig } from 'vite'
-import { fileURLToPath, URL } from 'node:url'
+
+import Layouts from 'vite-plugin-vue-layouts-next'
+import Vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -60,11 +60,28 @@ export default defineConfig({
   ],
   optimizeDeps: {
     exclude: [
-      'vuetify',
+      // 'vuetify',  // 移除这行，让 Vite 预构建 Vuetify
       'vue-router',
       'unplugin-vue-router/runtime',
       'unplugin-vue-router/data-loaders',
       'unplugin-vue-router/data-loaders/basic',
+    ],
+    include: [
+      'vuetify',
+      // 预构建布局文件（避免动态导入失败）
+      'vite-plugin-vue-layouts-next',
+      '@/layouts/default.vue',
+      '@/layouts/auth.vue',
+      '@/layouts/maincontent.vue',
+      // 预构建常用的 composables
+      '@/composables/useChat',
+      '@/composables/useMessage',
+      '@/composables/useUser',
+      '@/composables/useFriend',
+      '@/composables/useGroup',
+      '@/composables/useFriendRequest',
+      '@/composables/useGroupRequest',
+      '@/composables/useFile',
     ],
   },
   define: { 'process.env': {} },

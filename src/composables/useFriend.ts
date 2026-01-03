@@ -1,0 +1,232 @@
+import type { FriendUpdateOptions, FriendWithUserInfo } from '@/types/friend'
+import { computed } from 'vue'
+import { friendService } from '@/service/friendService'
+import { useFriendStore } from '@/stores/friendStore'
+import { useSnackbar } from './useSnackbar'
+
+export function useFriend () {
+  const friendStore = useFriendStore()
+  const { showSuccess, showError } = useSnackbar()
+
+  // Computed properties
+  // 获取非黑名单好友列表
+  const activeFriends = computed(() => friendStore.activeFriends)
+  const isLoading = computed(() => friendStore.isLoading)
+  // 获取黑名单列表
+  const blacklistedFriends = computed(() => friendStore.blacklistedFriends)
+
+  /**
+   * 获取好友列表
+   *
+   * 执行流程：
+   * 1. 检查是否需要强制刷新
+   * 2. 调用 friendService 获取好友列表
+   * 3. 转换数据格式（Service已完成转换）
+   * 4. 更新 friendStore
+   * 5. 处理错误和用户反馈
+   *
+   * 数据流：
+   * - 输入：forceRefresh参数
+   * - 输出：更新 store 中的好友列表
+   * - 副作用：发送 HTTP 请求，显示用户反馈
+   *
+   * @param {boolean} forceRefresh 是否强制刷新
+   * @returns {Promise<void>}
+   */
+  const fetchFriends = async (forceRefresh = false) => {
+    if (!forceRefresh && friendStore.friends.size > 0) {
+      console.log('useFriend: 好友列表已缓存，跳过获取')
+      return
+    }
+
+    friendStore.setLoading(true)
+    try {
+      const friendList = await friendService.getFriendsFromApi()
+      friendStore.setFriendsFromApi(friendList)
+      console.log('useFriend: 好友列表获取成功')
+    } catch (error) {
+      console.error('useFriend: 获取好友列表失败', error)
+      showError('获取好友列表失败，请刷新重试')
+      throw error
+    } finally {
+      friendStore.setLoading(false)
+    }
+  }
+
+  /**
+   * 重置好友模块状态
+   *
+   * 使用场景：
+   * - 用户登出时清理数据
+   */
+  const reset = (): void => {
+    friendStore.reset()
+    console.log('useFriend: 重置好友模块状态')
+  }
+
+  /**
+   * 初始化好友模块
+   *
+   * 执行流程：
+   * 1. 调用 fetchFriends 获取好友列表
+   * 2. 获取好友在线状态
+   * 3. 处理初始化错误
+   *
+   * 使用场景：
+   * - 用户登录后初始化数据
+   *
+   * @param {boolean} force 是否强制初始化（默认true）
+   * @returns {Promise<void>}
+   */
+  const init = async (force = true): Promise<void> => {
+    await fetchFriends(force)
+
+    // 获取好友在线状态
+    try {
+      const onlineUserIds = await friendService.getFriendsOnlineStatus()
+      friendStore.batchUpdateOnlineState(onlineUserIds)
+    } catch (error) {
+      // 在线状态获取失败不影响好友列表，仅记录日志
+      console.warn('useFriend: 获取好友在线状态失败', error)
+    }
+  }
+
+  // 删除好友
+  const removeFriend = async (friendId: string) => {
+    try {
+      // 通知后端
+      await friendService.removeFriend(friendId)
+      // 前端列表删除
+      friendStore.removeFriend(friendId)
+      console.log('useFriend: 删除好友')
+    } catch {
+      console.error('删除好友失败')
+    }
+  }
+
+  // contactCard渲染时获取好友资料
+  const getFriendProfile = async (friendId: string, userId: string): Promise<FriendWithUserInfo> => {
+    // 先从store中查找
+    const friendInStore = friendStore.getFriendByUid(userId)
+    if (friendInStore) {
+      return friendInStore
+    }
+
+    // 没有则从service获取
+    try {
+      const friendProfile = await friendService.getFriendProfile(friendId, userId)
+      // 写入store
+      friendStore.addFriend(friendProfile)
+      return friendProfile
+    } catch (error) {
+      showError('获取好友资料失败')
+      console.error('useFriend: 获取好友资料失败')
+      return Promise.reject(error)
+    }
+  }
+
+  // 更新好友设置，包括备注、黑名单、标签
+  const updateFriendProfile = async (
+    friendId: string,
+    options: FriendUpdateOptions,
+  ) => {
+    try {
+      // service通知修改
+      await friendService.updateFriendProfile(friendId, options)
+      // store更新资料
+      friendStore.updateFriendProfile(friendId, options)
+      showSuccess('更新好友资料成功')
+    } catch (error) {
+      // 错误已经在 service 层处理和显示了
+      console.error('useFriend: 更新好友资料失败', error)
+      // 重新抛出错误，让调用者可以进一步处理
+      throw error
+    }
+  }
+
+  // 检查用户关系的辅助函数
+  const checkUserRelation = (uid: string) => {
+    return {
+      isFriend: friendStore.isFriend(uid),
+    }
+  }
+
+  // 根据用户ID获取好友信息
+  const getFriendByUid = (uid: string) => {
+    return friendStore.getFriendByUid(uid)
+  }
+
+  // 根据好友关系ID获取好友信息
+  const getFriendByFid = (fid: string) => {
+    return friendStore.getFriendByFid(fid)
+  }
+
+  // 刷新好友数据，通过API获取新的好友资料并覆盖store中的数据
+  const refreshFriendData = async (fid: string, uid: string) => {
+    try {
+      console.log('useFriend: 开始刷新好友数据', { fid, uid })
+
+      // 1. 从 service 获取最新的好友资料
+      const friendProfile = await friendService.getFriendProfile(fid, uid)
+
+      // 2. 写入 store，更新本地状态
+      friendStore.addFriend(friendProfile)
+
+      console.log('useFriend: 刷新好友数据成功', { fid, uid })
+
+      return friendProfile
+    } catch (error) {
+      // HTTP 错误已由拦截器统一处理，这里只记录日志
+      console.error('useFriend: 刷新好友数据失败', { fid, uid }, error)
+    }
+  }
+
+  // 获取所有好友分组标签
+  const getAllFriendTags = () => {
+    console.log('useFriend: 获取所有好友分组标签')
+    try {
+      const tags = friendStore.getAllTags
+      console.log('useFriend: 获取到标签列表', tags.length, '个标签')
+      return tags
+    } catch (error) {
+      console.error('useFriend: 获取标签列表失败', error)
+      return []
+    }
+  }
+
+  // 根据分组标签获取好友
+  const getFriendsByTag = (tag: string) => {
+    console.log('useFriend: 根据标签获取好友', { tag })
+    try {
+      const friends = friendStore.getFriendsByTag(tag)
+      console.log('useFriend: 获取到', friends.length, '个好友，标签:', tag)
+      return friends
+    } catch (error) {
+      console.error('useFriend: 根据标签获取好友失败', { tag }, error)
+      return []
+    }
+  }
+
+  return {
+    // State
+    activeFriends,
+    blacklistedFriends,
+    isLoading,
+
+    // Actions
+    fetchFriends, // 新增：获取好友列表
+    init, // 新增：初始化好友模块
+    reset, // 新增：重置好友模块状态
+    removeFriend,
+    updateFriendProfile,
+    checkUserRelation,
+    getFriendByUid,
+    getFriendByFid,
+    getFriendProfile,
+    refreshFriendData,
+
+    // 标签管理函数
+    getAllFriendTags,
+    getFriendsByTag,
+  }
+}

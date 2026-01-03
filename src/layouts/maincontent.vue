@@ -1,25 +1,58 @@
 <template>
   <v-app>
     <v-main class="main-layout">
-      <v-container fluid class="pa-0 fill-height">
-        <v-row no-gutters class="fill-height">
+      <v-container class="pa-0 fill-height" fluid>
+        <v-row class="fill-height" no-gutters>
           <!-- 侧边栏 -->
           <!--使用栅格布局-->
-          <v-col cols="12" md="4" lg="2" class="detailbar-container">
+          <v-col
+            class="detailbar-container"
+            cols="12"
+            lg="2"
+            md="4"
+            sm="1"
+          >
             <div class="search-section">
               <!-- 所有的 Vuetify 输入组件都有一个 details 部分，在搜索框的下方，用来显示提示 -->
-              <v-text-field class="searchInput" prepend-inner-icon="mdi-magnify" label="搜索" variant="outlined" clearable
+              <v-text-field
+                class="searchInput"
+                clearable
                 density="comfortable"
-                hint="搜索用户、群组、群组"></v-text-field>
+                hint="搜索用户、群组、群组"
+                label="搜索"
+                prepend-inner-icon="mdi-magnify"
+                variant="solo"
+              />
+              <v-menu location="bottom">
+                <template #activator="{ props }">
+                  <v-btn class="ma-3 search-plus" variant="elevated" v-bind="props">
+                    <v-icon>mdi-plus</v-icon>
+                  </v-btn>
+                </template>
+                <v-list density="comfortable">
+                  <v-list-item v-for="(item, i) in menuItems" :key="i" @click="$router.push(item.action)">
+                    <v-list-item-title>{{ item.title }}</v-list-item-title>
+                  </v-list-item>
+                </v-list>
+              </v-menu>
+
             </div>
-            <div class="detail-list">
-              <slot name="detailbar"></slot>
-            </div>
+            <transition name="list-expand">
+              <div v-if="showList" class="detail-list">
+                <slot name="detailbar" />
+              </div>
+            </transition>
           </v-col>
 
           <!-- 主内容区域 -->
-          <v-col cols="12" md="8" lg="10" class="main-content">
-            <slot name="main"></slot>
+          <v-col
+            class="main-content"
+            cols="12"
+            lg="10"
+            md="8"
+            sm="11"
+          >
+            <slot name="main" />
           </v-col>
         </v-row>
       </v-container>
@@ -28,9 +61,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+  import { computed, onMounted, ref } from 'vue'
+  const showList = ref(false)
 
+  onMounted(() => {
+    // 组件挂载后显示列表，触发动画
+    setTimeout(() => {
+      showList.value = true
+    }, 100)
+  })
 
+  const menuItems = ref([
+    { title: '创建群聊', action: '/CreateGroup' },
+    { title: '添加朋友', action: '/AddFriend' },
+  ])
 </script>
 
 <style scoped>
@@ -47,7 +91,15 @@ import { ref, computed } from 'vue'
 }
 
 .search-section {
+  display: flex;
+  flex-direction: row;
   padding: 8px;
+  margin: 8px;
+}
+
+.search-plus {
+  position: relative;
+  top: -5px;
 }
 
 .detail-list {
@@ -84,12 +136,47 @@ import { ref, computed } from 'vue'
   background: rgba(0, 0, 0, 0.5);
 }
 
-
 .main-content {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #1a2523;
+  justify-content: center;
   overflow: hidden;
+  background-color: #1A1A25;
+}
+
+/* 列表展开动画 */
+.list-expand-enter-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition-delay: 0.1s;
+}
+
+.list-expand-enter-from {
+  opacity: 0;
+  transform: translateY(-10px);
+  max-height: 0;
+}
+
+.list-expand-enter-to {
+  opacity: 1;
+  transform: translateY(0);
+  max-height: 1000px;
+  /* 足够大的值确保完全展开 */
+}
+
+/* 内容淡入动画 */
+.content-fade-enter-active,
+.content-fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.content-fade-enter-from {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+.content-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-30px);
 }
 </style>
