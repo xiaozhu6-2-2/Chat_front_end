@@ -238,6 +238,11 @@
         return
       }
 
+      // 跳过正在加载历史消息的情况
+      if (isLoadingMore.value) {
+        return
+      }
+
       // 等待 DOM 更新和虚拟滚动组件渲染完成
       await nextTick()
 

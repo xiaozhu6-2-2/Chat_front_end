@@ -8,6 +8,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AddFriendModal: typeof import('./components/global/AddFriendModal.vue')['default']
     Avatar: typeof import('./components/global/Avatar.vue')['default']
     BrandInfo: typeof import('./components/global/BrandInfo.vue')['default']
     ChatArea: typeof import('./components/chat/chatArea.vue')['default']
@@ -26,6 +27,7 @@ declare module 'vue' {
     GroupRequestItem: typeof import('./components/friend/GroupRequestItem.vue')['default']
     GroupRequestPanel: typeof import('./components/friend/GroupRequestPanel.vue')['default']
     GroupSearchResultCard: typeof import('./components/friend/GroupSearchResultCard.vue')['default']
+    InviteToGroupModal: typeof import('./components/global/InviteToGroupModal.vue')['default']
     MessageBubble: typeof import('./components/chat/Message/MessageBubble.vue')['default']
     OnlineBoard: typeof import('./components/chat/onlineBoard.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']

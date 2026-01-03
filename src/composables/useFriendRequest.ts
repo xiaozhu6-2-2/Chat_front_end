@@ -7,7 +7,10 @@ import { useAuthStore } from '@/stores/authStore'
 import { useFriendRequestStore } from '@/stores/friendRequestStore'
 import { useFriendStore } from '@/stores/friendStore'
 import { transformFriendRequestFromApi } from '@/types/friendRequest'
-import { useFriend } from './useFriend' // 导入useFriend以获取fetchFriends
+import { useFriend } from './useFriend' // 导入useFriend以获取fetchFriends和updateFriendProfile
+
+// 待设置标签的临时存储
+const pendingFriendTags = new Map<string, { tags: string[], remark?: string }>()
 
 /**
  * 好友请求管理 Composable
@@ -67,9 +70,9 @@ export function useFriendRequest () {
    * }
    * ```
    */
-  const sendFriendRequest = async (receiver_id: string, message: string) => {
+  const sendFriendRequest = async (receiver_id: string, message: string, tags?: string[], remark?: string) => {
     try {
-      console.log('useFriendRequest: 发送好友请求', { receiver_id, message })
+      console.log('useFriendRequest: 发送好友请求', { receiver_id, message, tags, remark })
 
       // 调用服务层发送请求
       const response = await friendRequestService.sendFriendRequest(receiver_id, message)
@@ -77,6 +80,12 @@ export function useFriendRequest () {
       // 转换并添加到本地状态
       const newRequest = transformFriendRequestFromApi(response, 'sent')
       friendRequestStore.addRequest(newRequest)
+
+      // 保存待设置的标签和备注
+      if (tags && tags.length > 0) {
+        pendingFriendTags.set(receiver_id, { tags, remark })
+        console.log('useFriendRequest: 保存待设置标签', { receiver_id, tags, remark })
+      }
 
       // 显示成功提示
       showSuccess('好友请求已发送')
@@ -174,11 +183,12 @@ export function useFriendRequest () {
    * - 对方处理了我的好友请求
    * - 实时更新请求状态
    * - 刷新好友列表（如果被接受）
+   * - 设置好友标签（如果有待设置的标签）
    *
    * @param {string} req_id - 请求ID
    * @param {FriendRequestStatus} status - 新状态
    */
-  const handleFriendRequestUpdate = (req_id: string, status: FriendRequestStatus) => {
+  const handleFriendRequestUpdate = async (req_id: string, status: FriendRequestStatus, receiverUid?: string) => {
     console.log('useFriendRequest: 处理好友请求状态更新', req_id, status)
 
     // 更新请求状态
@@ -187,9 +197,52 @@ export function useFriendRequest () {
     // 根据状态显示相应提示
     if (status === 'accepted') {
       showSuccess('好友请求已被接受')
-      fetchFriends(true) // 刷新好友列表
+
+      // 刷新好友列表
+      await fetchFriends(true)
+
+      // 检查是否有待设置的标签
+      if (receiverUid && pendingFriendTags.has(receiverUid)) {
+        const pending = pendingFriendTags.get(receiverUid)
+        if (pending) {
+          console.log('useFriendRequest: 检测到待设置标签', { receiverUid, pending })
+
+          // 等待一下确保好友列表已更新
+          setTimeout(async () => {
+            try {
+              // 查找好友关系
+              const friend = friendStore.getFriendByUid(receiverUid)
+              if (friend && friend.fid) {
+                console.log('useFriendRequest: 找到好友，开始设置标签', { fid: friend.fid, pending })
+
+                // 调用 updateFriendProfile 设置标签
+                const { updateFriendProfile } = useFriend()
+                // 设置标签（取第一个标签作为主要标签）
+                const tag = pending.tags[0] || undefined
+                await updateFriendProfile(friend.fid, {
+                  tag,
+                  remark: pending.remark,
+                })
+
+                showSuccess('好友标签设置成功')
+                // 清除临时存储
+                pendingFriendTags.delete(receiverUid)
+              } else {
+                console.warn('useFriendRequest: 未找到好友关系，稍后重试', { receiverUid })
+                // 如果还没找到，可能需要延迟更长时间或重试
+              }
+            } catch (error) {
+              console.error('useFriendRequest: 设置好友标签失败', error)
+            }
+          }, 500) // 延迟500ms确保好友列表已更新
+        }
+      }
     } else if (status === 'rejected') {
       showSuccess('好友请求已被拒绝')
+      // 清除临时存储
+      if (receiverUid) {
+        pendingFriendTags.delete(receiverUid)
+      }
     }
   }
 

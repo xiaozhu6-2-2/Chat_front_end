@@ -5,14 +5,22 @@
         <!-- 左侧图标：群聊或用户 -->
         <div class="mr-3 flex-shrink-0">
           <!-- 收到的申请：显示申请人头像 -->
-          <v-avatar v-if="type === 'received'" :image="getUserAvatar() || undefined" size="48">
-            <v-icon v-if="!getUserAvatar()" icon="mdi-account" size="24" />
-          </v-avatar>
+          <Avatar
+            v-if="type === 'received'"
+            :name="getDisplayName()"
+            :size="48"
+            :url="request.userProfile?.avatar || undefined"
+            avatar-class="profile-avatar"
+          />
 
           <!-- 发送的申请：显示群聊头像 -->
-          <v-avatar v-else :image="getGroupAvatar() || undefined" size="48">
-            <v-icon v-if="!getGroupAvatar()" icon="mdi-account-group" size="24" />
-          </v-avatar>
+          <Avatar
+            v-else
+            :name="getDisplayName()"
+            :size="48"
+            :url="request.groupProfile?.avatar || undefined"
+            avatar-class="profile-avatar"
+          />
         </div>
 
         <!-- 请求信息 -->
@@ -149,22 +157,6 @@
       // 发送的申请：显示群聊名称
       return props.request.groupProfile?.name || `群聊${props.request.gid}`
     }
-  }
-
-  // 获取用户头像
-  function getUserAvatar () {
-    if (props.type === 'received' && props.request.userProfile) {
-      return props.request.userProfile.avatar
-    }
-    return null
-  }
-
-  // 获取群聊头像
-  function getGroupAvatar () {
-    if (props.type === 'sent' && props.request.groupProfile) {
-      return props.request.groupProfile.avatar
-    }
-    return null
   }
 
   // 获取状态颜色

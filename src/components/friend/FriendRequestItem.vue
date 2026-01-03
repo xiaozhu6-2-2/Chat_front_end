@@ -3,9 +3,12 @@
     <v-card-text class="pa-4">
       <div class="d-flex align-start">
         <!-- 用户头像 -->
-        <v-avatar class="mr-3 flex-shrink-0" :image="getUserAvatar()" size="48">
-          <v-icon v-if="!getUserAvatar()" icon="mdi-account" size="24" />
-        </v-avatar>
+        <Avatar
+          avatar-class="profile-avatar"
+          :name="getDisplayName()"
+          :size="48"
+          :url="request.userProfile?.avatar || undefined"
+        />
 
         <!-- 请求信息 -->
         <div class="flex-grow-1">
@@ -105,14 +108,6 @@
   // 获取用户显示名称
   function getDisplayName () {
     return props.type === 'received' ? props.request.userProfile?.name || `用户${props.request.sender_uid}` : `用户${props.request.receiver_uid}`
-  }
-
-  // 获取用户头像
-  function getUserAvatar () {
-    if (props.type === 'received') {
-      return props.request.userProfile?.avatar
-    }
-    return null
   }
 
   // 获取状态颜色

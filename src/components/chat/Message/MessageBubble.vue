@@ -108,16 +108,6 @@
             :icon="isReadIcon"
             size="16"
           />
-          <!-- TODO 群聊消息显示几人已读，可点击，点击后出现已读和未读列表，类似钉钉
-          <v-chip
-            v-if="props.message.type === 'MesGroup' && isOwnMessage && props.message.read_count?"
-            size="x-small"
-            variant="text"
-            class="read-count-chip"
-            @click="showReadDialog = true"
-          >
-              {{ props.message.read_count }}人已读
-          </v-chip> -->
         </span>
       </div>
     </div>
@@ -650,7 +640,7 @@ onMounted(async () => {
   width: 48px;
   height: 48px;
 
-  .own-bubble & { color: #1976d2; }
+  .own-bubble & { color: #1a1a1a; }
   .other-bubble & { color: rgba(255, 255, 255, 0.9); }
 }
 

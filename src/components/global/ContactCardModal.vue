@@ -168,11 +168,17 @@
       @delete="handleFriendDelete"
       @cancel="handleEditCancel"
     />
+
+    <!-- 添加好友对话框 -->
+    <AddFriendModal
+      v-model="showAddFriendModal"
+      :user="contact"
+      @send-request="handleSendFriendRequest"
+    />
   </v-dialog>
 </template>
 
 <script setup lang="ts">
-  import EditFriendModal from './EditFriendModal.vue'
   import type { FriendWithUserInfo } from '../../types/friend'
   import type { ContactCardModalEmits, ContactCardModalProps } from '../../types/global'
 
@@ -200,6 +206,7 @@
 
   // 编辑状态管理
   const editMode = ref(false)
+  const showAddFriendModal = ref(false)
 
   // 监听双向绑定变量
   const dialog = computed({
@@ -324,10 +331,13 @@
   }
 
   function addFriend() {
-    emit('add-friend', props.contact)
-    closeDialog()
+    showAddFriendModal.value = true
   }
 
+  function handleSendFriendRequest(user: { id: string; name: string; avatar: string }, message: string, tags: string[]) {
+    emit('add-friend', props.contact, message, tags)
+    showAddFriendModal.value = false
+  }
 
   // 处理编辑资料
   function handleEditProfile() {

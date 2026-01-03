@@ -7,7 +7,7 @@
           class="mr-3"
           :name="user.username || '用户'"
           :size="48"
-          :url="user.avatar"
+          :url="user.avatar || undefined"
         />
 
         <div class="flex-grow-1">
@@ -45,7 +45,7 @@
           color="primary"
           size="small"
           variant="elevated"
-          @click="showRequestDialog = true"
+          @click="showAddFriendModal = true"
         >
           <v-icon class="mr-1" icon="mdi-account-plus" />
           添加好友
@@ -76,88 +76,12 @@
       </div>
     </v-card-text>
 
-    <!-- 发送好友请求对话框 -->
-    <v-dialog v-model="showRequestDialog" max-width="600">
-      <v-card>
-        <v-card-title class="text-h9 align-self-center">
-          申请添加朋友
-        </v-card-title>
-
-        <v-card-text>
-          <p class="mb-4 text-grey text-subtitle-2">
-            发送好友请求
-          </p>
-
-          <v-textarea
-            v-model="requestMessage"
-            counter="200"
-            placeholder="你好，我想添加你为好友..."
-            rows="1"
-            variant="outlined"
-          />
-        </v-card-text>
-
-        <!-- 决定不在加好友时添加备注 -->
-        <!-- <v-card-text>
-          <p class="mb-4 text-grey text-subtitle-2">
-            备注
-          </p>
-
-          <v-textarea
-            v-model="remark"
-            placeholder="好友备注（不填写则默认为用户名）"
-            rows="1"
-            variant="outlined"
-            counter="10"
-          />
-        </v-card-text> -->
-
-        <!-- 标签分组选择 -->
-        <v-card-text>
-          <p class="mb-4 text-grey text-subtitle-2">
-            标签分组（可选）
-          </p>
-
-          <v-combobox
-            v-model="selectedTags"
-            chips
-            clearable
-            counter="10"
-            :items="recentTags"
-            label="选择或输入标签"
-            multiple
-            placeholder="选择标签或输入新标签"
-            :rules="tagRules"
-            variant="outlined"
-          >
-            <template #chip="{ props, item }">
-              <v-chip
-                v-bind="props"
-                :color="getTagColor(item.raw)"
-                size="small"
-              >
-                <v-icon class="mr-1" icon="mdi-tag" size="12" />
-                {{ item.raw }}
-              </v-chip>
-            </template>
-          </v-combobox>
-        </v-card-text>
-
-        <v-card-actions>
-          <v-spacer />
-          <v-btn @click="showRequestDialog = false">
-            取消
-          </v-btn>
-          <v-btn
-            color="primary"
-            :loading="sending"
-            @click="handleSendRequest"
-          >
-            发送
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <!-- 添加好友对话框 -->
+    <AddFriendModal
+      v-model="showAddFriendModal"
+      :user="{ id: user.uid, name: user.username, avatar: user.avatar || '' }"
+      @send-request="handleSendRequest"
+    />
 
     <!-- 用户资料对话框 -->
     <v-dialog v-model="showProfileDialog" max-width="500">
@@ -167,7 +91,7 @@
             class="mr-3"
             :name="user.username || '用户'"
             :size="40"
-            :url="user.avatar"
+            :url="user.avatar || undefined"
           />
           {{ user.username }} 的资料
         </v-card-title>
@@ -201,29 +125,17 @@
   import type { UserSearchResultCardEmits, UserSearchResultCardProps } from '../../types/friendRequest'
   import { ref } from 'vue'
   import { useFriend } from '../../composables/useFriend'
+
   const { checkUserRelation } = useFriend()
 
   const props = defineProps<UserSearchResultCardProps>()
   const emit = defineEmits<UserSearchResultCardEmits>()
 
-  const showRequestDialog = ref(false)
+  const showAddFriendModal = ref(false)
   const showProfileDialog = ref(false)
-  const requestMessage = ref('')
-  const sending = ref(false)
-
-  // 标签相关数据
-  const selectedTags = ref<string[]>([])
-  // TODO: 简单的静态实现，后续可以从friendStore获取真实的最近标签列表
-  const recentTags = ref<string[]>(['同事', '家人', '同学', '朋友'])
-
-  // 标签验证规则
-  const tagRules = [
-    (tags: string[]) => tags.every(tag => tag.length <= 10) || '标签长度不能超过10个字符',
-    (tags: string[]) => tags.every(tag => /^[\u4E00-\u9FA5a-zA-Z0-9\s]+$/.test(tag)) || '标签只能包含中文、英文、数字和空格',
-  ]
 
   // 获取性别图标
-  function getGenderIcon (gender: string) {
+  function getGenderIcon (gender?: string) {
     switch (gender) {
       case 'male': {
         return 'mdi-gender-male'
@@ -238,7 +150,7 @@
   }
 
   // 获取性别颜色
-  function getGenderColor (gender: string) {
+  function getGenderColor (gender?: string) {
     switch (gender) {
       case 'male': {
         return 'blue'
@@ -252,32 +164,10 @@
     }
   }
 
-  // 获取标签颜色
-  function getTagColor (tag: string): string {
-    const colors = ['primary', 'secondary', 'success', 'warning', 'error', 'info', 'purple', 'indigo', 'teal']
-    const hash = (tag || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    return colors[hash % colors.length]
-  }
-
-  // 格式化日期
-  function formatDate (dateString: string) {
-    return new Date(dateString).toLocaleDateString('zh-CN')
-  }
-
   // 发送好友请求
-  async function handleSendRequest () {
-    sending.value = true
-    try {
-      // 发送标签数组（空数组表示无标签）
-      await emit('send-request', props.user, requestMessage.value, selectedTags.value)
-      showRequestDialog.value = false
-      requestMessage.value = ''
-      selectedTags.value = []
-    } catch (error) {
-      console.error('发送好友请求失败:', error)
-    } finally {
-      sending.value = false
-    }
+  function handleSendRequest (user: { id: string; name: string; avatar: string }, message: string, tags: string[]) {
+    // 转换为原始用户对象格式
+    emit('send-request', props.user, message, tags)
   }
 </script>
 

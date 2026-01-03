@@ -1,6 +1,7 @@
 /** 联系人列表 Props */
 
 import type { FriendWithUserInfo } from './friend'
+import type { GroupMember } from './group'
 
 /** 联系人列表 Emits */
 /** 父组件监听并响应的动作，根据点击的是群聊还是私聊 */
@@ -110,4 +111,29 @@ export interface EditFriendSaveData {
   remark: string
   tag: string | null
   isBlacklisted: boolean
+}
+
+/** 邀请进群弹窗 Props */
+export interface InviteToGroupModalProps {
+  modelValue: boolean
+  gid: string
+  existingMembers: GroupMember[]
+}
+
+/** 邀请进群弹窗 Emits */
+export interface InviteToGroupModalEmits {
+  (e: 'update:modelValue', value: boolean): void
+  (e: 'invited', newMembers: GroupMember[]): void
+}
+
+/** 添加好友对话框 Props */
+export interface AddFriendModalProps {
+  modelValue: boolean
+  user: BaseProfile
+}
+
+/** 添加好友对话框 Emits */
+export interface AddFriendModalEmits {
+  (e: 'update:modelValue', value: boolean): void
+  (e: 'send-request', user: BaseProfile, message: string, tags: string[]): void
 }
