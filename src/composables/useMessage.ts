@@ -195,7 +195,7 @@ export function useMessage () {
   // ============== 核心方法 ==============
 
   /**
-   * 发送文本消息
+   * 发送文本消息（支持 @ 功能）
    *
    * 执行流程：
    * 1. 生成临时消息ID
@@ -206,8 +206,9 @@ export function useMessage () {
    * 6. 更新发送状态为 SENDING 或 FAILED
    *
    * @param content 消息内容
+   * @param mentionedUids 被@的用户ID列表（可选）
    */
-  const sendTextMessage = async (content: string) => {
+  const sendTextMessage = async (content: string, mentionedUids?: string[] | null) => {
     try {
       // 检查是否有激活的聊天
       if (!activeChatId.value) {
@@ -230,6 +231,8 @@ export function useMessage () {
         content,
         chatId,
         true,
+        undefined, // is_announcement
+        mentionedUids, // @ 的用户列表
       )
 
       // 3. 立即添加到 store（立即显示）

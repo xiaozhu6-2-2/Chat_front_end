@@ -4,19 +4,38 @@
     <div class="shadow__input" />
     <!-- 工具栏 -->
     <div class="toolbar">
-      <v-btn icon variant="text" @click="toggleEmojiPicker">
-        <v-icon>mdi-emoticon-outline</v-icon>
-      </v-btn>
+      <div class="emoji-btn-wrapper">
+        <v-btn icon variant="text" @click="toggleEmojiPicker">
+          <v-icon>mdi-emoticon-outline</v-icon>
+        </v-btn>
+        <!-- 表情选择器弹出层 -->
+        <v-expand-transition>
+          <div v-if="showEmojiPicker" class="emoji-picker-popup">
+            <EmojiPicker
+              :native="true"
+              :theme="'dark'"
+              :display-recent="true"
+              @select="onSelectEmoji"
+            />
+          </div>
+        </v-expand-transition>
+      </div>
       <v-btn icon variant="text" @click="handleFileUpload">
         <v-icon>mdi-file-outline</v-icon>
       </v-btn>
-      <v-btn icon variant="text" @click="handleVoiceRecord">
-        <v-icon>mdi-microphone</v-icon>
+      <!-- @ 功能按钮 - 仅群聊显示 -->
+      <v-btn
+        v-if="isGroupChat"
+        icon
+        variant="text"
+        @click="openAtDialog"
+      >
+        <v-icon>mdi-at</v-icon>
       </v-btn>
       <v-spacer />
-      <v-btn icon variant="text">
+      <!-- <v-btn icon variant="text">
         <v-icon>mdi-dots-horizontal</v-icon>
-      </v-btn>
+      </v-btn> -->
     </div>
 
     <!-- 隐藏的文件输入 -->
@@ -26,6 +45,32 @@
       style="display: none"
       @change="handleFileSelected"
     >
+
+    <!-- 成员选择弹窗 -->
+    <v-dialog v-model="showAtDialog" max-width="400" scrim>
+      <v-card>
+        <v-card-title>选择要@的成员</v-card-title>
+        <v-card-text>
+          <v-list>
+            <v-list-item
+              v-for="member in groupMembers"
+              :key="member.id"
+              @click="selectMember(member)"
+            >
+              <template #prepend>
+                <Avatar :name="member.name" :url="member.avatar" :size="40" />
+              </template>
+              <v-list-item-title>{{ member.nickname || member.name }}</v-list-item-title>
+            </v-list-item>
+          </v-list>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="showAtDialog = false">取消</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <input
       class="chat_input"
       name="chat_input"
@@ -50,30 +95,103 @@
 </template>
 
 <script setup>
-  import { ref } from 'vue'
+  import { computed, ref } from 'vue'
+  import EmojiPicker from 'vue3-emoji-picker'
+  import 'vue3-emoji-picker/css'
+  import { useChat } from '@/composables/useChat'
+  import { useGroupStore } from '@/stores/groupStore'
+  import { useGroup } from '@/composables/useGroup'
 
-  defineProps({
+  const props = defineProps({
     modelValue: {
       type: String,
       default: '',
     },
+    chatId: {
+      type: String,
+      default: '',
+    },
+    chatType: {
+      type: String,
+      default: 'private',
+    },
   })
   const emit = defineEmits(['update:modelValue', 'keydown.enter.exact.prevent', 'send-message', 'send-file'])
 
+  // 获取聊天信息
+  const { activeChatId, activeChatType } = useChat()
+  const groupStore = useGroupStore()
+  const { getGroupMembers } = useGroup()
+
+  // 是否是群聊
+  const isGroupChat = computed(() => {
+    return props.chatType === 'group' || activeChatType.value === 'group'
+  })
+
+  // @ 弹窗状态
+  const showAtDialog = ref(false)
+
+  // 已选择的成员
+  const selectedMembers = ref([])
+
+  // 群成员列表
+  const groupMembers = computed(() => {
+    const gid = props.chatId || activeChatId.value
+    if (!isGroupChat.value || !gid) return []
+    return groupStore.getGroupMembers(gid)
+  })
+
+  // 打开 @ 弹窗
+  async function openAtDialog() {
+    const gid = props.chatId || activeChatId.value
+    if (!gid) return
+
+    // 加载群成员
+    await getGroupMembers({ gid })
+
+    showAtDialog.value = true
+  }
+
+  // 选择成员
+  function selectMember(member) {
+    selectedMembers.value.push(member)
+
+    // 在输入框中插入 @名字
+    const atText = `@${member.nickname || member.name} `
+    emit('update:modelValue', (props.modelValue || '') + atText)
+
+    showAtDialog.value = false
+  }
+
   // 文件输入引用
   const fileInputRef = ref(null)
+
+  // 表情选择器状态
+  const showEmojiPicker = ref(false)
 
   // 常量：文件大小限制（100MB）
   const MAX_FILE_SIZE = 100 * 1024 * 1024
 
   // 处理发送按钮点击
   function handleSendMessage () {
-    emit('send-message')
+    const memberIds = selectedMembers.value.map(m => m.id)
+    emit('send-message', {
+      content: props.modelValue,
+      mentionedUids: memberIds.length > 0 ? memberIds : null,
+    })
+    // 清空已选成员
+    selectedMembers.value = []
   }
 
-  // TODO: 待实现功能
+  // 切换表情选择器显示
   function toggleEmojiPicker () {
-    console.warn('表情选择器功能待实现')
+    showEmojiPicker.value = !showEmojiPicker.value
+  }
+
+  // 选择表情
+  function onSelectEmoji (emoji) {
+    // emoji.i 是表情字符，如 "😊"
+    emit('update:modelValue', (props.modelValue || '') + emoji.i)
   }
 
   /**
@@ -161,7 +279,14 @@
     display: flex;
     padding: 4px 0;
     gap: 8px;
-}
+    position: relative;
+  }
+
+  /* 表情按钮包装器 */
+  .emoji-btn-wrapper {
+    position: relative;
+    display: inline-block;
+  }
 
 .toolbar :deep(.v-btn) {
     color: rgba(255, 255, 255, 0.7);
@@ -204,4 +329,59 @@
     border-radius: 10px;
     font-weight: 500;
 }
+
+/* 表情选择器弹出层 */
+.emoji-picker-popup {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    margin-bottom: 8px;
+    background: #2c2c2e;
+    border-radius: 10px;
+    padding: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    max-height: 400px;
+    max-width: 320px;
+    overflow-y: auto;
+    z-index: 1000;
+  }
+
+  /* 深色主题下的表情选择器样式覆盖 */
+  .emoji-picker-popup :deep(.emoji-picker) {
+    background: #2c2c2e;
+    border: none;
+  }
+
+  .emoji-picker-popup :deep(.emoji-picker__search) {
+    background: #323234;
+    border: none;
+  }
+
+  .emoji-picker-popup :deep(.emoji-picker__search input) {
+    background: transparent;
+    color: #fff;
+  }
+
+  .emoji-picker-popup :deep(.emoji-picker__search input::placeholder) {
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  /* 滚动条样式 */
+  .emoji-picker-popup::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .emoji-picker-popup::-webkit-scrollbar-track {
+    background: #2c2c2e;
+    border-radius: 4px;
+  }
+
+  .emoji-picker-popup::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+  }
+
+  .emoji-picker-popup::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
 </style>

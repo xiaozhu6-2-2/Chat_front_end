@@ -74,18 +74,6 @@
         </div>
       </v-expand-transition>
 
-      <!-- 表情选择器 -->
-      <div v-if="showEmojiPicker" class="emoji-picker">
-        <v-btn
-          v-for="emoji in emojis"
-          :key="emoji"
-          variant="text"
-          @click="insertEmoji(emoji)"
-        >
-          {{ emoji }}
-        </v-btn>
-      </div>
-
       <echatInput
         v-model="inputMessage"
         @keydown.enter.exact.prevent="handleSendMessage"
@@ -138,10 +126,6 @@
 
   const {
     inputMessage,
-    showEmojiPicker,
-    emojis,
-    insertEmoji,
-    toggleEmojiPicker,
   } = useMessageInput()
   const {
     messages,
@@ -554,18 +538,6 @@
     color: #1976d2;
     margin-top: 4px;
   }
-}
-
-.emoji-picker {
-  display: flex;
-  flex-wrap: wrap;
-  background-color: #2a2a2e;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  padding: 5px;
-  margin-bottom: 10px;
-  max-height: 150px;
-  overflow-y: auto;
 }
 
 .message-input {

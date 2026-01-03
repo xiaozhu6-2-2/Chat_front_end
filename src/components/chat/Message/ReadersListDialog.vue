@@ -43,7 +43,7 @@
                 <template #prepend>
                   <Avatar :clickable="true" :name="member.name" :size="32" :url="member.avatar" @click="handleAvatarClick(member.id, member.avatar)" />
                 </template>
-                <v-list-item-title class="text-body-2">{{ member.name }}</v-list-item-title>
+                <v-list-item-title class="text-body-2 ml-3">{{ member.name }}</v-list-item-title>
               </v-list-item>
               <v-list-item v-if="unreadMembers.length === 0">
                 <v-list-item-title class="text-grey text-center text-caption">暂无未读成员</v-list-item-title>
@@ -62,7 +62,7 @@
                 <template #prepend>
                   <Avatar :clickable="true" :name="reader.username" :size="32" :url="reader.avatar" @click="handleAvatarClick(reader.uid, reader.avatar)" />
                 </template>
-                <v-list-item-title class="text-body-2">{{ reader.username }}</v-list-item-title>
+                <v-list-item-title class="text-body-2 ml-3">{{ reader.username }}</v-list-item-title>
               </v-list-item>
               <v-list-item v-if="readers.length === 0">
                 <v-list-item-title class="text-grey text-center text-caption">暂无已读成员</v-list-item-title>
@@ -94,6 +94,7 @@ import { messageService } from '@/service/messageService'
 import { strangerUserService } from '@/service/strangerUserService'
 import { useFriendStore } from '@/stores/friendStore'
 import { useGroupStore } from '@/stores/groupStore'
+import { useAuthStore } from '@/stores/authStore'
 import { useGroup } from '@/composables/useGroup'
 import { computed, ref, watch } from 'vue'
 
@@ -121,6 +122,7 @@ const emit = defineEmits<Emits>()
 
 const groupStore = useGroupStore()
 const friendStore = useFriendStore()
+const authStore = useAuthStore()
 const { getGroupMembers } = useGroup()
 
 const isLoading = ref(false)
@@ -152,7 +154,6 @@ const loadData = async () => {
       props.chatId,
       props.chatType || 'group',
     )
-    readers.value = readersData
 
     // 2. 获取群成员
     let allMembers = groupStore.getGroupMembers(props.chatId)
@@ -161,12 +162,18 @@ const loadData = async () => {
       allMembers = await getGroupMembers({ gid: props.chatId }, true)
     }
 
-    // 3. 计算未读列表 = 群成员 - 已读成员
-    const readUids = new Set(readersData.map(r => r.uid))
-    unreadMembers.value = allMembers.filter(member => !readUids.has(member.id))
+    // 3. 排除当前用户自己
+    const currentUserId = authStore.userId
+    readers.value = readersData.filter(r => r.uid !== currentUserId)
+    const otherMembers = allMembers.filter(member => member.id !== currentUserId)
+
+    // 4. 计算未读列表 = 其他群成员 - 其他已读成员
+    const readUids = new Set(readers.value.map(r => r.uid))
+    unreadMembers.value = otherMembers.filter(member => !readUids.has(member.id))
 
     console.log('[ReadersListDialog] 加载完成', {
       messageId: props.messageId,
+      currentUserId,
       readCount: readers.value.length,
       unreadCount: unreadMembers.value.length,
       totalCount: totalCount.value,

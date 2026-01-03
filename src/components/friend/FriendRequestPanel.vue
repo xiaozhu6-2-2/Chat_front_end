@@ -5,10 +5,10 @@
         <v-icon class="mr-2" icon="mdi-inbox-arrow-down" />
         收到的请求
         <v-badge
-          v-if="pendingRequests.length > 0"
+          v-if="pendingReceivedRequests.length > 0"
           class="ml-2"
           color="error"
-          :content="pendingRequests.length"
+          :content="pendingReceivedRequests.length"
         />
       </v-tab>
       <v-tab value="sent">
@@ -26,9 +26,9 @@
     <v-window v-model="activeTab">
       <!-- 收到的请求 -->
       <v-window-item value="received">
-        <div v-if="pendingRequests.length > 0" class="request-list">
+        <div v-if="pendingReceivedRequests.length > 0" class="request-list">
           <FriendRequestItem
-            v-for="request in pendingRequests"
+            v-for="request in pendingReceivedRequests"
             :key="request.req_id"
             :request="request"
             type="received"
@@ -76,7 +76,7 @@
   } = useFriendRequest()
   const FriendRequestStore = useFriendRequestStore()
   const {
-    pendingRequests,
+    pendingReceivedRequests,
     sentRequests
   } = storeToRefs(FriendRequestStore)
   const activeTab = ref<'received' | 'sent'>('received')
@@ -131,9 +131,10 @@
 }
 
 :deep(.v-window-item) {
-  height: 100%;
+
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 .request-list {

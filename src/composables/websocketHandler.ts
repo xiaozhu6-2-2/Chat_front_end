@@ -368,6 +368,7 @@ const handleFriendRequestResultNotification = (notification: FriendRequestResult
     const {showSuccess} = useSnackbar()
     showSuccess(`${notification.payload.username} 已同意您的好友请求`)
   }
+  
   console.log('[WebSocketHandler] 好友请求结果通知已处理:', notification.payload)
 }
 

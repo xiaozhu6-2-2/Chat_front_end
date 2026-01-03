@@ -189,6 +189,12 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: auto;
+}
+
+.search-input,
+.v-btn-toggle {
+  flex-shrink: 0;
 }
 
 .v-container {

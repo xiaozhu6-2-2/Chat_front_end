@@ -34,6 +34,7 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SettingsDialog: typeof import('./components/setting/settingsDialog.vue')['default']
+    TextMessage: typeof import('./components/chat/Message/TextMessage.vue')['default']
     UserProfileEditModal: typeof import('./components/global/UserProfileEditModal.vue')['default']
     UserSearchPanel: typeof import('./components/friend/UserSearchPanel.vue')['default']
     UserSearchResultCard: typeof import('./components/friend/UserSearchResultCard.vue')['default']

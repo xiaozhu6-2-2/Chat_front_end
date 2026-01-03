@@ -16,17 +16,42 @@
 
     <!-- 群信息头部 -->
     <div class="group-header-section">
-      <Avatar
-        :name="activeChat?.name || ''"
-        :url="activeChat?.avatar || ''"
-        :size="60"
-        avatar-class="profile-avatar"
-      />
+      <!-- 头像容器，用于定位编辑按钮 -->
+      <div class="group-avatar-wrapper">
+        <Avatar
+          :name="activeChat?.name || ''"
+          :url="activeChat?.avatar || ''"
+          :size="60"
+          avatar-class="profile-avatar"
+        />
+
+        <!-- 编辑按钮 - 仅群主可见 -->
+        <v-btn
+          v-if="isGroupOwner"
+          class="avatar-edit-btn"
+          color="primary"
+          icon="mdi-camera"
+          size="x-small"
+          variant="elevated"
+          :loading="isUploadingAvatar"
+          @click="triggerAvatarUpload"
+        />
+      </div>
+
       <div class="group-meta">
         <h3 class="group-name">{{ activeChat?.name || '未知群聊' }}({{ groupMembers.length }})</h3>
         <!-- <p class="member-count"></p> -->
       </div>
     </div>
+
+    <!-- 隐藏的文件输入框 -->
+    <input
+      ref="avatarFileInput"
+      accept="image/jpeg,image/jpg,image/png"
+      style="display: none"
+      type="file"
+      @change="handleAvatarFileChange"
+    >
 
     <v-divider />
 <v-card>
@@ -129,6 +154,7 @@
   import { useGroup } from '@/composables/useGroup'
   import { useSnackbar } from '@/composables/useSnackbar'
   import { useFriendRequest } from '../../composables/useFriendRequest'
+  import { useFile } from '@/composables/useFile'
 
   defineOptions({
     name: 'OnlineBoard',
@@ -144,9 +170,10 @@
 
   const chatStore = useChatStore()
   const groupStore = useGroupStore()
-  const { getGroupMembers, leaveGroup, checkPermissions } = useGroup()
-  const { showError, showSuccess } = useSnackbar()
+  const { getGroupMembers, leaveGroup, checkPermissions, updateGroupInfo } = useGroup()
+  const { showError, showSuccess, showInfo } = useSnackbar()
   const { sendFriendRequest } = useFriendRequest()
+  const { uploadFile } = useFile()
 
   // 控制抽屉显示
   const drawer = computed({
@@ -171,8 +198,18 @@
     return groupStore.getGroupMembers(currentGroupId.value)
   })
 
+  // 检查当前用户是否是群主
+  const isGroupOwner = computed(() => {
+    if (!currentGroupId.value) return false
+    return checkPermissions(currentGroupId.value).isOwner
+  })
+
   // 加载状态
   const isLoadingMembers = ref(false)
+
+  // 头像上传状态
+  const avatarFileInput = ref<HTMLInputElement>()
+  const isUploadingAvatar = ref(false)
 
   // 成员卡片弹窗
   const showContactCard = ref(false)
@@ -315,6 +352,82 @@
     }
     return classes[role] || ''
   }
+
+  // ========== 头像上传函数 ==========
+
+  /**
+   * 触发文件选择器
+   */
+  function triggerAvatarUpload() {
+    avatarFileInput.value?.click()
+  }
+
+  /**
+   * 处理文件选择
+   */
+  function handleAvatarFileChange(event: Event) {
+    const target = event.target as HTMLInputElement
+    const file = target.files?.[0]
+
+    if (!file) return
+
+    // 验证文件类型
+    if (!/image\/(jpeg|jpg|png)/.test(file.type)) {
+      showError('请选择 JPG 或 PNG 格式的图片')
+      if (avatarFileInput.value) {
+        avatarFileInput.value.value = ''
+      }
+      return
+    }
+
+    // 验证文件大小（10MB限制）
+    if (file.size > 10 * 1024 * 1024) {
+      showError('图片大小不能超过 10MB')
+      if (avatarFileInput.value) {
+        avatarFileInput.value.value = ''
+      }
+      return
+    }
+
+    // 上传文件
+    uploadGroupAvatar(file)
+  }
+
+  /**
+   * 上传群头像并更新群信息
+   */
+  async function uploadGroupAvatar(file: File) {
+    if (!currentGroupId.value) {
+      showError('无法识别群聊信息')
+      return
+    }
+
+    isUploadingAvatar.value = true
+
+    try {
+      // 步骤1: 上传文件
+      const uploadResult = await uploadFile(file, {
+        fileName: `group_avatar_${currentGroupId.value}_${Date.now()}`,
+        fileType: 'image',
+      })
+
+      // 步骤2: 更新群信息
+      await updateGroupInfo({
+        gid: currentGroupId.value,
+        group_avatar: uploadResult.file_id,
+      })
+
+      showSuccess('群头像更新成功')
+    } catch (error: any) {
+      console.error('Failed to upload group avatar:', error)
+      showError(error.message || '群头像上传失败，请重试')
+    } finally {
+      isUploadingAvatar.value = false
+      if (avatarFileInput.value) {
+        avatarFileInput.value.value = ''
+      }
+    }
+  }
 </script>
 
 <style scoped>
@@ -323,6 +436,24 @@
   flex-direction: column;
   align-items: center;
   padding: 24px 16px;
+}
+
+.group-avatar-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.avatar-edit-btn {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  z-index: 1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.avatar-edit-btn:hover {
+  transform: scale(1.1);
+  transition: transform 0.2s ease;
 }
 
 .group-meta {

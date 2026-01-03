@@ -22,6 +22,7 @@
         >
           <div class="contact_content">
             <Avatar
+              avatar-class="profile-avatar"
               :name="group.name || '群聊'"
               :size="40"
               :url="group.avatar"

@@ -107,6 +107,18 @@
 
               <settingsDialog v-model="showSettingsDialog" />
             </v-list-item>
+
+            <!-- 登出按钮 -->
+            <v-list-item class="nav-item">
+              <v-btn
+                class="nav-button logout-button"
+                size="large"
+                variant="text"
+                @click="handleLogout"
+              >
+                <v-icon size="x-large" color="error">mdi-logout</v-icon>
+              </v-btn>
+            </v-list-item>
           </v-list>
         </v-navigation-drawer>
 
@@ -115,6 +127,34 @@
         </v-main>
       </v-layout>
     </v-card>
+
+    <!-- 登出确认对话框 -->
+    <v-dialog v-model="showLogoutDialog" max-width="400">
+      <v-card>
+        <v-card-title class="text-h6">
+          确认退出登录
+        </v-card-title>
+        <v-card-text>
+          确定要退出登录吗？
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            variant="text"
+            @click="showLogoutDialog = false"
+          >
+            取消
+          </v-btn>
+          <v-btn
+            color="error"
+            variant="elevated"
+            @click="confirmLogout"
+          >
+            确认退出
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-app>
 </template>
 
@@ -129,6 +169,7 @@ import { useChatStore } from "../stores/chatStore";
 import { useUserStore } from "../stores/userStore";
 import { useFriendRequestStore } from "../stores/friendRequestStore";
 import { useGroupRequestStore } from "../stores/groupRequestStore";
+import { useAuth } from "@/composables/useAuth";
 
 const router = useRouter();
 const $route = useRoute();
@@ -137,6 +178,7 @@ const chatStore = useChatStore();
 const friendRequestStore = useFriendRequestStore();
 const groupRequestStore = useGroupRequestStore();
 const { currentUser } = storeToRefs(userStore);
+const { logout } = useAuth();
 
 // 计算未处理请求总数 = 收到的好友请求 + 需要审核的群聊请求
 const pendingRequestsCount = computed(() => {
@@ -155,10 +197,26 @@ const showSettingsDialog = ref(false);
 const showContactCard = ref(false);
 // 控制模态框显示
 const showProfileEditModal = ref(false);
+// 登出确认对话框
+const showLogoutDialog = ref(false);
+
 // 处理编辑资料事件
 function handleEditProfile() {
   showProfileEditModal.value = true;
 }
+
+// 打开登出确认对话框
+function handleLogout() {
+  showLogoutDialog.value = true;
+}
+
+// 确认登出
+async function confirmLogout() {
+  showLogoutDialog.value = false;
+  await logout();
+  router.push('/login');
+}
+
 function navigateTo(path: string) {
   router.push(path);
 }
@@ -223,6 +281,15 @@ function navigateTo(path: string) {
 
 .nav-button.active {
   color: #1aad19 !important;
+}
+
+/* 登出按钮特殊样式 */
+.logout-button:hover {
+  background-color: rgba(244, 67, 54, 0.15) !important;
+}
+
+.logout-button :deep(.v-icon) {
+  color: #f44336 !important;
 }
 
 .badge {

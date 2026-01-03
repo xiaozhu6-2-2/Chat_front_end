@@ -11,7 +11,7 @@
         />
 
         <!-- 请求信息 -->
-        <div class="flex-grow-1">
+        <div class="flex-grow-1 ml-4">
           <div class="d-flex align-center mb-2">
             <h3 class="text-subtitle-1 font-weight-medium mr-2">
               {{ getDisplayName() }}
@@ -107,7 +107,7 @@
 
   // 获取用户显示名称
   function getDisplayName () {
-    return props.type === 'received' ? props.request.userProfile?.name || `用户${props.request.sender_uid}` : `用户${props.request.receiver_uid}`
+    return props.request.userProfile?.name || `用户${props.request.userProfile?.id || ''}`
   }
 
   // 获取状态颜色
