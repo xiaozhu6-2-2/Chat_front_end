@@ -30,6 +30,7 @@ declare module 'vue' {
     InviteToGroupModal: typeof import('./components/global/InviteToGroupModal.vue')['default']
     MessageBubble: typeof import('./components/chat/Message/MessageBubble.vue')['default']
     OnlineBoard: typeof import('./components/chat/onlineBoard.vue')['default']
+    ReadersListDialog: typeof import('./components/chat/Message/ReadersListDialog.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SettingsDialog: typeof import('./components/setting/settingsDialog.vue')['default']

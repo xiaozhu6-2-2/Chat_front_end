@@ -11,6 +11,7 @@ import { useGroup } from './useGroup'
 import { useGroupRequest } from './useGroupRequest'
 import { useMessage } from './useMessage'
 import { useUser } from './useUser'
+import { useWebSocketHandler } from './websocketHandler'
 
 export function useAuth () {
   const authStore = useAuthStore()
@@ -61,11 +62,13 @@ export function useAuth () {
         await websocketService.connect(token.value, userId.value)
       }
 
+      // 初始化 WebSocket 通知处理器（在 WebSocket 连接成功后）
+      const { setupNotificationHandlers } = useWebSocketHandler()
+      setupNotificationHandlers()
+
       // 初始化消息模块（在初始化其他模块之前）
       const { init: initMessage } = useMessage()
       await initMessage()
-
-      console.log('useAuth: 初始化服务')
     } catch (error) {
       showError(`服务初始化失败: ${error}`)
       throw error
@@ -73,28 +76,25 @@ export function useAuth () {
 
     // 初始化store，提前拉取数据
     try {
-      // 初始化用户信息
       const { init: initUser } = useUser()
-      await initUser(true) // 登录时强制初始化
+      await initUser(true)
 
-      const { initializeChats, reset: resetChat } = useChat()
-      await initializeChats(true) // 登录时强制初始化
+      const { initializeChats } = useChat()
+      await initializeChats(true)
 
       const { init: initFriend } = useFriend()
-      await initFriend(true) // 登录时强制初始化
+      await initFriend(true)
 
       const { init: initFriendRequest } = useFriendRequest()
-      await initFriendRequest(true) // 登录时强制初始化
+      await initFriendRequest(true)
 
       const { init: initGroup } = useGroup()
-      await initGroup(true) // 登录时强制初始化
+      await initGroup(true)
 
-      // 初始化群聊申请记录
       const { init: initGroupRequest } = useGroupRequest()
-      await initGroupRequest(true) // 登录时强制初始化
-      console.log('useAuth: 初始化store')
+      await initGroupRequest(true)
     } catch (error) {
-      showError(`store初始化失败: ${error}`)
+      showError(`初始化失败: ${error}`)
     }
   }
 
@@ -169,9 +169,6 @@ export function useAuth () {
     authStore.setLoading(true)
 
     try {
-      console.log('useAuth: 开始注册流程，调用 authService')
-
-      // 调用 authService 进行注册
       const response = await authService.register(userData)
 
       if (!response.success) {
@@ -185,10 +182,9 @@ export function useAuth () {
       showSuccess('注册成功')
       return {
         success: true,
-        token: response.token, // 返回注册后获得的临时token
+        token: response.token,
       }
     } catch (error: any) {
-      console.error('useAuth: 注册失败', error)
       return {
         success: false,
         error: error.message || '注册失败，请重试',
@@ -263,6 +259,10 @@ export function useAuth () {
 
   // 登出
   const logout = async () => {
+    // 清理 WebSocket 通知处理器（在断开连接之前）
+    const { cleanupNotificationHandlers } = useWebSocketHandler()
+    cleanupNotificationHandlers()
+
     // 断开 WebSocket
     websocketService.disconnect(false, 'logout')
 

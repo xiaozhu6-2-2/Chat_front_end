@@ -9,11 +9,38 @@
 // isManualDisconnect设置有缺陷
 // pong消息需要检查时间戳来重置计时器
 
-import type { LocalMessage, WSMessage } from '@/types/message'
 import { ref, type Ref } from 'vue'
 
-import { localToWS } from '@/types/message'
-import { MessageType, PingMessage, PongMessage } from '@/types/websocket'
+import { WSMessage, localToWS, type LocalMessage } from '@/types/message'
+import {
+  MessageType,
+  PingMessage,
+  PongMessage,
+  type WebSocketEventType,
+  type MessageAckData,
+  type FriendDeletedNotification,
+  type FriendRequestNotification,
+  type FriendRequestResultNotification,
+  type ExitGroupNotification,
+  type GroupDisbandedNotification,
+  type GroupOwnerTransferNotification,
+  type GroupRequestNotification,
+  type GroupRequestResultNotification,
+  type MemberKickedNotification,
+  type MemberMuteChangedNotification,
+  type MessageReadNotification,
+  type MessageRevokedNotification,
+  type RoleChangedNotification,
+  type UpdateOnlineStateData,
+} from '@/types/websocket'
+
+// 环境变量配置
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3000/auth/connection/ws'
+const WS_HEARTBEAT_INTERVAL = Number(import.meta.env.VITE_WS_HEARTBEAT_INTERVAL) || 30_000
+const WS_RECONNECT_DELAY = Number(import.meta.env.VITE_WS_RECONNECT_DELAY) || 5_000
+const WS_MAX_RECONNECT_ATTEMPTS = Number(import.meta.env.VITE_WS_MAX_RECONNECT_ATTEMPTS) || 5
+const WS_TIMEOUT = Number(import.meta.env.VITE_WS_TIMEOUT) || 10_000
+const WS_ALIVE_TIMEOUT = Number(import.meta.env.VITE_WS_ALIVE_TIMEOUT) || 120_000
 
 /**
  * WebSocket服务配置接口
@@ -31,11 +58,6 @@ interface WebSocketConfig {
  * WebSocket连接状态类型
  */
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
-
-/**
- * WebSocket事件类型
- */
-type WebSocketEventType = 'message' | 'messageAck' | 'error' | 'connected' | 'disconnected'
 
 /**
  * Message ACK 事件数据
@@ -101,12 +123,12 @@ class WebSocketService {
 
   constructor (config: Partial<WebSocketConfig> = {}) {
     this.config = {
-      url: 'ws://localhost:3000/auth/connection/ws',
-      heartbeatInterval: 30_000,
-      reconnectDelay: 5000,
-      maxReconnectAttempts: 5,
-      timeout: 10_000,
-      aliveTimeout: 120_000,
+      url: WS_URL,
+      heartbeatInterval: WS_HEARTBEAT_INTERVAL,
+      reconnectDelay: WS_RECONNECT_DELAY,
+      maxReconnectAttempts: WS_MAX_RECONNECT_ATTEMPTS,
+      timeout: WS_TIMEOUT,
+      aliveTimeout: WS_ALIVE_TIMEOUT,
       ...config,
     }
   }
@@ -244,7 +266,7 @@ class WebSocketService {
       // 将 LocalMessage 转换为 WSMessage 格式后发送
       const wsMessage = localToWS(message)
       this.ws?.send(JSON.stringify(wsMessage))
-      console.log('WS发送消息:', wsMessage.type, 'message_id:', wsMessage.payload.message_id)
+      console.log(`WS发生消息: JSON.stringify(wsMessage)`)
     } else {
       // 连接断开，抛出异常，由调用方处理
       console.error('WebSocket未连接，无法发送消息')
@@ -440,23 +462,28 @@ class WebSocketService {
 
   /**
    * 处理接收到的消息
-   * 先处理心跳，再调用 messageHandler 处理其他消息
+   * 先解析 type，再根据类型转换为具体接口并传递
    */
   private handleMessage (rawData: string): void {
     try {
-      const message: WSMessage = JSON.parse(rawData)
+      // 先解析为通用结构，只获取 type 字段
+      const rawMessage = JSON.parse(rawData) as { type: string; payload: any }
+
+      // 日志：记录所有接收到的原始消息（除了心跳）
+      if (rawMessage.type !== 'Pong' && rawMessage.type !== 'Ping') {
+        console.log('[WS收到消息] type:', rawMessage.type, '原始数据:', rawMessage)
+      }
 
       // 更新最后活动时间
       this.lastActivity.value = new Date()
 
-      // 处理心跳
-      switch (message.type) {
+      // 根据消息类型进行分发和类型转换
+      switch (rawMessage.type) {
         case 'Pong': {
-          const pongTimestamp = message.payload.timestamp
-          const currentTimestamp = Math.floor(Date.now() / 1000)
+          const pongTimestamp = rawMessage.payload?.timestamp
+          const currentTimestamp = Math.ceil(Date.now() / 1000)
           const latency = currentTimestamp - (pongTimestamp || 0)
           console.log(`[心跳] 收到 Pong (timestamp: ${pongTimestamp}, 延迟: ${latency}s)`)
-          // 收到Pong，清除超时计时器（下一次Ping时重新设置）
           if (this.aliveTimer) {
             clearTimeout(this.aliveTimer)
             this.aliveTimer = undefined
@@ -477,31 +504,110 @@ class WebSocketService {
           }
           break
         }
-        case 'MessageAck': { // Ack消息确认
-          // 后端发送的格式: { temp_message_id, message_id, timestamp }
-          const tempId = message.payload.temp_message_id
-          const realId = message.payload.message_id
-          // 触发 ACK 事件，由useMessage处理
-          this.dispatchEvent('messageAck', {
-            tempId,
-            realId,
-          })
+        case 'MessageAck': {
+          console.log('[WS处理ACK] 原始数据:', rawMessage, '提取的temp_id:', rawMessage.payload?.temp_message_id, 'msg_id:', rawMessage.payload?.message_id)
+          const ackData: MessageAckData = {
+            type: MessageType.MessageAck,
+            payload: {
+              temp_message_id: rawMessage.payload?.temp_message_id,
+              message_id: rawMessage.payload?.message_id,
+              timestamp: rawMessage.payload?.timestamp,
+            },
+          }
+          this.dispatchEvent('messageAck', ackData)
+          break
+        }
+        case 'MessageError': {
+          const tempId = rawMessage.payload?.temp_message_id
+          const error = rawMessage.payload?.error
+          this.dispatchEvent('messageError', { tempId, error })
           break
         }
         // Private 和 Group 消息处理
         case 'Private':
         case 'MesGroup': {
-          // 触发 message 事件
+          const message: WSMessage = new WSMessage(
+            rawMessage.type as MessageType,
+            rawMessage.payload,
+          )
           this.dispatchEvent('message', message)
           break
         }
-        default: {
-          // 处理其他未明确的消息类型
-          if (!Object.values(MessageType).includes(message.type as MessageType)) {
-            // 触发 message 事件
-            this.dispatchEvent('message', message)
-          }
+        // ==================== 好友系统通知 ====================
+        case MessageType.FriendRequestNotification: {
+          const notification: FriendRequestNotification = rawMessage as FriendRequestNotification
+          this.dispatchEvent('friendRequestNotification', notification)
           break
+        }
+        case MessageType.FriendRequestResultNotification: {
+          const notification: FriendRequestResultNotification = rawMessage as FriendRequestResultNotification
+          this.dispatchEvent('friendRequestResultNotification', notification)
+          break
+        }
+        case MessageType.FriendDeletedNotification: {
+          const notification: FriendDeletedNotification = rawMessage as FriendDeletedNotification
+          this.dispatchEvent('friendDeletedNotification', notification)
+          break
+        }
+        case MessageType.UpdateOnlineState: {
+          const notification: UpdateOnlineStateData = rawMessage as UpdateOnlineStateData
+          this.dispatchEvent('updateOnlineState', notification)
+          break
+        }
+        // ==================== 群组系统通知 ====================
+        case MessageType.GroupRequestNotification: {
+          const notification: GroupRequestNotification = rawMessage as GroupRequestNotification
+          this.dispatchEvent('groupRequestNotification', notification)
+          break
+        }
+        case MessageType.GroupRequestResultNotification: {
+          const notification: GroupRequestResultNotification = rawMessage as GroupRequestResultNotification
+          this.dispatchEvent('groupRequestResultNotification', notification)
+          break
+        }
+        case MessageType.MemberKickedNotification: {
+          const notification: MemberKickedNotification = rawMessage as MemberKickedNotification
+          this.dispatchEvent('memberKickedNotification', notification)
+          break
+        }
+        case MessageType.GroupDisbandedNotification: {
+          const notification: GroupDisbandedNotification = rawMessage as GroupDisbandedNotification
+          this.dispatchEvent('groupDisbandedNotification', notification)
+          break
+        }
+        case MessageType.ExitGroupNotification: {
+          const notification: ExitGroupNotification = rawMessage as ExitGroupNotification
+          this.dispatchEvent('exitGroupNotification', notification)
+          break
+        }
+        case MessageType.RoleChangedNotification: {
+          const notification: RoleChangedNotification = rawMessage as RoleChangedNotification
+          this.dispatchEvent('roleChangedNotification', notification)
+          break
+        }
+        case MessageType.GroupOwnerTransferNotification: {
+          const notification: GroupOwnerTransferNotification = rawMessage as GroupOwnerTransferNotification
+          this.dispatchEvent('groupOwnerTransferNotification', notification)
+          break
+        }
+        case MessageType.MemberMuteChangedNotification: {
+          const notification: MemberMuteChangedNotification = rawMessage as MemberMuteChangedNotification
+          this.dispatchEvent('memberMuteChangedNotification', notification)
+          break
+        }
+        // ==================== 消息系统通知 ====================
+        case MessageType.MessageReadNotification: {
+          const notification: MessageReadNotification = rawMessage as MessageReadNotification
+          this.dispatchEvent('messageReadNotification', notification)
+          break
+        }
+        case MessageType.MessageRevokedNotification: {
+          const notification: MessageRevokedNotification = rawMessage as MessageRevokedNotification
+          this.dispatchEvent('messageRevokedNotification', notification)
+          break
+        }
+        default: {
+          console.warn('[WebSocket] 未知消息类型:', rawMessage.type)
         }
       }
     } catch (error) {

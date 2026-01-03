@@ -215,4 +215,30 @@ export const friendService = {
     }
   },
 
+  /**
+   * 获取好友列表在线状态
+   *
+   * 执行流程：
+   * 1. 调用 /auth/online/friends-online API
+   * 2. 返回在线用户ID列表
+   *
+   * @returns Promise<string[]> 在线用户ID列表
+   */
+  async getFriendsOnlineStatus (): Promise<string[]> {
+    try {
+      const response = await authApi.get('/online/friends-online')
+
+      if (response.status === 200) {
+        // 提取在线用户的 user_id 列表
+        const onlineFriends = response.data.online_friends || []
+        return onlineFriends.map((f: any) => f.user_id)
+      } else {
+        throw new Error(`获取好友在线状态失败：${response.status}`)
+      }
+    } catch (error) {
+      console.error('friendService.getFriendsOnlineStatus:', error)
+      throw error
+    }
+  },
+
 }

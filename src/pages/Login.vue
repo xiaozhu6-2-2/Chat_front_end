@@ -86,13 +86,6 @@
                   </v-btn>
                 </div>
 
-                <!-- 错误提示 -->
-                <div v-if="loginError" class="error-message mb-4">
-                  <v-alert density="compact" type="error">
-                    {{ loginError }}
-                  </v-alert>
-                </div>
-
                 <!-- 登录按钮 -->
                 <v-btn
                   block
@@ -141,10 +134,12 @@ meta:
   import { reactive, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { useAuth } from '@/composables/useAuth'
+  import { useSnackbar } from '@/composables/useSnackbar'
 
   const router = useRouter()
 
   const { login } = useAuth()
+  const { showError } = useSnackbar()
 
   // 响应式数据定义
   const loginForm = reactive({
@@ -157,7 +152,6 @@ meta:
   const loading = ref(false)
   // 用于验证规则
   const loginFormRef = ref<VForm | null>(null)
-  const loginError = ref('')
 
   // 表单验证规则
   const accountRules = [
@@ -182,7 +176,6 @@ meta:
     if (!valid) return
 
     loading.value = true
-    loginError.value = ''
 
     try {
       console.log('Login.vue: 开始登录流程')
@@ -194,13 +187,15 @@ meta:
         await router.push('/home')
       } else {
         // 登录失败，显示错误信息
-        loginError.value = result.error || '登录失败，请检查用户名和密码'
-        console.error('Login.vue: 登录失败', loginError.value)
+        const errorMsg = result.error || '登录失败，请检查用户名和密码'
+        console.error('Login.vue: 登录失败', errorMsg)
+        showError(errorMsg)
       }
     } catch (error: any) {
       // 捕获异常，显示错误信息
       console.error('Login.vue: 登录过程中发生异常', error)
-      loginError.value = error.message || '登录过程中发生错误，请稍后重试'
+      const errorMsg = error.message || '登录过程中发生错误，请稍后重试'
+      showError(errorMsg)
     } finally {
       loading.value = false
     }
@@ -237,21 +232,6 @@ meta:
 @media (max-width: 960px) {
   .pa-8 {
     padding: 24px;
-  }
-}
-
-.error-message {
-  animation: fadeIn 0.3s ease-in-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 </style>

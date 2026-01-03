@@ -5,7 +5,7 @@
       class="fixed-size-image"
       :class="{ 'animate-wobble': isWobbling }"
       height="100"
-      src="@/assets/echatlogo.PNG"
+      src="@/assets/echatlogo.png"
       width="100"
     >
     <!-- From Uiverse.io by arthur_6104 -->

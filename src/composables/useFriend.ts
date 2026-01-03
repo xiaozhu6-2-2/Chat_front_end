@@ -69,7 +69,8 @@ export function useFriend () {
    *
    * 执行流程：
    * 1. 调用 fetchFriends 获取好友列表
-   * 2. 处理初始化错误
+   * 2. 获取好友在线状态
+   * 3. 处理初始化错误
    *
    * 使用场景：
    * - 用户登录后初始化数据
@@ -79,6 +80,15 @@ export function useFriend () {
    */
   const init = async (force = true): Promise<void> => {
     await fetchFriends(force)
+
+    // 获取好友在线状态
+    try {
+      const onlineUserIds = await friendService.getFriendsOnlineStatus()
+      friendStore.batchUpdateOnlineState(onlineUserIds)
+    } catch (error) {
+      // 在线状态获取失败不影响好友列表，仅记录日志
+      console.warn('useFriend: 获取好友在线状态失败', error)
+    }
   }
 
   // 删除好友

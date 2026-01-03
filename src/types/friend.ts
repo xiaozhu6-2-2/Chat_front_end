@@ -11,6 +11,7 @@ interface FriendWithUserInfo extends BaseProfile {
   createdAt?: string // 添加时间
   isBlacklisted: boolean // 是否黑名单
   info?: UserInfo // 用户详细资料, 点击查看时获取
+  online_state?: boolean
 }
 
 // 挂载详细资料

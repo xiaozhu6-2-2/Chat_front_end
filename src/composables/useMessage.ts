@@ -112,24 +112,10 @@ export function useMessage () {
   }
 
   /**
-   * 从队列移除消息引用
-   */
-  const removeFromQueue = (messageId: string) => {
-    messageStore.removeFromMessageQueue(messageId)
-  }
-
-  /**
-   * 查找队列中的消息引用
-   */
-  const findInQueue = (messageId: string): LocalMessage | undefined => {
-    return messageStore.findInMessageQueue(messageId)
-  }
-
-  /**
    * 处理队列中的消息状态，处理超时和重试
    */
   const processQueue = () => {
-    const now = Math.floor(Date.now() / 1000) // 秒级时间戳
+    const now = Math.ceil(Date.now() / 1000) // 秒级时间戳
     const queueMessages = messageStore.getQueueMessages()
 
     for (const message of queueMessages) {
@@ -203,40 +189,6 @@ export function useMessage () {
       // chatId 在私聊中就是 fid (friend id)
       const friend = getFriendByFid(chatId)
       return friend?.id || '0'
-    }
-  }
-
-  /**
-   * 格式化消息内容用于显示在会话列表
-   *
-   * @param message 本地消息对象
-   * @returns 格式化后的消息内容
-   */
-  const formatMessageContent = (message: LocalMessage): string => {
-    const contentType = message.payload.content_type
-
-    switch (contentType) {
-      case 'text': {
-        return message.payload.detail || ''
-      }
-      case 'image': {
-        return '[图片]'
-      }
-      case 'file': {
-        return '[文件]'
-      }
-      case 'voice': {
-        return '[语音]'
-      }
-      case 'video': {
-        return '[视频]'
-      }
-      case 'system': {
-        return '[系统消息]'
-      }
-      default: {
-        return message.payload.detail || '[消息]'
-      }
     }
   }
 
@@ -369,8 +321,7 @@ export function useMessage () {
 
       // 更新会话最新消息
       const chatStore = useChatStore()
-      const messageContent = formatMessageContent(message)
-      chatStore.updateChatLastMessage(chatId, messageContent)
+      chatStore.updateChatLastMessageFromMessage(chatId, message)
 
       // 通过 WebSocket 发送
       websocketService.send(message)
@@ -466,6 +417,22 @@ export function useMessage () {
         // 使用 addHistoryMessages 方法，支持 prepend 参数
         messageStore.addHistoryMessages(chatId, localMessages, type, loadMore)
 
+        // 群聊：获取已读人数（在添加消息之后）
+        if (type === 'group') {
+          const myMessages = localMessages.filter(msg => msg.userIsSender && !msg.is_revoked)
+          if (myMessages.length > 0) {
+            const messageIds = myMessages.map(msg => msg.payload.message_id!).filter(Boolean)
+            try {
+              const results = await messageService.getGroupReadStatus(chatId, messageIds)
+              for (const { messageId, readCount } of results) {
+                messageStore.updateMessageReadCount(messageId, readCount, chatId)
+              }
+            } catch (error) {
+              console.error('获取群聊已读人数失败:', error)
+            }
+          }
+        }
+
         // 更新分页信息
         messageStore.updatePagination(chatId, {
           page: currentPage + 1,
@@ -553,7 +520,7 @@ export function useMessage () {
         }
 
         // 使用当前时间戳作为已读标记时间（秒级，如果有消息则使用消息的最新时间戳）
-        const readTimestamp = latestTimestamp || Math.floor(Date.now() / 1000)
+        const readTimestamp = latestTimestamp || Math.ceil(Date.now() / 1000)
 
         // 调用 messageService API 发送已读标记
         await messageService.markMessagesAsRead(
@@ -635,118 +602,27 @@ export function useMessage () {
     }
   }
 
-  // ============== 消息接收处理 ==============
-
   /**
-   * 处理接收到的WebSocket消息
+   * 撤回消息
    *
-   * 执行流程：
-   * 1. 解析消息类型
-   * 2. 转换为 LocalMessage
-   * 3. 根据消息类型分发处理
-   * 4. 更新到 messageStore
-   * 5. 触发UI更新
-   *
-   * @param wsMessage WebSocket接收到的消息
+   * @param messageId 消息ID
+   * @param chatId 聊天ID
+   * @param chatType 聊天类型 'private' | 'group'
    */
-  const handleIncomingMessage = (wsMessage: any) => {
+  const revokeMessage = async (
+    messageId: string,
+    chatId: string,
+    chatType: 'private' | 'group',
+  ) => {
     try {
-      // 转换为 LocalMessage
-      const localMessage = new LocalMessage(
-        wsMessage.type,
-        wsMessage.payload || {},
-        MessageStatus.SENT,
-        wsMessage.payload?.sender_id === authStore.userId,
-      )
-
-      // 根据消息类型添加到对应的 store
-      let storeType: MessageStoreType
-      switch (localMessage.type) {
-        case MessageType.PRIVATE: {
-          storeType = 'private'
-          break
-        }
-        case MessageType.MESGROUP: {
-          storeType = 'group'
-          break
-        }
-        default: {
-          console.warn('未知消息类型:', localMessage.type)
-          //报错时调试
-          console.warn("[localMessage]" + ":" + JSON.stringify(localMessage))
-          return
-        }
-      }
-
-      // 判断是否为当前用户发送
-      localMessage.userIsSender = localMessage.payload.sender_id === authStore.userId
-
-      // 过滤自己发送的消息（避免重复添加）
-      // 发送消息时已经添加到store了，不需要再添加广播回来的消息
-      if (localMessage.userIsSender) {
-        console.log(`[消息] 忽略自己发送的广播消息: ${localMessage.payload.message_id}`)
-        return
-      }
-
-      // 只添加别人发送的消息
-      if (localMessage.payload.chat_id) {
-        messageStore.addMessage(localMessage.payload.chat_id, localMessage, storeType)
-
-        // 更新 chatStore
-        const chatStore = useChatStore()
-
-        // 1. 更新会话最新消息
-        const messageContent = formatMessageContent(localMessage)
-        chatStore.updateChatLastMessage(localMessage.payload.chat_id, messageContent)
-
-        // 2. 增加未读数（仅当不是当前激活的会话时）
-        if (activeChatId.value !== localMessage.payload.chat_id) {
-          chatStore.incrementUnreadCount(localMessage.payload.chat_id)
-        } else {
-          // 如果是当前激活的会话，自动标记为已读
-          markAsRead(localMessage.payload.chat_id, localMessage.payload.timestamp)
-        }
-      }
-
-      console.log(`[消息] 收到${storeType}消息:`, localMessage.payload)
+      await messageService.revokeMessage(messageId, chatId, chatType)
+      // 立即更新本地状态（乐观更新）
+      messageStore.markMessageAsRevoked(messageId)
+      showSuccess('消息已撤回')
     } catch (error) {
-      console.error('处理接收消息失败:', error)
-    }
-  }
-
-  /**
-   * 处理消息确认（ACK）
-   *
-   * 执行流程：
-   * 1. 解析ACK数据
-   * 2. 根据 messageId 查找对应消息
-   * 3. 更新消息状态为 SENT
-   * 4. 记录发送时间
-   *
-   * @param ackData ACK确认数据
-   */
-  const handleMessageAck = (ackData: any) => {
-    try {
-      const { tempId, realId } = ackData
-      const queueMessages = messageStore.getQueueMessages()
-      console.log('收到ACK:', { tempId, realId, queueSize: queueMessages.length })
-      console.log('队列中的消息IDs:', queueMessages.map(m => m.payload.message_id))
-
-      // 从队列中查找并处理消息
-      const queuedMessage = findInQueue(tempId)
-      if (queuedMessage) {
-        // 直接修改对象属性，messageStore中的状态自动更新
-        if (realId) {
-          queuedMessage.payload.message_id = realId
-        }
-        queuedMessage.sendStatus = MessageStatus.SENT
-        removeFromQueue(tempId)
-        console.log(`消息${tempId}发送成功`)
-      } else {
-        console.warn('收到未知消息的ACK:', tempId, 'realId:', realId)
-      }
-    } catch (error) {
-      console.error('处理消息ACK失败:', error)
+      console.error('撤回消息失败:', error)
+      showError('撤回失败，请重试')
+      throw error
     }
   }
 
@@ -758,8 +634,8 @@ export function useMessage () {
    * 执行流程：
    * 1. 从 authStore 获取用户信息
    * 2. 初始化 messageService
-   * 3. 设置 WebSocket 事件监听
-   * 4. 加载初始数据（如通知消息）
+   *
+   * 注意：WebSocket 事件监听已在 websocketHandler 中注册
    */
   const init = async () => {
     try {
@@ -768,87 +644,11 @@ export function useMessage () {
         throw new Error('用户未认证')
       }
 
-      // 设置 WebSocket 事件监听
-      setupWebSocketListeners()
-
       console.log('消息模块初始化成功')
     } catch (error) {
       console.error('消息模块初始化失败:', error)
       showError('消息模块初始化失败')
-
-      // 初始化失败时自动清理已注册的事件监听器
-      cleanupWebSocketListeners()
-
       throw error
-    }
-  }
-
-  /**
-   * 设置 WebSocket 事件监听
-   */
-  const setupWebSocketListeners = () => {
-    // 先清理可能存在的旧监听器，防止重复注册
-    cleanupWebSocketListeners()
-
-    // 监听消息接收
-    websocketService.on('message', handleIncomingMessage)
-
-    // 监听消息ACK
-    websocketService.on('messageAck', handleMessageAck)
-
-    // 监听连接状态变化
-    websocketService.on('connected', () => {
-      console.log('WebSocket已连接')
-      showSuccess('连接成功')
-      // 连接恢复，重新发送队列中的消息
-      const queueMessages = messageStore.getQueueMessages()
-      if (queueMessages.length > 0) {
-        queueMessages.forEach((message: LocalMessage) => {
-          // 重发所有未成功发送的消息（PENDING 和 FAILED）
-          if (message.sendStatus === MessageStatus.PENDING
-            || message.sendStatus === MessageStatus.FAILED) {
-            try {
-              websocketService.send(message)
-              message.sendStatus = MessageStatus.SENDING
-              message.retryCount = 0 // 连接恢复后重置重试计数
-            } catch {
-              console.error('重发消息失败')
-            }
-          }
-        })
-      }
-    })
-
-    websocketService.on('disconnected', () => {
-      console.log('WebSocket已断开')
-      showWarning('连接已断开')
-    })
-
-    websocketService.on('error', (error: any) => {
-      console.error('WebSocket错误:', error)
-      showError('连接错误')
-    })
-
-    console.log('WebSocket事件监听器已设置')
-  }
-
-  /**
-   * 清理 WebSocket 事件监听
-   *
-   * 负责清理 useMessage 模块注册的所有 WebSocket 事件监听器
-   */
-  const cleanupWebSocketListeners = () => {
-    try {
-      // 移除所有注册的事件监听器
-      websocketService.off('message', handleIncomingMessage)
-      websocketService.off('messageAck', handleMessageAck)
-      websocketService.off('connected')
-      websocketService.off('disconnected')
-      websocketService.off('error')
-
-      console.log('WebSocket事件监听器已清理')
-    } catch (error) {
-      console.error('清理WebSocket事件监听器失败:', error)
     }
   }
 
@@ -857,17 +657,13 @@ export function useMessage () {
    *
    * 执行流程：
    * 1. 清空 messageStore 中的所有数据（包括队列）
-   * 2. 清理 WebSocket 事件监听
-   * 3. 停止队列处理定时器
-   * 4. 重置本地状态
+   * 2. 停止队列处理定时器
+   * 3. 重置本地状态
    */
   const reset = () => {
     try {
       // 清空数据（包括队列）
       messageStore.clearAllMessages()
-
-      // 清理所有监听器
-      cleanupWebSocketListeners()
 
       // 停止队列处理定时器
       stopQueueProcessing()
@@ -915,15 +711,11 @@ export function useMessage () {
     loadHistoryMessages,
     markAsRead,
     resendMessage,
-
-    // 消息处理
-    handleIncomingMessage,
-    handleMessageAck,
+    revokeMessage,
 
     // 初始化和重置
     init,
     reset,
-    cleanupWebSocketListeners,
 
     // 辅助方法
     markCurrentChatAsRead,

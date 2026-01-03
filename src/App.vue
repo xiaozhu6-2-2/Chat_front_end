@@ -1,6 +1,16 @@
 <template>
   <v-app id="app">
-    <router-view />
+    <!-- 初始化加载状态 -->
+    <div v-if="isInitializing" class="initialization-loader">
+      <v-progress-circular
+        indeterminate
+        color="primary"
+        size="64"
+      />
+    </div>
+
+    <!-- 初始化完成后渲染路由 -->
+    <router-view v-else />
 
     <!-- 全局 Snackbar -->
     <v-snackbar
@@ -24,7 +34,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { onBeforeUnmount, onMounted } from 'vue'
+  import { onBeforeUnmount, onMounted, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useAuth } from '@/composables/useAuth'
   import { useMessage } from '@/composables/useMessage'
@@ -37,22 +47,22 @@
   const route = useRoute()
   const auth = useAuth()
   const authStore = useAuthStore()
-  const { stopQueueProcessing, cleanupWebSocketListeners } = useMessage()
+  const { stopQueueProcessing } = useMessage()
+
+  // 初始化状态
+  const isInitializing = ref(true)
 
   // 公开路由列表，这些页面不需要认证检查
   const publicRoutes = new Set(['/login', '/register', '/forget'])
 
   // 页面卸载前的清理
   function handleBeforeUnload () {
-    console.log('App.vue: 页面即将卸载，执行清理...')
     websocketService.quickDisconnect()
     stopQueueProcessing()
-    cleanupWebSocketListeners()
   }
 
   // 组件卸载时的清理
   function handleUnmount () {
-    console.log('App.vue: 组件卸载，执行清理...')
     handleBeforeUnload()
     window.removeEventListener('beforeunload', handleBeforeUnload)
   }
@@ -96,6 +106,9 @@
       if (!isPublicRoute) {
         router.push('/login')
       }
+    } finally {
+      // 认证初始化完成，允许渲染路由
+      isInitializing.value = false
     }
   })
 
@@ -126,5 +139,18 @@ body::-webkit-scrollbar {
 /* 隐藏浏览器滚动条 */
 body::-webkit-scrollbar {
   display: none;
+}
+
+/* 初始化加载器 */
+.initialization-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #121212;
 }
 </style>

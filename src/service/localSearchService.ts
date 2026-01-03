@@ -376,7 +376,7 @@ export const localSearchService = {
 
         // 应用日期范围过滤
         if (params.filters?.dateRange) {
-          const msgDate = new Date(message.payload.timestamp || 0)
+          const msgDate = new Date((message.payload.timestamp || 0) * 1000)
           if (msgDate < params.filters.dateRange.start
             || msgDate > params.filters.dateRange.end) {
             continue
@@ -390,14 +390,14 @@ export const localSearchService = {
           const highlights = this.generateHighlights(content, query)
 
           results.push({
-            messageId: message.payload.messageId || '',
+            messageId: message.payload.message_id || '',
             chatId,
             chatName: await this.getChatName(chatId),
             chatType: message.type === MessageType.MESGROUP ? 'group' : 'private',
-            senderId: message.payload.senderId || '',
-            senderName: await this.getSenderName(message.payload.senderId || ''),
+            senderId: message.payload.sender_id || '',
+            senderName: await this.getSenderName(message.payload.sender_id || ''),
             content,
-            contentType: message.payload.contentType || ContentType.TEXT,
+            contentType: message.payload.content_type || ContentType.TEXT,
             timestamp: message.payload.timestamp || 0,
             highlights,
           })

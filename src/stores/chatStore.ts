@@ -8,8 +8,48 @@
 // 注意：消息数据由 messageService 管理，不在本 store 中存储
 
 import type { Chat, ChatType } from '@/types/chat'
+import type { LocalMessage } from '@/types/message'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+
+/**
+ * 格式化消息内容用于显示在会话列表
+ * @param message 本地消息对象
+ * @returns 格式化后的消息内容
+ */
+const formatMessageContent = (message: LocalMessage): string => {
+  const contentType = message.payload.content_type
+
+  switch (contentType) {
+    case 'text': {
+      return message.payload.detail || ''
+    }
+    case 'image': {
+      return '[图片]'
+    }
+    case 'file': {
+      return '[文件]'
+    }
+    case 'voice': {
+      return '[语音]'
+    }
+    case 'video': {
+      return '[视频]'
+    }
+    case 'link': {
+      return '[链接]'
+    }
+    case 'emoji': {
+      return '[表情]'
+    }
+    case 'annoucement': {
+      return '[公告]'
+    }
+    default: {
+      return '[消息]'
+    }
+  }
+}
 
 export const useChatStore = defineStore('chat', () => {
   // State
@@ -138,6 +178,16 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  /**
+   * 根据消息对象更新会话最新消息
+   * @param chatId 会话ID
+   * @param message 消息对象
+   */
+  const updateChatLastMessageFromMessage = (chatId: string, message: LocalMessage) => {
+    const messageContent = formatMessageContent(message)
+    updateChatLastMessage(chatId, messageContent)
+  }
+
   // 设置未读数
   const updateChatUnreadCount = (chatId: string, count: number) => {
     console.log(`chatStore: 设置会话 ${chatId} 未读数为 ${count}`)
@@ -224,13 +274,14 @@ export const useChatStore = defineStore('chat', () => {
     totalUnreadCount,
 
     // Actions
-    setChatList, // 新增：设置聊天列表
+    setChatList,
     setActiveChat,
     getChatByid,
     deleteChatByid,
     updateChatList,
     addChat,
     updateChatLastMessage,
+    updateChatLastMessageFromMessage,
     updateChatUnreadCount,
     incrementUnreadCount,
     resetUnreadCount,

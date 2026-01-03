@@ -10,6 +10,23 @@ export enum FriendRequestStatus {
   EXPIRED = 'expired',
 }
 
+/**
+ * API返回的好友请求原始数据格式
+ * 包含发送者和接收者的完整信息（名称、头像等）
+ */
+export interface ApiFriendRequest {
+  req_id: string
+  sender_uid: string
+  sender_name: string
+  sender_avatar: string
+  receiver_uid: string
+  receiver_name: string
+  receiver_avatar: string
+  apply_text: string
+  create_time: number
+  status: FriendRequestStatus | string
+}
+
 // 发送好友请求参数
 export interface SendFriendRequestParams {
   receiver_id: string
@@ -36,12 +53,12 @@ export interface FriendRequest {
 // API 响应格式
 export interface FriendRequestListResponse {
   total: number
-  requests: FriendRequest[] // 发送的请求
-  receives: FriendRequest[] // 收到的请求
+  requests: ApiFriendRequest[] // 发送的请求
+  receives: ApiFriendRequest[] // 收到的请求
 }
 
 // 转换 API 数据
-export function transformFriendRequestFromApi (data: any, type: 'sent' | 'received'): FriendRequest {
+export function transformFriendRequestFromApi (data: ApiFriendRequest, type: 'sent' | 'received'): FriendRequest {
   // 根据类型决定userProfile应该包含谁的信息
   let userProfile: BaseProfile
 
@@ -67,7 +84,7 @@ export function transformFriendRequestFromApi (data: any, type: 'sent' | 'receiv
     receiver_uid: data.receiver_uid,
     apply_text: data.apply_text,
     create_time: data.create_time,
-    status: data.status,
+    status: data.status as FriendRequestStatus,
     userProfile, // 根据类型设置用户资料缓存
   }
 }
