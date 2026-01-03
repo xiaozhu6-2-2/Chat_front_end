@@ -31,7 +31,7 @@ export interface BasePayload {
   // 消息元数据
   message_id?: string // 消息ID
   chat_id?: string // pid 或 gid
-  timestamp?: number // send_time 的毫秒时间戳
+  timestamp?: number // send_time 的秒级时间戳
 
   // 发送者信息
   sender_id?: string // sender_id
@@ -269,9 +269,21 @@ export function apiResponseToLocalMessage (
   apiResponse: any,
   currentUserId: string,
 ): LocalMessage {
+  // API 返回的类型映射到前端 MessageType 枚举
+  // 后端返回: 'Group' -> 前端: 'MesGroup'
+  // 后端返回: 'Private' -> 前端: 'Private'
+  let messageType: MessageType
+  if (apiResponse.type === 'Group') {
+    messageType = MessageType.MESGROUP
+  } else if (apiResponse.type === 'Private') {
+    messageType = MessageType.PRIVATE
+  } else {
+    messageType = apiResponse.type as MessageType
+  }
+
   // 创建 ApiMessage 实例
   const apiMessage = new ApiMessage(
-    apiResponse.type as MessageType,
+    messageType,
     apiResponse.payload as BasePayload,
   )
 
@@ -281,11 +293,13 @@ export function apiResponseToLocalMessage (
   apiMessage.read_count = apiResponse.read_count
 
   // 转换为 LocalMessage
-  return apiMessageToLocal(
+  const localMessage = apiMessageToLocal(
     apiMessage,
     MessageStatus.SENT,
     apiResponse.payload?.sender_id === currentUserId,
   )
+
+  return localMessage
 }
 
 /**
@@ -378,4 +392,13 @@ export function createFileMessage (
   }
 
   return new LocalMessage(type, payload, MessageStatus.PENDING, userIsSender)
+}
+
+/**
+ * 已读人员信息
+ */
+export interface ReaderInfo {
+  uid: string
+  username: string
+  avatar: string
 }

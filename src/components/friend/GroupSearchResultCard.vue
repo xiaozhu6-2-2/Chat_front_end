@@ -4,20 +4,11 @@
       <!-- 群组信息展示 -->
       <v-list-item>
         <template #prepend>
-          <v-avatar>
-            <v-img
-              :alt="group.group_name"
-              :src="group.avatar || defaultGroupAvatar"
-            >
-              <template #placeholder>
-                <v-icon
-                  color="grey-lighten-1"
-                  icon="mdi-account-group"
-                  size="32"
-                />
-              </template>
-            </v-img>
-          </v-avatar>
+          <Avatar
+            :name="group.group_name || '群聊'"
+            :size="48"
+            :url="group.avatar"
+          />
         </template>
         <v-list-item-title class="font-weight-medium">
           {{ group.group_name }}
@@ -60,20 +51,12 @@
           <!-- 群组信息摘要 -->
           <div class="mb-4 pa-3 bg-grey-lighten-5 rounded-lg">
             <div class="d-flex align-center mb-2">
-              <v-avatar class="mr-3" size="40">
-                <v-img
-                  :alt="group.group_name"
-                  :src="group.avatar || defaultGroupAvatar"
-                >
-                  <template #placeholder>
-                    <v-icon
-                      color="grey-lighten-1"
-                      icon="mdi-account-group"
-                      size="24"
-                    />
-                  </template>
-                </v-img>
-              </v-avatar>
+              <Avatar
+                class="mr-3"
+                :name="group.group_name || '群聊'"
+                :size="40"
+                :url="group.avatar"
+              />
               <div>
                 <div class="font-weight-medium">{{ group.group_name }}</div>
                 <div class="text-caption text-grey-darken-1">
@@ -122,6 +105,7 @@
 <script setup lang="ts">
   import type { GroupSearchResult } from '../../types/search'
   import { ref } from 'vue'
+  import Avatar from '../global/Avatar.vue'
   import { useGroupRequest } from '../../composables/useGroupRequest'
   import { useSnackbar } from '../../composables/useSnackbar'
 
@@ -138,9 +122,6 @@
 
   const { sendGroupRequest } = useGroupRequest()
   const { showSuccess, showError } = useSnackbar()
-
-  // 默认群组头像
-  const defaultGroupAvatar = '/images/default-group-avatar.png'
 
   // 对话框状态
   const showJoinDialog = ref(false)

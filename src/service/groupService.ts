@@ -66,7 +66,6 @@ export const groupService = {
         group_intro: params.group_intro || null,
       }
 
-      console.log('groupService: 创建群聊', requestParams)
       const response = await authApi.post<CreateGroupResponse>('/groups/create', requestParams)
 
       if (response.status === 200) {

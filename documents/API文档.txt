@@ -1,0 +1,1411 @@
+畅聊应用 API 接口文档 
+基础信息 
+- 基础URL: /api/v1
+- 认证方式: JWT Token (Bearer Token)
+- 数据格式: JSON
+响应格式 
+{
+  "code": 200,
+  "message": "success",
+  "data": {},
+  "timestamp": 1630000000000
+}
+认证相关API
+1. 获取公钥(√√√)
+- URL: /noauth/auth/session-key
+- 方法：GET
+- 场景：获取公钥，在后续API的调用过程中，使用公钥加密传输的数据，提高数据安全性。
+响应体：
+成功响应 (200)：
+{
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4jHbuzN9rYYG2DME9Zjz\n3SqPwZUuiygIm3l77DMldwNeOk0hQzBgVzx+DQb9AW2V0Gm1QOhqSi4yGahGkiKc\nzwEwt6VDh1jnYjy8K+AQdgHsQnSARTPQz6z5uY+BA2cei706e4gHsfOcFM0W/WlZ\n9Y7Fo6ddtEejKp3X7eXt8W8SwHw/mYR7CdiMh7vwJQUIBut5u/jJGB9zErcdKoiE\nR5udCjI74Pyn27zHNWs7mldVgoPSS+XuHRk/IYjF08Tj1N+iJszuhlTfKkviCYzO\nafS7VnsBc/VDu2sjzVvRWAP0/P7nhf78UISv45qz8QOqRunHAAHC0Tr8Uldg0uiV\noQIDAQAB\n-----END PUBLIC KEY-----\n"
+}
+
+错误响应：
+- 500 Internal Server Error: 服务器内部错误
+- 其他网络错误
+2. 用户注册 (√)
+- URL: /noauth/auth/register
+- 方法: POST
+- 场景：新用户通过提供必要信息完成账号注册。系统验证输入合法性、检查唯一性约束，若校验通过则创建用户账号，并返回注册成功响应；否则返回相应错误信息。
+
+请求体：
+{
+  "account": "3Mu3tPYZ9F0G8AVVoAHpXOasUPJuFPeUVioS+gCCfDgb+nWw0fDp9XXTr5RpJPEnLnjCAKfS3os5NEBp9pOgF/XM/Lm5t6ihGsdG33l7l7TsFgc/fx/zjwzWKwqb6DtCAVp8pyyg7zhKoG5V/lRq4ix3IdWKxBSldS4hjGRgrG5NvvR5i068BR3mp7j8pvzxzzbmS76oZun+i536OuqV5q6uJWx0OUF8CzGaDZ+2yPo+2BmsqNCup9wh0wNXeEqSiMapZ9d734eUAH/aZFCXF7PSl32PEAv2DK4TdKuILMnGn1xCbrYmiHWNEnZW45X14TgZ2QrfaON0gha/5LEPIw==",      
+  "password": "K0BF2m1yPYgsSKRw1ZueadhTGvlBTPkjmfMH6Y7cjl+bp9KTEH6pVaW7wkPJL1OWiOgVI81FNz9EYUxOqAlLso7HcfpjD0dd+Gtqmp5kzx/cK/eJmFzciACOxn32nV/imGeMx7WsppQFZM+qncvRusaq8OXv7LK1fJW3NYGjYx/nIa5adrpvZRWPBOjxguFShYhR7oLXfQ1gIlUoC0L+RTEAc+AyR8solbRHg0Uribp9X+dkjjXp7a5fj7ZPpe/wtKj0Hz/DMXQF2lJC6A2UTVjavrLRMJtbiN74SSQ/Bb4ZTZ1Mg8+TmnhB/kIiusqwSoExEJ6oqMyQDs+KT9Toeg==",  
+  "username": "杨叶军",              
+  "gender": "male",     
+  "region": "广东省",                  
+  "bio": "我是杨叶军",                   
+  "avatar": ""
+}
+
+响应体：
+成功响应 (200)：
+{
+    "success": true
+    "token": "fdnajfnhafhawo"
+}
+ 错误处理
+409 Conflict: 邮箱已被注册
+500 Internal Server Error: 服务器错误
+其他错误: 网络连接失败等
+3. 用户登录 (√√√)
+- URL: /noauth/auth/login
+- 方法: POST
+- 场景：已注册用户通过提供身份凭证进行登录。系统验证凭证有效性，若匹配成功，则生成并返回访问令牌及用户基本信息；若凭证错误、账号不存在或被禁用，则返回相应错误提示。
+请求体：
+{
+  "account": "cHZPyMHaj5m1VDKIAOF53mFTXYwUkef1QBUoPWxoP8e1izIBwmw1HPKIS3Bb8dwEjqCPwj+XSjeVE2ukUUEG8XkCPsWqvxhFJmq/BuxBTfFn+XJRIJt+V+QK8uuZg81wRUGMHRgdkKUBD2Ojp322UNcXnQK1ye4fQD5pD+Rq1t/IG05NzGbL9p5q8l+0hQmVYbY47V/JzAUWm4FFZInH77+MfbevPpjex7YWQw9J1xWrmxaSVfWiuIprEDHjGWaywmOpShAtROnY5SG4OvfE0T9b4RgU83tttnoCrnHN57aDlms7/ol8Obsz18NNFtV6RHLXRlgyIpxObL2CA4iIUA==",      
+  "password": "gDHNGj5VJj5hQp3DcB78TThT4bomqi/UiVXLPThUe0CKCr2m/PeW4HgeZ5P+Fewf8pKQPjVpcH1gi9YwN/cuRgFzeSaJhLJyrT4LmvpRybj8j4IkGaHfYYr7YF30LpmNroygtJ0YjhrHYmztluKNPJQNEyHNhDugvilGglpAnIzeTLiiBMgvuuxjODy7BVSsOsQETNlIrGznWmdJ5HJzwdCIKWxJCHrsoVY00/Qll6lgDLssKxQolMQAI/Whr7IY76LiOkN2GKC+r/XUc9AuY2ogn3uIvSiNkWkdG22Ot15xixCMCvLE59Sm08DplB3g4iky+bKJ4XFq6CIfzoFvbA=="   
+}
+
+成功响应 (200)：
+{
+    "username": "杨叶军",
+    "account": "23331160",
+    "uid": "787308814079627264",
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyMzMzMTE2MCIsImV4cCI6MTc2NTU1MDIxMCwiaWF0IjoxNzY1NTQ2NjEwfQ.VBGatYnHR5gI3yiKKaEv7TZJsGl2CNNe7AOhKjanHrY"
+}
+2. 错误处理
+401 Unauthorized: 账号或密码错误
+500 Internal Server Error: 服务器错误
+网络连接失败: NETWORK_ERROR
+个人用户相关API 
+4. 验证用户token是否有效（√√√）
+- URL: /auth/user/validate
+- 方法：GET
+- 场景：前端进入主界面，需要验证token是否有效（错误、过期），否则退回到登录界面
+请求头：Authorization: Bearer {token}
+成功响应（200）：
+{
+    "valid": bool
+}
+5. 用户本人获取个人信息（√√√）
+- URL: /auth/user/user-info
+- 方法: GET
+- 场景：用户登录后右上角显示用户名和头像；用户查看个人资料；
+请求头：Authorization: Bearer {token}
+
+响应体：
+成功响应 (200)：
+{
+    "uid": "787551337918238720",
+    "account": "23331157",
+    "username": "AI",
+    "gender": "male",
+    "region": "广东省",
+    "email": null,
+    "create_time": 1765603671,
+    "avatar": null,
+    "bio": null
+}
+6. 用户本人更新个人信息 （√√√）
+- URL: /auth/user/update-user-info
+- 方法: POST
+- 场景：已登录的用户修改本人的个人资料（如地区、性别）。
+请求头：Authorization: Bearer {token}
+请求体：
+{
+    "username": "Lihua",
+    "gender": "male|female|other", 
+    "region": "GuangXi",
+    "email": "aaa",
+    "avatar": url,
+    "bio": "Hello World!",// 简介
+}
+
+成功响应 (200)：
+{
+    success：'true'
+}
+7. 用户更新个人头像（√√√）
+- URL: /auth/user/update-user-avatar
+- 方法: POST
+- 场景：已登录的用户修改本人的头像。
+请求头：Authorization: Bearer {token}
+请求体：
+{
+    "file_id": "",
+}
+
+成功响应 (200)：
+{
+    "success"：true
+}
+8. 获取非好友用户资料（√√√）
+- URL: /auth/user/profile
+- 方法: POST
+- 场景：用户查看非好友的用户的个人资料。
+请求头：
+Authorization: Bearer {token}
+Content-Type: application/json
+请求体：
+{
+  "uid": "787574772618760192"
+}
+
+成功响应（200 OK）
+{
+    "uid": "787574772618760192",
+    "account": "23331183",
+    "username": "朱俊龙",
+    "gender": "male",
+    "region": "广东省",
+    "email": null,
+    "avatar": null,
+    "bio": null
+}
+
+用户/群聊信息批量拉取
+9. 批量获取用户基本信息（暂不实行）
+- URL: /auth/user/base_profile
+- 方法：POST
+- 场景：显示申请列表时，需要批量获取并显示头像、名称；
+请求头：
+Authorization: Bearer {token}
+Content-Type: application/json
+请求体：
+{
+  "uids": []
+}
+
+成功响应（200 OK）
+{
+    "users": [
+        {
+            "id": "uid_123"
+            "name": "yxd"
+            "avatar": "file_id"
+        }，
+        {
+            "id": "uid_1234"
+            "name": "lyj"
+            "avatar": "file_id"
+        }
+    ]
+}
+
+会话管理API
+10. 获取会话列表（√√√）
+- URL:/auth/chat/list
+- 方法: GET
+- 场景：主页面渲染时，消息栏的获取。拉取置顶会话+有未读消息的会话。
+请求头：
+Authorization: Bearer {token}
+
+响应体：
+成功响应 (200)：
+{
+    "chats": [
+        {
+            "id": "789376146465624064",
+            "is_pinned": false,
+            "type": "private",
+            "latest_message": "[图片]",
+            "updated_at": 1766038896,
+            "unread_messages": 1,
+            "avatar": "",
+            "remark": "大队长"
+        },
+        {
+            "id": "789370704574287872",
+            "is_pinned": false,
+            "type": "group",
+            "latest_message": "[图片]",
+            "updated_at": 1766038455,
+            "unread_messages": 2,
+            "avatar": "",
+            "remark": "Echat"
+        }
+    ],
+    "total": 2
+}
+11. 获取指定私聊（√√√）
+- URL：/auth/chat/soloprivate
+- 方法: POST
+- 场景：在点击用户头像进入私聊，联系人表进入私聊，如果会话列表没有该会话，则获取私聊并加入会话列表
+请求头：
+Authorization: Bearer {token}
+请求体：
+{
+    "fid" : "chat_67809"
+}
+
+响应体：
+成功响应（200 OK）：
+{
+    "id": "789376146465624064",
+    "is_pinned": false,
+    "type": "private",
+    "latest_message": "[图片]",
+    "updated_at": 1766038896,
+    "avatar": "",
+    "remark": "大队长"
+}
+12. 获取指定群聊（√√√）
+- URL: /auth/chat/sologroup
+- 方法：POST
+- 场景：在点击群头像进入私聊，联系人表进入群聊，如果会话列表没有该会话，则获取群聊并加入会话列表
+请求头：
+Authorization: Bearer {token}
+请求体
+{
+    "gid": "123", 
+}
+
+成功响应（200 OK）：
+{
+    "id": "789370704574287872",
+    "is_pinned": false,
+    "type": "group",
+    "latest_message": "[图片]",
+    "updated_at": 1766038455,
+    "avatar": "",
+    "remark": "Echat"
+}
+13. 会话设为/取消置顶（√√√）
+- URL：/auth/chat/updateIsPinned
+- 方法：POST
+- 场景：用户点击置顶按钮，将某个会话设为置顶
+请求体：
+{
+    "id": "789376146465624064",
+    "chat_type": "private",
+    "is_pinned": true
+}
+
+响应体(200 OK)
+{
+    "success": true
+}
+消息管理API
+14. 获取私聊会话历史消息（√√√）
+- URL: /auth/message/private_history
+- 方法：POST
+- 场景：1、用户选取一个私聊时，获取该私聊历史消息，存储在chatstore.messages数组中。2、获取会话列表后。初次拉取并统计未读消息数有两个方案：1、每页100条（未读消息数最为99+比较合适，但是会话一多会消耗资源），统计带未读标签的数量；2、再设计一个API，拉取每个会话的未读消息并由前端计数，缩短初次加载时间，但是已经拉取的消息数量不统一，后续分页拉取需要处理一下；从而得到未读消息数。
+请求头：
+Authorization: Bearer {token}
+请求体：
+{
+  "pid": "chat_67890",
+  "limit": 50,//返回的数目限制
+  "offset": 0,//页数，前50页。。。50-100页等等
+}
+
+响应体：
+成功响应（200 OK）：
+{
+    "total_pages": 55,//总页数
+    "current_page": 55,//当前页数
+    "total_items": 1100,//总条目
+    "messages": [
+      {
+            "type": "Private",
+            "payload": {
+                "message_id": "789376418453655552",
+                "chat_id": "789376146465624064",
+                "timestamp": 1766038804,
+                "sender_id": "788394119729778688",
+                "sender_name": "林奕俊",
+                "sender_avatar": "",
+                "receiver_id": "788394516913590272",
+                "content_type": "text",
+                "detail": "你好",
+                "quote_msg_id": null
+            },
+            "is_revoked": false,
+            "is_read": false
+        },
+        {
+            "type": "Private",
+            "payload": {
+                "message_id": "789376602340331520",
+                "chat_id": "789376146465624064",
+                "timestamp": 1766038847,
+                "sender_id": "788394119729778688",
+                "sender_name": "林奕俊",
+                "sender_avatar": "",
+                "receiver_id": "788394516913590272",
+                "content_type": "image",
+                "detail": "789372367498383360",
+                "quote_msg_id": null
+            },
+            "is_revoked": false,
+            "is_read": false
+        },
+      {
+        "type": "Private",
+        "payload": {
+           // 消息元数据
+          "message_id": "msg_001",
+          "chat_id": "chat_67890",
+          "timestamp": "timestamp",
+           // 发送者信息
+          "sender_id": "user_12345",
+          "sender_name": "yxd",
+          "sender_avatar": "url",
+          // 接收者信息
+          "receiver_id": "user_67890",
+          // 消息内容
+          "content_type": "text",
+          "detail": "Hey! How are you?",
+          // 实时消息状态
+          "quote_msg_id": "msg_id"
+        },
+        // 后端维护的消息状态，全部可选
+        "is_revoked": false,
+        "is_read": false
+      }
+    ]
+}
+15. 获取群聊会话历史消息（√√√）
+- URL: /auth/message/group_history
+- 方法：POST
+- 场景：用户选取一个群聊时，获取该群聊历史消息，存储在chatstore.messages数组中。初次拉取数量有两个方案：1、每页100条（未读消息数最为99+比较合适，但是会话一多会消耗资源），统计带未读标签的数量；2、再设计一个API，拉取每个会话的未读消息并由前端计数，缩短初次加载时间，但是已经拉取的消息数量不统一，后续分页拉取需要处理一下；从而得到未读消息数。
+请求体：
+{
+  "gid": "789370704574287872",
+  "limit": 50,
+  "offset": 0
+}
+
+响应体：
+{
+    "total_pages": 55,//总页数
+    "current_page": 55,//当前页数
+    "total_items": 1100,//总条目
+    "messages": [
+      {
+            "type": "Group",
+            "payload": {
+                "message_id": "789374956562550784",
+                "chat_id": "789370704574287872",
+                "timestamp": 1766038455,
+                "sender_id": "788394119729778688",
+                "sender_name": "林奕俊",
+                "sender_avatar": "",
+                "receiver_id": "789370704574287872",
+                "content_type": "image",
+                "detail": "789372367498383360",
+                "is_announcement": false,
+                "mentioned_uids": [],
+                "quote_msg_id": null
+            },
+            "is_revoked": false,
+            "is_read": false,
+            "read_count": 0
+        },
+      {
+        "type": "Group",
+        "payload": {
+          "message_id": "msg_001",
+          "chat_id": "chat_67890",
+          "timestamp": "timestamp",
+          
+          "sender_id": "user_12345",
+          "sender_name": "yxd",
+          "sender_avatar": "url",
+          
+          "receiver_id": "user_67890",
+          
+          "content_type": "text",
+          "detail": "Hey! How are you?",
+          
+          "is_announcement": false,
+          "mentioned_uids": [
+              "uid1",
+              "uid2",
+          ],
+          "quote_msg_id": "msg_id"
+        },
+        "is_revoked": false,
+        "is_read": false,
+        "read_count": 213
+      }
+    ]
+}
+16. 标记消息为已读（√√√）
+- URL: /auth/message/read
+- 方法：POST
+- 场景：1、用户进入会话界面时，标记该会话时间戳之前该接收者未读的消息为已读；2、用户在当前会话收到新消息，标记该会话时间戳之前该接收者未读的消息为已读(前端需要防抖)。在线状态的消息通过websocket通知对方。
+请求头
+Authorization: Bearer {token}
+Content-Type: application/json
+请求体:
+{
+  "chat_id": "chat_67890",//会话ID
+  "type" : "private/group",//标记类型为私聊
+  "timestamp" : "timestamp"//时间戳
+}
+
+成功响应（200 OK）
+{
+    "success": true
+}
+17. 获取群聊消息已读状态（√√√）
+- URL: /auth/message/read_count
+- 方法：POST
+- 场景：只显示用户发送的群聊消息的已读人数。1、消息即将进入视窗时，调用API并显示已读人数； 2、按时间轮询，对于当前视窗的消息，调用API获取已读人数。为避免频繁调用，前端需要在pinia缓存消息的已读状态。
+请求体：
+{
+    "gid": "112",
+    "message_ids": ["msgid1", "msgid2", "msgid3", ...]
+}
+
+响应体：
+{
+    "read_counts": [
+        {
+           "message_id": "66",
+           "read_count": 44,
+        },
+        {
+           "message_id": "67",
+           "read_count": 44,
+        }
+    ]
+}
+好友管理API
+18. 搜索用户（√√√）
+- URL: /auth/friends/search
+- 方法：POST
+- 场景：已登录用户可通过关键词搜索平台上的其他用户。系统根据关键词匹配符合条件的用户列表，并返回简要信息，用于添加好友、发起聊天或查看资料等后续操作。
+请求头：
+Authorization: Bearer {token}
+Content-Type: application/json
+请求体:
+{    
+  "query": "朱俊龙",
+  "limit": 20,
+  "offset": 0
+}
+
+响应体：
+{
+    "total_pages": 1,
+    "current_page": 0,
+    "total_items": 1,
+    "users": [
+        {
+            "uid": "787574772618760192",
+            "username": "朱俊龙",
+            "gender": "male",
+            "avatar": null,
+            "bio": null
+        }
+    ]
+}
+19. 获取好友用户资料（√√√）
+- URL:/auth/friends/profile
+- 方法：POST
+- 场景：用户点击好友头像查看好友个人信息，用户新添加好友时根据返回的uid与fid获取好友用户资料，插入好友列表。
+请求头
+Authorization: Bearer {token}
+Content-Type: application/json
+请求体
+{
+    "uid": "787574772618760192",
+    "fid":"788309484421255168"
+}
+
+成功响应（200 OK）：
+{
+    "fid": "788309484421255168",
+    "uid": "787574772618760192",
+    "account": "23331183",
+    "username": "朱俊龙",
+    "remark": "",
+    "group_by": "",
+    "is_blacklisted": false,
+    "created_at": 1765784427,
+    "bio": null,
+    "avatar": null,
+    "gender": "male",
+    "region": "广东省",
+    "email": null
+}
+20. 获取好友列表（√√√）
+- URL: /auth/friends/friendlist
+- 方法：GET
+- 场景：用户点击进入好友界面时拉取好友列表。
+请求头：
+Authorization: Bearer {token}
+Content-Type: application/json
+
+响应体：
+{
+    "friends": [
+        {
+            "fid": "788309484421255168",
+            "uid": "787574772618760192",
+            "username": "朱俊龙",
+            "remark": "",
+            "group_by": "",
+            "is_blacklisted": false,
+            "created_at": 1765784427,
+            "bio": null,
+            "avatar": null
+        }
+    ],
+    "blacklist": []
+}
+21. 发送好友请求（√）
+- URL:/auth/friends/request
+- 方法：POST
+- 场景：用户在搜索页面，群聊成员页面，个人主页等界面向非好友的用户发送请求。
+请求头
+Authorization: Bearer {token}
+Content-Type: application/json
+请求体
+{
+  "receiver_id": "787574772618760192",
+  "message": "Hi! I'd like to connect with you"
+}
+
+成功响应 (200)：
+{
+    "req_id": "787657795192229888",
+    "sender_uid": "787551337918238720",
+    "receiver_uid": "787574772618760192",
+    "receiver_name": "yxd",
+    "receiver_avatar": "file_id",
+    "apply_text": "Hi! I'd like to connect with you",
+    "create_time": 666,
+    "status": "pending"
+}
+22. 处理好友请求（√√√？）
+- URL:/auth/friends/respond
+- 方法：POST
+- 场景：用户在“好友添加”页面中的“处理申请”列表中，对收到的好友请求进行同意或拒绝操作。成功响应后，调用获取好友用户资料，根据fid和uid获取好友信息，并加入到好友列表。
+- 问题：假设两个用户向对方同时发送申请，应该如何处理两条记录（比如一个接受，一个拒绝）
+- 解决方案：同意后将另一条设为超时请求（待做）
+请求头
+Authorization: Bearer {token}
+Content-Type: application/json
+请求体
+{
+  "req_id": "787661626944786432",
+  "action": "reject"
+}
+
+成功响应（200 OK）
+{
+    "uid": "Rejected",
+    "fid": "Rejected",
+    "pid": "Rejected"
+}
+23. 获取好友请求消息列表（√√√）
+- URL:/auth/friends/request_list
+- 方法：GET
+- 场景：用户切换到“好友添加”页面中的“处理申请”页面时，拉取好友请求消息列表。保证待处理的请求位于前面，已经处理的置后。若要查看申请者信息调用API6.获取非好友用户资料。
+- 备注：缺少字段，要保持和发送的好友请求一致。
+请求头：
+Authorization: Bearer {token}
+Content-Type: application/json
+
+成功响应（200 OK）
+{
+    "total": 4,
+    "requests": [
+        {
+            "req_id":"reqId123",
+            "sender_uid":"uid13",
+            "sender_name":"",
+            "sender_avatar":"",
+            "receiver_uid":"uid14",
+            "receiver_name":"",
+            "receiver_avatar":"",
+            "apply_text":"Hello",
+            "create_time":"timestamp",
+            "status":"pending"
+        },
+        {
+            "req_id":"reqId123",
+            "sender_uid":"uid13",
+            "sender_name":"",
+            "sender_avatar":"",
+            "receiver_uid":"uid14",
+            "receiver_name":"",
+            "receiver_avatar":"",
+            "apply_text":"Hello",
+            "create_time":"timestamp",
+            "status":"pending"
+        }
+    ],
+    "receives": [
+        {
+            "req_id":"reqId123",
+            "sender_uid":"uid13",
+            "sender_name":"",
+            "sender_avatar":"",
+            "receiver_uid":"uid14",
+            "receiver_name":"",
+            "receiver_avatar":"",
+            "apply_text":"Hello",
+            "create_time":"timestamp",
+            "status":"pending"
+        },
+        {
+            "req_id":"reqId123",
+            "sender_uid":"uid13",
+            "sender_name":"",
+            "sender_avatar":"",
+            "receiver_uid":"uid14",
+            "receiver_name":"",
+            "receiver_avatar":"",
+            "apply_text":"Hello",
+            "create_time":"timestamp",
+            "status":"pending"
+        }
+    ]
+}
+24. 删除好友（√√√）
+- URL:/auth/friends/remove
+- 方法：POST
+- 场景：用户在好友的个人主页的设置分页中删除好友，成功响应后前端在好友列表根据fid删除好友信息。
+请求头
+Authorization: Bearer {token}
+Content-Type: application/json
+请求体
+{
+    "fid": "friend_001"
+}
+
+成功响应（200 OK）
+{
+    "success": true
+}
+25. 更新好友备注\黑名单状态\分组（√√√）
+- URL:/auth/friends/update
+- 方法：POST
+- 场景：用户在好友的个人主页的设置分页中更新好友备注\黑名单状态\分组，成功响应后前端在好友列表根据fid修改好友备注。
+请求头
+Authorization: Bearer {token}
+Content-Type: application/json
+请求体
+{
+  "fid": "friend_001",
+  "remark": "Alice - Design Team",
+  "is_blacklisted": true,
+  "group_by":"work"
+}
+
+成功响应（200 OK）
+{
+    "success": true
+}
+群聊管理API
+26. 创建群聊（√√√）
+- URL:/auth/groups/create
+- 方法：POST
+- 场景：已登录用户可发起创建一个新的群聊。用户需提供群名称、可选群头像。系统将自动创建群组，将创建者设为群主，同时返回新群的基本信息。
+请求头：
+Authorization: Bearer {token}
+Content-Type: application/json
+请求体：
+{
+    "group_name":"Echat",
+    "avatar": null,
+    "group_intro": "Echat开发组"
+}
+
+成功响应（200 OK）
+{
+    "gid": "787350655340646400",
+    "created_at": 1765555824
+}
+27. 搜索群聊（√√√）
+- URL:/auth/groups/search
+- 方法：POST
+- 场景：已登录用户可通过关键词搜索平台上的群聊。系统根据关键词匹配符合条件的群聊列表，并返回简要信息，用于加入群聊、查看资料等后续操作。
+- 问题：请求参数不对时返回BadRequest
+请求头：
+Authorization: Bearer {token}
+Content-Type: application/json
+请求体
+{    
+  "query": "787547607969828864",
+  "limit": 20,
+  "offset": 0
+}
+
+成功响应（200 OK）
+{
+    "total_pages": 1,
+    "current_page": 0,
+    "total_items": 1,
+    "groups": [
+        {
+            "gid": "787547607969828864",
+            "group_name": "Echat",
+            "avatar": "",
+            "bio": "Echat开发组"
+        }
+    ]
+}
+28. 用户获取群聊名片（√√√）
+- URL:/auth/groups/card
+- 方法：POST
+- 场景：用户点击群聊头像查看群聊名片
+请求头：
+Authorization: Bearer {token}
+Content-Type: application/json
+请求体：
+{
+    "gid": "787547607969828864"
+}
+
+成功响应（200 OK）
+{
+    "gid": "787547607969828864",
+    "group_name": "Echat",
+    "manager_uid": "787350530115506176",
+    "avatar": "",
+    "group_intro": "Echat开发组",
+    "created_at": 1765602781
+}
+29. 成员获取群聊信息（√√√）
+- URL:/auth/groups/profile
+- 方法：POST
+- 场景：用户点击群聊的设置分页查看群聊具体信息和可设置的字段；
+请求头：
+Authorization: Bearer {token}
+Content-Type: application/json
+请求体：
+{
+    "gid": "787547607969828864"
+}
+
+成功响应（200 OK）
+{
+    "gid": "787547607969828864",
+    "group_name": "Echat",
+    "manager_uid": "787350530115506176",
+    "avatar": "",
+    "group_intro": "Echat开发组",
+    "created_at": 1765602781,
+    "do_not_disturb": false,
+    "is_pinned": false,
+    "remark": null,
+    "nickname": null,
+    "join_time": 1765602781
+}
+30. 获取群聊列表（√√√）
+- URL:/auth/groups/grouplist
+- 方法：GET
+- 场景：用户点击进入群聊界面时拉取群聊列表。
+请求头
+Authorization: Bearer {token}
+
+响应体：
+成功响应（200 OK）
+{
+    "groups": [
+        {
+            "gid": "787547607969828864",
+            "group_name": "Echat",
+            "avatar": "",
+            "bio": "Echat开发组"
+        }
+    ],
+    "total": 1
+}
+31. 发送加入群聊申请（√√√）
+- URL:/auth/groups/send_group_request
+- 方法：POST
+- 场景：用户加入群聊前需申请。
+请求头
+Authorization: Bearer {token}
+请求体
+{
+    "gid":"789370704574287872",
+    "apply_text":"I want to join"
+}
+
+成功响应（200 OK）
+{
+    "req_id": "789384469353074688",
+    "gid": "789370704574287872",
+    "group_name": "Echat",
+    "group_avatar": "",
+    "sender_uid": "788394516913590272",
+    "apply_text": "I want to join",
+    "create_time": 1766040723,
+    "status": "pending"
+}
+32. 用户查看群聊申请列表（√√√）
+- URL:/auth/groups/get_request_list
+- 方法：GET
+- 场景：用户可在申请列表中查看自己的群聊申请记录。
+请求头：
+Authorization: Bearer {token}
+Content-Type: application/json
+
+响应体：
+{
+    "requests": [
+        {
+            "req_id": "789384469353074688",
+            "gid": "789370704574287872",
+            "group_name": "Echat",
+            "group_avatar": "",
+            "sender_uid": "788394516913590272",
+            "apply_text": "I want to join",
+            "create_time": 1766040723,
+            "status": "accepted"
+        }
+    ],
+    "total": 1
+}
+33. 管理者获取群聊的申请列表（√√√）
+- URL:/auth/groups/group_requests
+- 方法：POST
+- 场景：用户申请加入该群后，其申请将进入待审核队列。群主或管理员可通过本接口查询指定群聊的所有待处理加入申请列表，用于后续批准或拒绝操作。
+普通成员无权访问此接口；仅群主/管理员可查看自己管理的群的申请列表。
+请求头
+Authorization: Bearer {token}
+请求体
+{
+    "gid":"787547607969828864"
+}
+
+成功响应（200 OK）
+{
+    "requests": [
+        {
+            "req_id": "787556646380376064",
+            "gid": "787547607969828864",
+            "group_name": "csfamily"
+            "group_avatar": "file_id"
+            "sender_uid": "787551337918238720",
+            "sender_name":"zhuzhu",
+            "sender_avatar":"",
+            "apply_text": "I want to join",
+            "create_time": 1765604936,
+            "status": "pending"
+        }
+    ],
+    "total": 1
+}
+34. 获取群聊申请审核列表（√√√）
+- URL:/auth/groups/group_request_list
+- 方法： GET
+- 场景：用户进入请求列表，获取所有用户有权限（群主/管理员）审核的群聊申请。
+请求头
+Authorization: Bearer {token}
+
+
+成功响应（200 OK）
+{
+    "requests": [
+        {
+            "req_id": "787556646380376064",
+            "gid": "787547607969828864",
+            "group_name": "csfamily"
+            "group_avatar": "file_id"
+            "sender_uid": "787551337918238720",
+            "sender_name":"zhuzhu",
+            "sender_avatar":"",
+            "apply_text": "I want to join",
+            "create_time": 1765604936,
+            "status": "pending"
+        }
+    ],
+    "total": 1
+}
+35. 处理加入群聊申请（√√√）
+- URL:/auth/groups/respond
+- 方法：POST
+- 场景：用户切换到“群聊管理”页面中的“处理申请”页面时，拉取群聊加入申请消息列表。保证待处理的请求位于前面，已经处理的置后。若要查看申请者信息调用API6.获取非好友用户资料。
+普通成员无权访问此接口；仅群主/管理员可处理自己管理的群的申请列表。
+请求头
+Authorization: Bearer {token}
+请求体
+{
+  "req_id": "787556646380376064",
+  "action": "accept"
+}
+
+成功响应（200 OK）
+{
+    "success": true
+}
+36. 退出群聊（√√√）
+- URL:/auth/groups/leave
+- 方法：POST
+- 场景：已加入群聊的普通成员可主动退出该群。
+- 问题：响应体message
+如果当前用户是群主，则不允许直接退出，必须先转让群主身份或解散群聊；
+普通成员和管理员可正常退出。
+请求头
+Authorization: Bearer {token}
+请求体
+{
+    "gid":"787547607969828864"
+}
+
+成功响应（200 OK）
+{
+    "success": true
+}
+37. 踢出群成员（√√√）
+- URL: /auth/groups/kick_member
+- 方法: POST
+- 场景：群主或管理员可将某位普通成员从群聊中移除。
+群主可以踢出任何人（包括管理员）；
+普通管理员不能踢出群主）；
+用户不能踢自己（应使用“退出群聊”接口）
+请求头
+Authorization: Bearer {token}
+请求体
+{
+    "gid":"gid123",
+    "uid":"user_123",//被踢出的群员
+}
+
+成功响应（200 OK）
+{
+    "success": true
+}
+38. 解散群聊（√√√）
+- URL: /auth/groups/disband
+- 方法: POST
+- 场景：群主可主动解散自己创建的群聊，所有成员自动退出。
+请求头
+Authorization: Bearer {token}
+请求体
+{
+    "gid":"787312090246287360"
+}
+
+成功响应（200 OK）
+{
+    "success": true
+}
+39. 设置群免打扰状态、置顶状态、群备注、群昵称（√√√）
+- URL: /auth/groups/member_set
+- 方法: POST
+- 场景：已加入群聊的用户可自定义与该群相关的本地化设置
+请求头
+Authorization: Bearer {token}
+请求体
+{    
+    "gid":"787547607969828864",
+    "do_not_disturb": true,
+    "is_pinned": true,
+    "remark": "workplace",
+    "nickname": "mm"
+}
+
+响应体：
+成功响应（200 OK）
+{
+    "success": true
+}
+40. 设置群名称、群头像、群简介（√√√）
+- URL: /auth/groups/setting
+- 方法: POST
+- 场景：群聊的群主和管理员可自定义与该群信息相关的设置，如群名称、群头像、群简介。
+请求头
+Authorization: Bearer {token}
+请求体
+{    
+    "gid":"787547607969828864",
+    "group_name":"Soft",
+    "group_avatar":"",
+    "group_intro":"Hello"
+}
+
+响应体：
+成功响应（200 OK）
+{
+    "success": true
+}
+41. 设置群头像（√√√）
+- URL: /auth/groups/setting_avatar
+- 方法: POST
+- 场景：群聊的群主和管理员可自定义该群的群头像。
+请求头
+Authorization: Bearer {token}
+请求体
+{    
+    "gid": ""
+    "group_avatar": "",  
+}
+
+响应体：
+成功响应（200 OK）
+{
+    "success": true
+}
+42. 获取群公告列表（√√√）
+- URL: /auth/groups/get_announcements
+- 方法: POST
+- 场景：群成员查看群内由管理员或群主发布的公告列表，按发布时间倒序排列。
+Authorization: Bearer {token}
+请求体
+{    
+    "gid":"787547607969828864"
+}
+
+响应体：
+成功响应（200 OK）
+{
+    "announcements":[
+        {
+            "msg_id":"123",
+            "content":"HELLO",
+            "sender_uid":"user123",
+            "send_time":"timestamp",//发送时间
+            "mentioned_uids":"json",
+            "quote_msg_id":"msg_123"
+        },
+        {
+            "msg_id":"123",
+            "content":"HELLO",
+            "sender_uid":"user123",
+            "send_time":"timestamp",//发送时间
+            "mentioned_uids":"json",
+            "quote_msg_id":"msg_123"
+        },
+    ],
+    "total":66
+}
+
+测试：
+{
+    "announcements": [],
+    "total": 0
+}
+43. 获取全部群成员（√√√）
+- URL: /auth/groups/get_members
+- 方法: POST
+- 场景：用户进入群聊资料页时，可查看该群的所有成员列表。返回信息包括每位成员的基本资料、在群内的角色（群主 / 管理员 / 普通成员）
+请求头
+Authorization: Bearer {token}
+请求体
+{    
+    "gid":"787547607969828864"
+}
+
+响应体：
+成功响应（200 OK）
+{
+    "members": [
+        {
+            "role": "owner",
+            "uid": "787350530115506176",
+            "username": "杨叶军",
+            "avatar": "",
+            "nickname": "mm"
+        }
+    ],
+    "total": 1
+}
+44. 转让群主（√√√）
+- URL: /auth/groups/transfer_ownership
+- 方法: POST
+- 场景：群主可将群主身份转让给群内的一名现有成员（通常需为普通成员或管理员）。转让后：
+原群主降级为普通成员；
+目标成员升级为新群主；
+群聊继续存在，所有历史数据保留；
+转让操作不可逆（除非新群主再转回）。
+仅群主可发起转让；
+目标用户必须已在群内；
+不能转让给自己；
+请求头
+Authorization: Bearer {token}
+请求体
+{    
+    "gid":"787547607969828864",
+    "uid":"787551337918238720"
+}
+
+响应体：
+成功响应（200 OK）
+{
+    "success": true
+}
+45. 设置管理员（√√√）
+- URL: /auth/groups/set_admin
+- 方法: POST
+- 场景：群主可将群内的普通成员提升为管理员，赋予其部分管理权限（如踢人、发布公告、审批入群申请等，具体权限由业务定义）。
+- 仅群主可操作；
+- 目标用户必须已在群内且为普通成员（不能重复设为管理员）；
+- 管理员不能设置其他管理员（防止权限扩散）。
+请求头
+Authorization: Bearer {token}
+请求体
+{    
+    "gid":"gid",
+    "uid":"uid23"//管理者uid
+}
+
+响应体：
+成功响应（200 OK）
+{
+    "success": true
+}
+46. 移除管理员（√√√）
+- URL: /auth/groups/remove_admin
+- 方法: POST
+- 场景：群主可移除管理员，取消管理权限。
+请求头
+Authorization: Bearer {token}
+请求体
+{    
+    "gid":"gid",
+    "uid":"uid23"//管理者uid
+}
+
+响应体：
+成功响应（200 OK）
+{
+    "success": true
+}
+47. 获取用户禁言状态（√√√）
+- URL: /auth/groups/get_ban_status
+- 方法: POST
+- 场景：用户进入某个群聊时，客户端需实时查询自己在该群中是否被禁言（即禁止发送消息）。
+- 禁言由群主或管理员设置，可设定永久禁言或定时解禁；
+- 本接口用于前端判断是否应禁用输入框、提示“您已被禁言”等；
+- 若用户不在群中，返回未禁言或明确提示。
+请求头
+Authorization: Bearer {token}
+请求体
+{    
+    "gid":"gid",
+}
+响应体：
+{
+    "is_banned": true,
+    "expired": "timestamp",
+}
+48. 管理员禁言群成员（√√√）
+- URL: /auth/groups/ban_member
+- 方法: POST
+- 场景：群主或管理员可对群内普通成员执行禁言操作，禁止其在群聊中发送消息。
+- 问题：无法永久禁言
+请求头
+Authorization: Bearer {token}
+请求体
+{    
+    "gid":"787547607969828864",
+    "uid":"787574772618760192",
+    "time":5000
+}
+
+成功响应（200 OK）
+{
+    "success": true
+}
+//TODO
+//使用WebSocket通知
+49. 管理员解除群成员禁言状态（√√√）
+- URL: /auth/groups/remove_mute_admin
+- 方法: POST
+- 场景：群主或管理员可手动提前解除某位被禁言成员的禁言状态，使其恢复发送消息的权限。
+请求头
+Authorization: Bearer {token}
+请求体
+{    
+    "gid":"gid",
+    "uid":"uid"//禁言的群成员ID
+}
+
+成功响应（200 OK）
+{
+    "success": true
+}
+//TODO
+//使用WebSocket通知
+在线状态API
+50. 获取好友列表在线状态（√√√）
+- URL: /auth/online/friends-online
+- 方法: GET
+- 场景：用户登录后，客户端需要获取其所有好友的当前在线状态，用于在聊天列表、好友列表中显示“在线”或“离线”标识
+请求头
+Authorization: Bearer {token}
+Content-Type: application/json
+
+响应体：
+{
+    "online_friends": [
+        {
+            "user_id": "788394119729778688",
+            "username": "林奕俊",
+            "avatar": "",
+            "status": "online"
+        }
+    ],
+    "total": 1
+}
+51. 获取群聊在线状态（√√√）
+- URL: /auth/online/group-online
+- 方法: POST
+- 场景：用户登录后，客户端需要获取其群聊成员的当前在线状态，用于在聊天列表中显示“在线”或“离线”标识。
+请求头
+Authorization: Bearer {token}
+Content-Type: application/json
+请求体
+{
+    "gid": "1234"
+}
+
+响应体
+{
+    "online_group_members": [
+        {
+            "user_id": "788394119729778688",
+            "username": "林奕俊",
+            "avatar": "",
+            "status": "online"
+        }
+    ],
+    "total": 1
+}
+文件管理API
+52. 上传文件（√√√）
+- URL: /auth/file/upload
+- 方法: POST
+- 场景：已登录用户可上传文件（如图片、文档、音视频等），用于聊天消息、群公告附件、个人资料等场景。
+请求头
+Authorization: Bearer {token}
+Content-Type: multipart/form-data  // 注意：实际请求中浏览器会自动添加boundary参数
+请求体
+file: [file] //文件本身
+fileName: "表情包"// 文件名
+fileType: "image"// 文件类型
+context: {// 业务上下文，注意要转换成JSON字符串}
+
+响应体0
+{
+    "file_id": "file_7d8e9f0a1b2c3d4",
+    "display_name": "Annual Report 2024.pdf",
+    "file_size": 2456789,
+    "mime_type": "application/pdf",
+    "file_type": "document",
+    "upload_time": "2024-01-20T14:32:45Z",
+    "owner_uid": "user_12345"
+ }
+53. 预览文件（√√√）
+- URL: /auth/file/preview
+- 方法: POST
+- 场景：用户在聊天、群公告或文件列表中点击一个已上传的文件，前端调用此接口获取临时可访问链接。
+请求头
+Authorization: Bearer {token}
+Content-Type: application/json
+请求体
+{
+    "file_id": String
+}
+
+响应体：
+{
+    "display_name": "Annual Report 2024.pdf",
+    "file_size": 2456789,
+    "file_type": "document",
+}
+54. 下载文件（√√√）
+- URL: /auth/file/download
+- 方法: POST
+- 场景：用户在聊天、群公告或文件列表中点击“下载”按钮，系统校验其权限后，返回一个安全的下载链接。
+请求头
+Authorization: Bearer {token}
+Content-Type: application/json
+请求体
+{
+    "file_id": "7772"
+}
+
+响应体：
+
+55. 删除文件（√√√）
+- URL: /auth/file/delete
+- 方法: POST
+- 场景：用户可删除自己上传的文件。
+请求头
+Authorization: Bearer {token}
+Content-Type: multipart/form-data
+请求体：
+{
+    "file_id": "7771",
+}
+
+响应体：
+{
+    "success": true,
+}
+WebSocket API
+56. WebSocket连接API
+- URL: /auth/connection/ws?token={jwt_token}
+- 方法: GET
+- 场景：用户登录后，客户端通过 WebSocket 与服务器建立持久连接
+升级为WebSocket连接
+57. WebSocket消息格式
+发送消息 (Client → Server):
+{
+  "type": "message",
+  "payload": {
+    "chatId": "chat_67890",
+    "receiverId": "user_67890",
+    "contentType": "text",
+    "content": "Hello, how are you?",
+    "tempId": "temp_msg_12345"
+  }
+}
+接收消息 (Server → Client):
+{
+  "type": "new_message",
+  "payload": {
+    "id": "server_msg_67891",
+    "chatId": "chat_67890",
+    "senderId": "user_67890",
+    "contentType": "text",
+    "content": "I'm doing great, thanks!",
+    "timestamp": "2024-01-20T11:01:00Z"
+  }
+}
+好友请求通知:
+{
+  "type": "friend_request",
+  "payload": {
+    "reqId": "req_99999",
+    "senderId": "user_44444",
+    "message": "Hi, let's connect!",
+    "senderInfo": {
+      "username": "new_friend",
+      "avatar": "https://example.com/avatars/new.jpg"
+    },
+    "timestamp": "2024-01-20T11:02:00Z"
+  }
+}
+在线状态变化:
+{
+  "type": "friend_status_changed",
+  "payload": {
+    "userId": "user_67890",
+    "status": "online",
+    "timestamp": "2024-01-20T11:03:00Z"
+  }
+}
+心跳:
+// Client → Server
+{"type": "ping"}
+
+// Server → Client  
+{"type": "pong"}
+Common HTTP Status Codes
+- 200 - Success
+- 201 - Created
+- 400 - Bad Request
+- 401 - Unauthorized
+- 403 - Forbidden
+- 404 - Not Found
+- 409 - Conflict
+- 422 - Validation Error
+- 429 - Rate Limited
+- 500 - Internal Server Error
+待办事项
+[] 登录成功时，将token置于响应头而非响应体。

@@ -109,6 +109,7 @@
   import { useChat } from '../../composables/useChat'
   import { useMessage } from '../../composables/useMessage'
   import { useMessageInput } from '../../composables/useMessageInput'
+  import { useReadCountPolling } from '../../composables/useReadCountPolling'
   import { useChatStore } from '../../stores/chatStore'
   import { useMessageStore } from '../../stores/messageStore'
   import { useUserStore } from '../../stores/userStore'
@@ -128,6 +129,13 @@
   const chatStore = useChatStore()
   const messageStore = useMessageStore()
   const { activeChat, selectChat, activeChatId, activeChatType } = useChat()
+
+  // 群聊已读人数轮询
+  const { watchChatChange } = useReadCountPolling()
+
+  // 监听会话变化并启动/停止轮询
+  watchChatChange(activeChatId.value, activeChatType.value)
+
   const {
     inputMessage,
     showEmojiPicker,
@@ -146,7 +154,7 @@
   } = useMessage()
   const userStore = useUserStore()
   const { currentUser, currentUserId } = storeToRefs(userStore)
-  const { showSuccess, showError } = useSnackbar()
+  const { showSuccess, showError, showInfo } = useSnackbar()
 
   // Local state
   const showOnlineBoard = ref(false)
@@ -271,8 +279,30 @@
     }
   }
 
+  // 记录是否已显示过"没有更多"提示
+  const hasShownNoMoreTip = ref(false)
+
   // 处理虚拟滚动接近顶部事件
   async function handleScrollNearTop (isNearTop: boolean) {
+    // 如果接近顶部但没有更多消息，检查是否需要显示提示
+    if (isNearTop && !hasMore.value && !isLoadingMore.value && !loading.value && activeChatId.value) {
+      // 获取当前分页信息，如果是第一页则不显示提示
+      const pagination = messageStore.getPagination(activeChatId.value)
+      const isFirstPage = !pagination || pagination.page <= 1
+
+      // 只有当已经加载过多页（page > 1）时才显示提示
+      if (!isFirstPage && !hasShownNoMoreTip.value) {
+        showInfo('没有更多历史消息了')
+        hasShownNoMoreTip.value = true
+      }
+      return
+    }
+
+    // 如果离开顶部，重置提示标记
+    if (!isNearTop) {
+      hasShownNoMoreTip.value = false
+    }
+
     if (!isNearTop || !hasMore.value || isLoadingMore.value || loading.value || !activeChatId.value || justSwitchedChat.value) {
       return
     }

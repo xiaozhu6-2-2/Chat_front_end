@@ -11,6 +11,7 @@ import { useGroup } from './useGroup'
 import { useGroupRequest } from './useGroupRequest'
 import { useMessage } from './useMessage'
 import { useUser } from './useUser'
+import { useWebSocketHandler } from './websocketHandler'
 
 export function useAuth () {
   const authStore = useAuthStore()
@@ -60,6 +61,10 @@ export function useAuth () {
       if (!websocketService.isConnected) {
         await websocketService.connect(token.value, userId.value)
       }
+
+      // 初始化 WebSocket 通知处理器（在 WebSocket 连接成功后）
+      const { setupNotificationHandlers } = useWebSocketHandler()
+      setupNotificationHandlers()
 
       // 初始化消息模块（在初始化其他模块之前）
       const { init: initMessage } = useMessage()
@@ -263,6 +268,10 @@ export function useAuth () {
 
   // 登出
   const logout = async () => {
+    // 清理 WebSocket 通知处理器（在断开连接之前）
+    const { cleanupNotificationHandlers } = useWebSocketHandler()
+    cleanupNotificationHandlers()
+
     // 断开 WebSocket
     websocketService.disconnect(false, 'logout')
 

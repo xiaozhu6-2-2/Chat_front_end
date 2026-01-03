@@ -21,9 +21,11 @@
           @click="setActiveItem(group.id)"
         >
           <div class="contact_content">
-            <div class="contact-avatar group-icon">
-              <v-icon color="white" icon="mdi-account-group" />
-            </div>
+            <Avatar
+              :name="group.name || '群聊'"
+              :size="40"
+              :url="group.avatar"
+            />
             <div class="contact-name">{{ group.name }}</div>
           </div>
         </v-list-item>
@@ -148,6 +150,7 @@
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { pinyin } from 'pinyin-pro'
+  import Avatar from '../global/Avatar.vue'
   import { useFriend } from '../../composables/useFriend'
   import { useGroup } from '../../composables/useGroup'
   import { useSnackbar } from '../../composables/useSnackbar'

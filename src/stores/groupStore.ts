@@ -26,6 +26,7 @@ export const useGroupStore = defineStore('group', () => {
   const groupAnnouncements = ref<Map<string, GroupAnnouncement[]>>(new Map()) // gid -> announcements[]
   const isLoading = ref(false)
   const lastFetchTime = ref<number>(0) // 上次获取群聊列表的时间
+  const groupsVersion = ref(0) // 版本号，用于强制触发 computed 更新（解决 Map 响应式问题）
 
   // Computed
   /**
@@ -39,6 +40,11 @@ export const useGroupStore = defineStore('group', () => {
    * @returns {Group[]} 群聊列表数组（按 ID 倒序排列）
    */
   const allGroups = computed(() => {
+    // 访问 groupsVersion 确保 computed 追踪 Map 的变化
+    // 这是解决 Vue 3 中 ref(Map) 响应式问题的方案
+    // 参考: https://github.com/vuejs/core/issues/9318
+    // eslint-disable-next-line no-unused-vars
+    const _ = groupsVersion.value
     return Array.from(groups.value.values())
   })
 
@@ -86,6 +92,7 @@ export const useGroupStore = defineStore('group', () => {
    */
   const _addGroupInternal = (group: Group) => {
     groups.value.set(group.id, group)
+    groupsVersion.value++ // 触发响应式更新
     console.log(`groupStore: 添加群聊 ${group.id}`)
   }
 
@@ -140,6 +147,7 @@ export const useGroupStore = defineStore('group', () => {
   const _removeGroupInternal = (gid: string) => {
     const removed = groups.value.delete(gid)
     if (removed) {
+      groupsVersion.value++ // 触发响应式更新
       // 清理相关缓存
       groupCards.value.delete(gid)
       groupProfiles.value.delete(gid)
@@ -170,6 +178,9 @@ export const useGroupStore = defineStore('group', () => {
 
     // 更新最后获取时间
     lastFetchTime.value = Date.now()
+
+    // 触发响应式更新
+    groupsVersion.value++
 
     console.log(`groupStore: 设置群聊列表，共 ${groupList.length} 个群聊`)
   }
@@ -549,6 +560,7 @@ export const useGroupStore = defineStore('group', () => {
     groupAnnouncements.value.clear()
     isLoading.value = false
     lastFetchTime.value = 0
+    groupsVersion.value = 0 // 重置版本号
     console.log('groupStore: 重置所有群聊数据')
   }
 

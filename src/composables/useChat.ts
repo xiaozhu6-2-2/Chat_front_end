@@ -1,5 +1,5 @@
 import type { Chat, ChatType } from '@/types/chat'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { ChatService } from '@/service/chatService'
 import { useChatStore } from '@/stores/chatStore'

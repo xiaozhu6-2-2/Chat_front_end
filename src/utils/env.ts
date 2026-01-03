@@ -53,18 +53,8 @@ export const envConfig = {
   wsUrl: getEnvValue('VITE_WS_URL'),
 
   // 功能开关
-  useMockData: getEnvValue('VITE_USE_MOCK_DATA') === 'true',
   enableDebug: getEnvValue('VITE_ENABLE_DEBUG') === 'true',
   enableLog: getEnvValue('VITE_ENABLE_LOG') === 'true',
-
-  // 用户配置（仅开发环境）
-  mockUserId: getEnvValue('VITE_MOCK_USER_ID'),
-  mockUserToken: getEnvValue('VITE_MOCK_USER_TOKEN'),
-  mockUserName: getEnvValue('VITE_MOCK_USER_NAME'),
-
-  // 聊天配置
-  defaultGroupId: getEnvValue('VITE_DEFAULT_GROUP_ID'),
-  defaultPrivateChatId: getEnvValue('VITE_DEFAULT_PRIVATE_CHAT_ID'),
 }
 
 /**
