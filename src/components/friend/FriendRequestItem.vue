@@ -192,7 +192,7 @@
 
   // 格式化请求时间
   function formatRequestTime () {
-    const date = new Date(props.request.create_time)
+    const date = new Date(props.request.create_time * 1000)
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
@@ -212,7 +212,7 @@
   function formatHandleTime () {
     if (!props.request.create_time) return ''
 
-    const date = new Date(props.request.create_time)
+    const date = new Date(props.request.create_time * 1000)
     return date.toLocaleDateString('zh-CN', {
       month: 'numeric',
       day: 'numeric',

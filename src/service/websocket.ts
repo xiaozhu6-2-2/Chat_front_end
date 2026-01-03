@@ -34,6 +34,14 @@ import {
   type UpdateOnlineStateData,
 } from '@/types/websocket'
 
+// 环境变量配置
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3000/auth/connection/ws'
+const WS_HEARTBEAT_INTERVAL = Number(import.meta.env.VITE_WS_HEARTBEAT_INTERVAL) || 30_000
+const WS_RECONNECT_DELAY = Number(import.meta.env.VITE_WS_RECONNECT_DELAY) || 5_000
+const WS_MAX_RECONNECT_ATTEMPTS = Number(import.meta.env.VITE_WS_MAX_RECONNECT_ATTEMPTS) || 5
+const WS_TIMEOUT = Number(import.meta.env.VITE_WS_TIMEOUT) || 10_000
+const WS_ALIVE_TIMEOUT = Number(import.meta.env.VITE_WS_ALIVE_TIMEOUT) || 120_000
+
 /**
  * WebSocket服务配置接口
  */
@@ -115,12 +123,12 @@ class WebSocketService {
 
   constructor (config: Partial<WebSocketConfig> = {}) {
     this.config = {
-      url: 'ws://localhost:3000/auth/connection/ws',
-      heartbeatInterval: 30_000,
-      reconnectDelay: 5000,
-      maxReconnectAttempts: 5,
-      timeout: 10_000,
-      aliveTimeout: 120_000,
+      url: WS_URL,
+      heartbeatInterval: WS_HEARTBEAT_INTERVAL,
+      reconnectDelay: WS_RECONNECT_DELAY,
+      maxReconnectAttempts: WS_MAX_RECONNECT_ATTEMPTS,
+      timeout: WS_TIMEOUT,
+      aliveTimeout: WS_ALIVE_TIMEOUT,
       ...config,
     }
   }

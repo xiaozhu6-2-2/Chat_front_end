@@ -11,7 +11,7 @@
  * 注意：本 store 只负责消息数据的状态管理，不处理 WebSocket 连接和消息发送
  */
 
-import type { LocalMessage, MessageStatus } from '@/types/message'
+import { type LocalMessage, MessageStatus } from '@/types/message'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
@@ -55,6 +55,10 @@ export const useMessageStore = defineStore('message', () => {
 
   // 队列处理定时器
   const queueProcessingTimer = ref<number | undefined>(undefined)
+
+  // 已读人数轮询定时器
+  const readCountPollingTimer = ref<number | undefined>(undefined)
+  const currentPollingChatId = ref<string>('')
 
   // ============== Getters ==============
 
@@ -172,7 +176,7 @@ export const useMessageStore = defineStore('message', () => {
   const getLastMessage = computed(() => {
     return (chatId: string, type: MessageStoreType): LocalMessage | null => {
       const messages = getMessages.value(chatId, type)
-      return messages.length > 0 ? messages.at(-1) ?? null : null
+      return messages.length > 0 ? messages[messages.length - 1] ?? null : null
     }
   })
 
@@ -296,7 +300,7 @@ export const useMessageStore = defineStore('message', () => {
       if (messages.length === 0) {
         messages.push(message)
       } else {
-        const lastMessage = messages.at(-1)
+        const lastMessage = messages[messages.length - 1]
         const lastTimestamp = lastMessage?.payload?.timestamp || 0
 
         if (lastTimestamp <= msgTimestamp) {
@@ -357,7 +361,13 @@ export const useMessageStore = defineStore('message', () => {
     prepend = false,
   ) => {
     const messageMap = getMessageMap(type)
-    const existingMessages = messageMap.get(chatId) || []
+    let existingMessages = messageMap.get(chatId)
+
+    // 确保数组存在且是响应式的
+    if (!existingMessages) {
+      existingMessages = []
+      messageMap.set(chatId, existingMessages)
+    }
 
     // 过滤掉重复的消息
     const uniqueMessages = messages.filter(msg =>
@@ -370,12 +380,12 @@ export const useMessageStore = defineStore('message', () => {
     }
 
     if (prepend) {
-      // 添加到开头（历史消息）
-      messageMap.set(chatId, [...uniqueMessages, ...existingMessages])
+      // 添加到开头（历史消息）- 使用 unshift 而不是展开语法，保持数组引用
+      existingMessages.unshift(...uniqueMessages)
       console.log(`messageStore: 添加 ${uniqueMessages.length} 条历史消息到 ${type} 聊天 ${chatId}`)
     } else {
-      // 添加到末尾（新消息）
-      messageMap.set(chatId, [...existingMessages, ...uniqueMessages])
+      // 添加到末尾（新消息）- 使用 push
+      existingMessages.push(...uniqueMessages)
       console.log(`messageStore: 添加 ${uniqueMessages.length} 条新消息到 ${type} 聊天 ${chatId}`)
     }
   }
@@ -460,6 +470,8 @@ export const useMessageStore = defineStore('message', () => {
    * 乐观更新策略：从新往旧遍历，遇到已读消息就停止
    */
   const markMessagesAsReadBeforeTime = (chatId: string, readTime: number, type?: MessageStoreType) => {
+    console.log(`messageStore: markMessagesAsReadBeforeTime 被调用`, { chatId, readTime, type })
+
     const mapsToCheck = type
       ? (type === 'private' ? [privateMessages.value] : [groupMessages.value])
       : [privateMessages.value, groupMessages.value]
@@ -467,18 +479,25 @@ export const useMessageStore = defineStore('message', () => {
     let markedCount = 0
     for (const map of mapsToCheck) {
       const messages = map.get(chatId)
+      console.log(`messageStore: 聊天 ${chatId} 在 ${map === privateMessages.value ? 'private' : 'group'} 中有 ${messages?.length || 0} 条消息`)
+
       if (messages) {
-        // 从新往旧遍历（消息数组按时间倒序，最新的在前）
-        for (const message of messages) {
+        // 从新往旧遍历（消息数组按时间升序，最新的在后）
+        for (let i = messages.length - 1; i >= 0; i--) {
+          const message = messages[i]!
+          console.log(`messageStore: 检查消息 - is_read: ${message.is_read}, timestamp: ${message.payload.timestamp}, userIsSender: ${message.userIsSender}, 比较: ${message.payload.timestamp} <= readTime}`)
+
           // 遇到已读消息，停止遍历（更早的消息都已读）
           if (message.is_read) {
+            console.log(`messageStore: 遇到已读消息，停止遍历`)
             break
           }
 
-          // 只标记别人发送的、时间在 readTime 之前的消息
-          if (!message.userIsSender && message.payload.send_time && message.payload.send_time <= readTime) {
+          // 标记时间在 readTime 之前的消息为已读（包括自己发送的和别人发送的）
+          if (message.payload.timestamp && message.payload.timestamp <= readTime) {
             message.is_read = true
             markedCount++
+            console.log(`messageStore: 标记消息 ${message.payload.message_id} 为已读`)
           }
         }
       }
@@ -486,6 +505,8 @@ export const useMessageStore = defineStore('message', () => {
 
     if (markedCount > 0) {
       console.log(`messageStore: 乐观更新：标记聊天 ${chatId} 中 ${readTime} 之前的 ${markedCount} 条消息为已读`)
+    } else {
+      console.log(`messageStore: 没有消息需要标记为已读`)
     }
   }
 
@@ -645,6 +666,42 @@ export const useMessageStore = defineStore('message', () => {
   }
 
   /**
+   * 更新消息已读人数（群聊）
+   * @param messageId 消息ID
+   * @param readCount 已读人数
+   * @param chatId 可选，聊天ID，指定后可提高查询效率
+   */
+  const updateMessageReadCount = (messageId: string, readCount: number, chatId?: string) => {
+    // 如果指定了 chatId，直接在该聊天中查找
+    if (chatId) {
+      const messages = groupMessages.value.get(chatId)
+
+      if (messages) {
+        const index = messages.findIndex(m => m.payload.message_id === messageId)
+
+        if (index !== -1 && messages[index]) {
+          // 直接修改属性（与 is_read 的处理方式一致）
+          messages[index].read_count = readCount
+          return
+        }
+      }
+      console.warn(`messageStore: 在聊天 ${chatId} 中未找到消息 ${messageId}`)
+      return
+    }
+
+    // 否则遍历所有群聊消息查找
+    for (const [chatId, messages] of groupMessages.value.entries()) {
+      const index = messages.findIndex(m => m.payload.message_id === messageId)
+      if (index !== -1 && messages[index]) {
+        // 直接修改属性（与 is_read 的处理方式一致）
+        messages[index].read_count = readCount
+        return
+      }
+    }
+    console.warn(`messageStore: 未找到消息 ${messageId}，无法更新已读人数`)
+  }
+
+  /**
    * 标记消息为已撤回
    * @param messageId 消息ID
    */
@@ -652,7 +709,7 @@ export const useMessageStore = defineStore('message', () => {
     // 先检查队列，如果在队列中则标记为失败并移出
     const queueIndex = messageQueue.value.findIndex(m => m.payload.message_id === messageId)
     if (queueIndex !== -1) {
-      const queuedMessage = messageQueue.value[queueIndex]
+      const queuedMessage = messageQueue.value[queueIndex]!
       queuedMessage.is_revoked = true
       queuedMessage.sendStatus = MessageStatus.FAILED
       // 从队列中移除
@@ -692,6 +749,8 @@ export const useMessageStore = defineStore('message', () => {
     historyFullyLoaded,
     messageQueue,
     queueProcessingTimer,
+    readCountPollingTimer,
+    currentPollingChatId,
 
     // Getters
     getMessages,
@@ -721,6 +780,7 @@ export const useMessageStore = defineStore('message', () => {
     reloadMessages,
     deleteMessage,
     markMessageAsRevoked,
+    updateMessageReadCount,
 
     // 队列管理 Actions
     addToMessageQueue,

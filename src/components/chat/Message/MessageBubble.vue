@@ -1,15 +1,20 @@
 <template>
-  <!-- 撤回消息 -->
+  <!-- 撤回消息 - 使用 v-chip 居中显示 -->
   <div v-if="isRevokedMessage" class="message-bubble revoked-message">
-    <div class="revoked-content">
-      <span class="revoked-text">消息已撤回</span>
-    </div>
+    <v-chip
+      class="revoked-chip"
+      size="small"
+      variant="tonal"
+      color="grey-lighten-1"
+    >
+      {{ revokeMessageText }}
+    </v-chip>
   </div>
 
   <!-- 正常消息 -->
   <div v-else class="message-bubble" :class="messageClasses">
     <!-- 撤回按钮 -->
-    <div v-if="isOwnMessage" class="revoke-btn-container">
+    <div v-if="canRevokeMessage" class="revoke-btn-container">
       <v-tooltip>
         <template #activator="{ props }">
           <v-btn
@@ -108,16 +113,26 @@
             :icon="isReadIcon"
             size="16"
           />
-          <!-- TODO 群聊消息显示几人已读，可点击，点击后出现已读和未读列表，类似钉钉
-          <v-chip
-            v-if="props.message.type === 'MesGroup' && isOwnMessage && props.message.read_count?"
-            size="x-small"
-            variant="text"
-            class="read-count-chip"
-            @click="showReadDialog = true"
+          <!-- 群聊消息已读人数 -->
+          <ReadersListDialog
+            v-if="readCount !== undefined && readCount >= 0 && props.message.type === 'MesGroup' && props.message.payload.message_id && props.message.payload.chat_id"
+            v-model="showReadersDialog"
+            :message-id="props.message.payload.message_id"
+            :chat-id="props.message.payload.chat_id"
+            :chat-type="'group'"
+            :read-count="readCount"
           >
-              {{ props.message.read_count }}人已读
-          </v-chip> -->
+            <template #activator="{ props: activatorProps }">
+              <v-chip
+                v-bind="activatorProps"
+                size="x-small"
+                variant="outlined"
+                class="read-count-chip"
+              >
+                {{ readCount }}人已读
+              </v-chip>
+            </template>
+          </ReadersListDialog>
         </span>
       </div>
     </div>
@@ -156,14 +171,22 @@
   import { computed, onMounted, ref, watch } from 'vue'
   import { useFile } from '../../../composables/useFile'
   import { useFriend } from '../../../composables/useFriend'
+  import { useMessage } from '../../../composables/useMessage'
   import { useFriendStore } from '../../../stores/friendStore'
   import { useUserStore } from '../../../stores/userStore'
   import { ContentType } from '../../../types/message'
   import { MessageType } from '../../../types/websocket'
+  import { strangerUserService } from '@/service/strangerUserService'
+  import ReadersListDialog from './ReadersListDialog.vue'
+
+  // 撤回时间限制：2分钟 = 120秒
+  const REVOKE_TIME_LIMIT = 120
+
   const props = defineProps<MessageBubbleProps>()
-  
+
   const friendStore = useFriendStore()
   const { updateFriendProfile } = useFriend()
+  const { revokeMessage } = useMessage()
   const userStore = useUserStore()
   const {
     currentUser,
@@ -182,12 +205,40 @@
   const selectedContactInfo = ref<FriendWithUserInfo>()
   const showProfileEditModal = ref(false)
   const showReadDialog = ref(false)
+  const showReadersDialog = ref(false)
   const isRevokedMessage = computed(() =>
     props.message.is_revoked
   )
   const isOwnMessage = computed(() =>
     props.message.userIsSender
   )
+
+  // 判断消息是否可以撤回（时间限制内）
+  const canRevokeMessage = computed(() => {
+    if (!isOwnMessage.value || isRevokedMessage.value) {
+      return false
+    }
+    const messageTimestamp = props.message.payload.timestamp
+    if (!messageTimestamp) return false
+    const now = Math.floor(Date.now() / 1000)
+    const timeElapsed = now - messageTimestamp
+    return timeElapsed <= REVOKE_TIME_LIMIT
+  })
+
+  // 撤回消息显示文本
+  const revokeMessageText = computed(() => {
+    const senderName = props.message.payload.sender_name
+    return senderName ? `${senderName}撤回了一条消息` : '撤回了一条消息'
+  })
+
+  // 直接访问 message 对象的 read_count 属性（响应式）
+  const readCount = computed(() => {
+    if (props.message.type !== 'MesGroup') {
+      return undefined
+    }
+    const count = props.message.read_count
+    return count
+  })
   
   const messageClasses = computed(() => ({
     'own-message': isOwnMessage.value,
@@ -392,7 +443,7 @@
   }
 
   // 处理头像点击事件
-  function handleAvatarClick () {
+  async function handleAvatarClick () {
     const senderId = props.message.payload.sender_id
 
     // 首先检查是否为好友
@@ -401,12 +452,35 @@
     if (friendInfo) {
       // 如果是好友，传递完整的 FriendWithUserInfo 数据
       selectedContactInfo.value = friendInfo
+      showContactCard.value = true
     } else {
-      // TODO 如果是陌生人，构建不完整的数据
-      selectedContactInfo.value = getStrangerData()
+      // 如果是陌生人，调用 strangerUserService 获取用户信息
+      if (senderId) {
+        try {
+          const strangerProfile = await strangerUserService.getUserProfile(senderId)
+          // 将 StrangerUserProfile 转换为 FriendWithUserInfo 格式
+          selectedContactInfo.value = {
+            id: strangerProfile.uid,
+            fid: 'stranger', // 陌生人没有 fid
+            name: strangerProfile.username,
+            avatar: strangerProfile.avatar || '', // avatar 是必填字段
+            createdAt: undefined,
+            isBlacklisted: false,
+            bio: strangerProfile.bio || undefined,
+            // 详细资料放在 info 对象中
+            info: {
+              account: strangerProfile.account,
+              gender: strangerProfile.gender || undefined,
+              region: strangerProfile.region || undefined,
+              email: strangerProfile.email || undefined,
+            },
+          }
+          showContactCard.value = true
+        } catch (error) {
+          console.error('获取陌生人用户信息失败:', error)
+        }
+      }
     }
-
-    showContactCard.value = true
   }
 
   // 处理自己头像点击事件
@@ -437,9 +511,16 @@
   }
 
   // 处理撤回消息事件
-  function handleRevokeMessage () {
-    console.log('撤回消息:', props.message.payload.message_id)
-    // TODO: 实现撤回消息逻辑
+  async function handleRevokeMessage () {
+    const messageId = props.message.payload.message_id
+    const chatId = props.message.payload.chat_id
+    const chatType = props.message.type === 'Private' ? 'private' : 'group'
+
+    if (!messageId || !chatId) {
+      return
+    }
+
+    await revokeMessage(messageId, chatId, chatType)
   }
 
   //处理图片预览
@@ -710,23 +791,15 @@ onMounted(async () => {
 
 // 撤回消息样式
 .revoked-message {
-  display: flex;
-  justify-content: center;
+  // 覆盖 message-bubble 的所有布局样式
+  display: flex !important;
+  justify-content: center !important;
+  margin: 0 auto 16px auto !important;
   width: 100%;
-  margin-bottom: 16px;
 }
 
-.revoked-content {
-  display: inline-block;
-  background-color: rgba(255, 255, 255, 0.1);
-  padding: 4px 12px;
-  border-radius: 4px;
-}
-
-.revoked-text {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
-  font-style: italic;
+.revoked-chip {
+  font-size: 12px !important;
 }
 
 .revoke-btn-container {
@@ -746,5 +819,14 @@ onMounted(async () => {
 
 .message-bubble:hover .revoke-btn-container {
   opacity: 1;
+}
+
+.read-count-chip.clickable {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: rgba(25, 118, 210, 0.1);
+  }
 }
 </style>

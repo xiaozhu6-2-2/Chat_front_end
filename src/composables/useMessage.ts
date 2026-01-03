@@ -321,8 +321,7 @@ export function useMessage () {
 
       // 更新会话最新消息
       const chatStore = useChatStore()
-      const messageContent = formatMessageContent(message)
-      chatStore.updateChatLastMessage(chatId, messageContent)
+      chatStore.updateChatLastMessageFromMessage(chatId, message)
 
       // 通过 WebSocket 发送
       websocketService.send(message)
@@ -417,6 +416,22 @@ export function useMessage () {
       if (localMessages.length > 0) {
         // 使用 addHistoryMessages 方法，支持 prepend 参数
         messageStore.addHistoryMessages(chatId, localMessages, type, loadMore)
+
+        // 群聊：获取已读人数（在添加消息之后）
+        if (type === 'group') {
+          const myMessages = localMessages.filter(msg => msg.userIsSender && !msg.is_revoked)
+          if (myMessages.length > 0) {
+            const messageIds = myMessages.map(msg => msg.payload.message_id!).filter(Boolean)
+            try {
+              const results = await messageService.getGroupReadStatus(chatId, messageIds)
+              for (const { messageId, readCount } of results) {
+                messageStore.updateMessageReadCount(messageId, readCount, chatId)
+              }
+            } catch (error) {
+              console.error('获取群聊已读人数失败:', error)
+            }
+          }
+        }
 
         // 更新分页信息
         messageStore.updatePagination(chatId, {
@@ -587,6 +602,30 @@ export function useMessage () {
     }
   }
 
+  /**
+   * 撤回消息
+   *
+   * @param messageId 消息ID
+   * @param chatId 聊天ID
+   * @param chatType 聊天类型 'private' | 'group'
+   */
+  const revokeMessage = async (
+    messageId: string,
+    chatId: string,
+    chatType: 'private' | 'group',
+  ) => {
+    try {
+      await messageService.revokeMessage(messageId, chatId, chatType)
+      // 立即更新本地状态（乐观更新）
+      messageStore.markMessageAsRevoked(messageId)
+      showSuccess('消息已撤回')
+    } catch (error) {
+      console.error('撤回消息失败:', error)
+      showError('撤回失败，请重试')
+      throw error
+    }
+  }
+
   // ============== 初始化和重置 ==============
 
   /**
@@ -672,6 +711,7 @@ export function useMessage () {
     loadHistoryMessages,
     markAsRead,
     resendMessage,
+    revokeMessage,
 
     // 初始化和重置
     init,

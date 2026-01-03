@@ -20,6 +20,15 @@ interface ReadStatusResponse {
   }>
 }
 
+interface ShowReadersResponse {
+  readers: Array<{
+    uid: string
+    username: string
+    avatar: string
+  }>
+  total: number
+}
+
 export interface ReadStatus {
   messageId: string
   readCount: number
@@ -132,6 +141,56 @@ class MessageService {
       return []
     } catch (error) {
       console.error('Failed to get group read status:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取消息已读人员列表
+   */
+  async getShowReaders (
+    messageId: string,
+    chatId: string,
+    chatType: 'private' | 'group',
+  ): Promise<Array<{ uid: string; username: string; avatar: string }>> {
+    try {
+      const response = await authApi.post<ShowReadersResponse>('/message/show_readers', {
+        message_id: messageId,
+        chat_id: chatId,
+        chat_type: chatType,
+      })
+
+      if (response.status === 200 && response.data.readers) {
+        return response.data.readers
+      }
+      return []
+    } catch (error) {
+      console.error('Failed to get readers:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 撤回消息
+   */
+  async revokeMessage (
+    messageId: string,
+    chatId: string,
+    chatType: 'private' | 'group',
+  ): Promise<boolean> {
+    try {
+      const response = await authApi.post<{ success: boolean }>('/message/revoke', {
+        message_id: messageId,
+        chat_id: chatId,
+        chat_type: chatType,
+      })
+
+      if (response.status === 200 && response.data.success) {
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Failed to revoke message:', error)
       throw error
     }
   }

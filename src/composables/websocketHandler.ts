@@ -217,8 +217,7 @@ const handleMessage = async (wsMessage: WSMessage): Promise<void> => {
 
       // 更新 chatStore
       // 1. 更新会话最新消息
-      const messageContent = formatMessageContent(localMessage)
-      chatStore.updateChatLastMessage(localMessage.payload.chat_id, messageContent)
+      chatStore.updateChatLastMessageFromMessage(localMessage.payload.chat_id, localMessage)
 
       // 2. 增加未读数（仅当不是当前激活的会话时）
       if (chatStore.activeChatId !== localMessage.payload.chat_id) {
@@ -696,39 +695,6 @@ const createChatIfNotExists = async (
 
   // 添加新会话到列表
   chatStore.addChat(newChat)
-}
-
-/**
- * 格式化消息内容用于显示在会话列表
- * @param message 本地消息对象
- * @returns 格式化后的消息内容
- */
-const formatMessageContent = (message: LocalMessage): string => {
-  const contentType = message.payload.content_type
-
-  switch (contentType) {
-    case 'text': {
-      return message.payload.detail || ''
-    }
-    case 'image': {
-      return '[图片]'
-    }
-    case 'file': {
-      return '[文件]'
-    }
-    case 'voice': {
-      return '[语音]'
-    }
-    case 'video': {
-      return '[视频]'
-    }
-    case 'system': {
-      return '[系统消息]'
-    }
-    default: {
-      return message.payload.detail || '[消息]'
-    }
-  }
 }
 
 /**
