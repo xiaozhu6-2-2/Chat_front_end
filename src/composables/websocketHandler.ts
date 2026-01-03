@@ -236,19 +236,20 @@ const handleMessage = async (wsMessage: WSMessage): Promise<void> => {
 
 /**
  * 处理消息确认通知
- * payload: MessageAckData = { type: MessageAck, payload: { temp_message_id, message_id } }
+ * payload: MessageAckData = { type: MessageAck, payload: { temp_message_id, message_id, timestamp } }
  *
  * 实现逻辑：
  * - 从消息队列中移除对应的临时消息
  * - 更新消息状态为已发送
  * - 更新消息ID为真实ID
+ * - 更新时间戳为服务器时间戳
  */
 const handleMessageAck = (ackData: MessageAckData): void => {
   try {
     const messageStore = useMessageStore()
-    const { temp_message_id, message_id } = ackData.payload
+    const { temp_message_id, message_id, timestamp } = ackData.payload
     const queueMessages = messageStore.getQueueMessages()
-    console.log('收到ACK:', { temp_message_id, message_id, queueSize: queueMessages.length })
+    console.log('收到ACK:', { temp_message_id, message_id, timestamp, queueSize: queueMessages.length })
     console.log('队列中的消息IDs:', queueMessages.map(m => m.payload.message_id))
 
     // 从队列中查找并处理消息
@@ -257,6 +258,10 @@ const handleMessageAck = (ackData: MessageAckData): void => {
       // 直接修改对象属性，messageStore中的状态自动更新
       if (message_id) {
         queuedMessage.payload.message_id = message_id
+      }
+      // 更新时间戳为服务器时间
+      if (timestamp) {
+        queuedMessage.payload.timestamp = timestamp
       }
       queuedMessage.sendStatus = MessageStatus.SENT
       messageStore.removeFromMessageQueue(temp_message_id)
@@ -731,7 +736,24 @@ const markChatAsRead = async (chatId: string, storeType: MessageStoreType): Prom
     }
 
     const executeMark = async () => {
-      const timestamp = Math.floor(Date.now() / 1000)
+      // 优先使用消息队列里最新一条消息的时间戳
+      const messageStore = useMessageStore()
+      const messages = messageStore.getMessages(chatId, storeType)
+
+      // 计算最新消息时间戳
+      let latestTimestamp = 0
+      for (const message of messages) {
+        // 只考虑接收到的未读消息
+        if (!message.userIsSender && !message.is_read) {
+          const msgTimestamp = message.payload.timestamp || 0
+          if (msgTimestamp > latestTimestamp) {
+            latestTimestamp = msgTimestamp
+          }
+        }
+      }
+
+      // 使用最新消息时间戳或当前时间
+      const timestamp = latestTimestamp || Math.ceil(Date.now() / 1000)
       await messageService.markMessagesAsRead(chatId, storeType, timestamp)
       console.log(`[WebSocketHandler] 已标记聊天 ${chatId} 为已读`)
     }

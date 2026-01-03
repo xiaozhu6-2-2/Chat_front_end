@@ -266,7 +266,7 @@ class WebSocketService {
       // 将 LocalMessage 转换为 WSMessage 格式后发送
       const wsMessage = localToWS(message)
       this.ws?.send(JSON.stringify(wsMessage))
-      console.log('WS发送消息:', wsMessage.type, 'message_id:', wsMessage.payload.message_id)
+      console.log(`WS发生消息: JSON.stringify(wsMessage)`)
     } else {
       // 连接断开，抛出异常，由调用方处理
       console.error('WebSocket未连接，无法发送消息')
@@ -481,7 +481,7 @@ class WebSocketService {
       switch (rawMessage.type) {
         case 'Pong': {
           const pongTimestamp = rawMessage.payload?.timestamp
-          const currentTimestamp = Math.floor(Date.now() / 1000)
+          const currentTimestamp = Math.ceil(Date.now() / 1000)
           const latency = currentTimestamp - (pongTimestamp || 0)
           console.log(`[心跳] 收到 Pong (timestamp: ${pongTimestamp}, 延迟: ${latency}s)`)
           if (this.aliveTimer) {
@@ -511,6 +511,7 @@ class WebSocketService {
             payload: {
               temp_message_id: rawMessage.payload?.temp_message_id,
               message_id: rawMessage.payload?.message_id,
+              timestamp: rawMessage.payload?.timestamp,
             },
           }
           this.dispatchEvent('messageAck', ackData)

@@ -73,7 +73,7 @@ export class PingMessage {
 
   constructor (sender_id: string) {
     this.payload = {
-      timestamp: Math.floor(Date.now() / 1000),
+      timestamp: Math.ceil(Date.now() / 1000),
       data: { sender_id },
     }
   }
@@ -91,7 +91,7 @@ export class PongMessage {
 
   constructor (sender_id: string) {
     this.payload = {
-      timestamp: Math.floor(Date.now() / 1000),
+      timestamp: Math.ceil(Date.now() / 1000),
       data: { sender_id },
     }
   }
@@ -105,6 +105,7 @@ export interface MessageAckData {
   payload: {
     temp_message_id: string
     message_id: string
+    timestamp: number  // 服务器时间戳
   }
 }
 

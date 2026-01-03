@@ -70,7 +70,7 @@ export class WSMessage {
 
     // 自动生成 timestamp（秒级时间戳，与后端保持一致）
     if (!this.payload.timestamp) {
-      this.payload.timestamp = Math.floor(Date.now() / 1000)
+      this.payload.timestamp = Math.ceil(Date.now() / 1000)
     }
   }
 

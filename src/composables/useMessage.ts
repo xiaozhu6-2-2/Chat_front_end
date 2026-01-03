@@ -115,7 +115,7 @@ export function useMessage () {
    * 处理队列中的消息状态，处理超时和重试
    */
   const processQueue = () => {
-    const now = Math.floor(Date.now() / 1000) // 秒级时间戳
+    const now = Math.ceil(Date.now() / 1000) // 秒级时间戳
     const queueMessages = messageStore.getQueueMessages()
 
     for (const message of queueMessages) {
@@ -520,7 +520,7 @@ export function useMessage () {
         }
 
         // 使用当前时间戳作为已读标记时间（秒级，如果有消息则使用消息的最新时间戳）
-        const readTimestamp = latestTimestamp || Math.floor(Date.now() / 1000)
+        const readTimestamp = latestTimestamp || Math.ceil(Date.now() / 1000)
 
         // 调用 messageService API 发送已读标记
         await messageService.markMessagesAsRead(

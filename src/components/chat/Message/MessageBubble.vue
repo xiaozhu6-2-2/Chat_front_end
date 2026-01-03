@@ -220,7 +220,7 @@
     }
     const messageTimestamp = props.message.payload.timestamp
     if (!messageTimestamp) return false
-    const now = Math.floor(Date.now() / 1000)
+    const now = Math.ceil(Date.now() / 1000)
     const timeElapsed = now - messageTimestamp
     return timeElapsed <= REVOKE_TIME_LIMIT
   })
