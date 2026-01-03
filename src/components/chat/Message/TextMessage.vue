@@ -17,23 +17,23 @@ const authStore = useAuthStore()
 
 // 渲染带高亮的文本
 const renderedContent = computed(() => {
-  const { detail, mentioned_uids } = props.message.payload
+  const { detail, mentioned_uids, chat_id } = props.message.payload
 
+  // 没有 @任何人，直接返回原文
   if (!mentioned_uids || mentioned_uids.length === 0) {
     return detail || ''
   }
 
   // 只有当前用户被 @ 时才显示高亮
   const currentUserId = authStore.userId
-  if (!mentioned_uids.includes(currentUserId)) {
+  if (!currentUserId || !mentioned_uids.includes(currentUserId)) {
     return detail || ''
   }
 
   let html = detail || ''
 
   // 获取群成员信息
-  const chatId = props.message.payload.chat_id
-  const members = groupStore.getGroupMembers(chatId)
+  const members = chat_id ? groupStore.getGroupMembers(chat_id) : []
 
   // 为每个 @ 的成员创建高亮
   mentioned_uids.forEach(uid => {
@@ -56,10 +56,11 @@ const renderedContent = computed(() => {
   word-break: break-word;
 }
 
-.at-mention {
-  color: #1976d2;
-  font-weight: 600;
-  background: rgba(25, 118, 210, 0.1);
+/* 钉钉风格的 @ 高亮：蓝色背景 + 白色文字 */
+:deep(.at-mention) {
+  color: #ffffff;
+  font-weight: 500;
+  background: #1976d2;
   padding: 2px 6px;
   border-radius: 4px;
 }

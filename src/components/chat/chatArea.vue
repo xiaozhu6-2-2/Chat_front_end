@@ -344,14 +344,18 @@
   }
 
   // Methods
-  async function handleSendMessage () {
-    if (!inputMessage.value.trim() || isSending.value) return
+  async function handleSendMessage (payload?: { content?: string, mentionedUids?: string[] | null }) {
+    // 从 payload 获取内容和 @ 用户列表，如果没有 payload 则使用 inputMessage
+    const message = payload?.content || inputMessage.value
+    const mentionedUids = payload?.mentionedUids
+
+    if (!message?.trim() || isSending.value) return
 
     isSending.value = true
     // 标记正在发送消息，避免触发"有新消息"提示
     isSendingLocalMessage.value = true
     try {
-      await sendTextMessage(inputMessage.value)
+      await sendTextMessage(message, mentionedUids)
       inputMessage.value = ''
 
       // 发送后滚动到底部并隐藏新消息提示

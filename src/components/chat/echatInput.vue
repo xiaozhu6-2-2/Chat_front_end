@@ -58,9 +58,17 @@
               @click="selectMember(member)"
             >
               <template #prepend>
-                <Avatar :name="member.name" :url="member.avatar" :size="40" />
+                <Avatar
+                  :name="member.name"
+                  :url="member.avatar"
+                  :size="40"
+                  avatar-class="custom-avatar"
+                  class="mr-3"
+                />
               </template>
-              <v-list-item-title>{{ member.nickname || member.name }}</v-list-item-title>
+              <v-list-item-title>
+                {{ member.nickname || member.name }}
+              </v-list-item-title>
             </v-list-item>
           </v-list>
         </v-card-text>
@@ -101,6 +109,7 @@
   import { useChat } from '@/composables/useChat'
   import { useGroupStore } from '@/stores/groupStore'
   import { useGroup } from '@/composables/useGroup'
+  import { useAuthStore } from '@/stores/authStore'
 
   const props = defineProps({
     modelValue: {
@@ -122,6 +131,7 @@
   const { activeChatId, activeChatType } = useChat()
   const groupStore = useGroupStore()
   const { getGroupMembers } = useGroup()
+  const authStore = useAuthStore()
 
   // 是否是群聊
   const isGroupChat = computed(() => {
@@ -134,11 +144,13 @@
   // 已选择的成员
   const selectedMembers = ref([])
 
-  // 群成员列表
+  // 群成员列表（排除当前用户，防止自己@自己）
   const groupMembers = computed(() => {
     const gid = props.chatId || activeChatId.value
     if (!isGroupChat.value || !gid) return []
-    return groupStore.getGroupMembers(gid)
+    const allMembers = groupStore.getGroupMembers(gid)
+    const currentUserId = authStore.userId
+    return allMembers.filter(m => m.id !== currentUserId)
   })
 
   // 打开 @ 弹窗
@@ -174,10 +186,13 @@
 
   // 处理发送按钮点击
   function handleSendMessage () {
-    const memberIds = selectedMembers.value.map(m => m.id)
+    const memberIds = selectedMembers.value.length > 0
+      ? selectedMembers.value.map(m => m.id)
+      : null
+
     emit('send-message', {
       content: props.modelValue,
-      mentionedUids: memberIds.length > 0 ? memberIds : null,
+      mentionedUids: memberIds,
     })
     // 清空已选成员
     selectedMembers.value = []

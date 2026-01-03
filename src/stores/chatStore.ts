@@ -89,6 +89,8 @@ export const useChatStore = defineStore('chat', () => {
   // 设置活跃会话
   const setActiveChat = (chatId: string) => {
     activeChatId.value = chatId
+    // 打开聊天时清零@未读数
+    resetMentionedCount(chatId)
   }
 
   // 根据ID获取Chat
@@ -217,6 +219,30 @@ export const useChatStore = defineStore('chat', () => {
     updateChatUnreadCount(chatId, 0)
   }
 
+  // 会话@未读数+1：接收@消息时
+  const incrementMentionedCount = (chatId: string) => {
+    console.log(`chatStore: 会话 ${chatId} @未读数+1`)
+    const chat = chatList.value.find((c: Chat) => c.id === chatId)
+    if (chat) {
+      chat.mentionedCount = (chat.mentionedCount || 0) + 1
+      console.log(`chatStore: 会话 ${chatId} @未读数现在是 ${chat.mentionedCount}`)
+    } else {
+      console.warn(`chatStore: 未找到会话 ${chatId}`)
+    }
+  }
+
+  // 会话@未读数归0：打开聊天时
+  const resetMentionedCount = (chatId: string) => {
+    console.log(`chatStore: 会话 ${chatId} @未读数归0`)
+    const chat = chatList.value.find((c: Chat) => c.id === chatId)
+    if (chat) {
+      chat.mentionedCount = 0
+      console.log(`chatStore: 会话 ${chatId} @未读数已清零`)
+    } else {
+      console.warn(`chatStore: 未找到会话 ${chatId}`)
+    }
+  }
+
   /**
    * 更新会话置顶状态
    *
@@ -285,6 +311,8 @@ export const useChatStore = defineStore('chat', () => {
     updateChatUnreadCount,
     incrementUnreadCount,
     resetUnreadCount,
+    incrementMentionedCount,
+    resetMentionedCount,
     updateIsPinned,
     setOnlineBoardVisible,
     setLoading,

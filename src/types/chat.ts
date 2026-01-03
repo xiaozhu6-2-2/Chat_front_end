@@ -16,6 +16,7 @@ export interface Chat {
   lastMessage?: string
   updatedAt?: string
   unreadCount: number
+  mentionedCount?: number // @消息未读数
   avatar?: string
   name: string
 }
@@ -41,6 +42,7 @@ export function transformApiChat (apiChat: ApiChat): Chat {
     lastMessage: apiChat.latest_message,
     updatedAt: apiChat.updated_at,
     unreadCount: apiChat.unread_messages || 0,
+    mentionedCount: 0, // 初始化@未读数为0
     avatar: apiChat.avatar,
     name: apiChat.remark || 'Unknown',
   }

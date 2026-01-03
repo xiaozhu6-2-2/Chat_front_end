@@ -37,6 +37,7 @@ import { MessageType } from '@/types/websocket'
 import { useChat } from './useChat'
 import { useFile } from './useFile'
 import { useFriend } from './useFriend'
+import { useGroup } from './useGroup'
 import { useUser } from './useUser'
 
 // 防抖函数
@@ -57,6 +58,7 @@ export function useMessage () {
   const { activeChatId, activeChat, activeChatType } = useChat()
   const { getCurrentUserId, getCurrentUsername, getCurrentUserAvatar } = useUser()
   const { getFriendByFid } = useFriend()
+  const { getGroupMembers } = useGroup()
 
   const isLoading = ref(false)
 
@@ -395,6 +397,16 @@ export function useMessage () {
       // 后端的offset实际上是page（页码），从0开始
       // 首次加载：page=0，加载更多：page=currentPage
       const offset = loadMore ? currentPage : 0
+
+      // 群聊：在加载历史消息之前先加载群成员信息
+      // 这样 TextMessage 组件才能正确渲染 @ 高亮
+      if (type === 'group') {
+        try {
+          await getGroupMembers({ gid: chatId }, true)
+        } catch (error) {
+          console.warn(`加载群聊 ${chatId} 成员失败，继续加载历史消息`, error)
+        }
+      }
 
       // 调用服务层获取历史消息
       const result = type === 'private'

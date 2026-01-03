@@ -26,9 +26,9 @@
     <v-window v-model="activeTab">
       <!-- 收到的请求 -->
       <v-window-item value="received">
-        <div v-if="pendingReceivedRequests.length > 0" class="request-list">
+        <div v-if="receivedRequests.length > 0" class="request-list">
           <FriendRequestItem
-            v-for="request in pendingReceivedRequests"
+            v-for="request in receivedRequests"
             :key="request.req_id"
             :request="request"
             type="received"
@@ -76,8 +76,9 @@
   } = useFriendRequest()
   const FriendRequestStore = useFriendRequestStore()
   const {
+    receivedRequests,
+    sentRequests,
     pendingReceivedRequests,
-    sentRequests
   } = storeToRefs(FriendRequestStore)
   const activeTab = ref<'received' | 'sent'>('received')
 

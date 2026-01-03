@@ -370,7 +370,6 @@
   width: 40px;
   height: 40px;
   border-radius: 4px;
-  background-color: #07c160;
   display: flex;
   align-items: center;
   justify-content: center;

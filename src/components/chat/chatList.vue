@@ -29,6 +29,9 @@
         </v-list-item-title>
 
         <v-list-item-subtitle class="chat-message">
+          <span v-if="chat.mentionedCount && chat.mentionedCount > 0" class="mention-indicator">
+            有人@你
+          </span>
           {{ chat.lastMessage || '暂无消息' }}
         </v-list-item-subtitle>
 
@@ -171,6 +174,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 200px;
+}
+
+.mention-indicator {
+  color: #f44336;
+  font-weight: 600;
+  margin-right: 8px;
 }
 
 .chat-meta {

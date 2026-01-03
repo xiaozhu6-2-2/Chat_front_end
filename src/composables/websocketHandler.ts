@@ -226,6 +226,15 @@ const handleMessage = async (wsMessage: WSMessage): Promise<void> => {
         // 如果是当前会话，则调用已读API
         markChatAsRead(localMessage.payload.chat_id, storeType)
       }
+
+      // 3. 检查是否被@（仅当不是当前激活的会话时）
+      const mentionedUids = localMessage.payload.mentioned_uids
+      if (mentionedUids && mentionedUids.length > 0) {
+        const isMentioned = mentionedUids.includes(authStore.userId)
+        if (isMentioned && chatStore.activeChatId !== localMessage.payload.chat_id) {
+          chatStore.incrementMentionedCount(localMessage.payload.chat_id)
+        }
+      }
     }
 
     console.log(`[消息] 收到${storeType}消息:`, localMessage.payload)

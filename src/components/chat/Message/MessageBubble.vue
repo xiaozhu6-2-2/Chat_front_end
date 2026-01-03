@@ -49,9 +49,7 @@
 
       <div class="message-bubble-content" :class="bubbleClasses">
         <!-- Text Message -->
-        <div v-if="isTextMessage" class="message-text">
-          {{ message.payload.detail }}
-        </div>
+        <TextMessage v-if="isTextMessage" :message="message" />
 
         <!-- Image Message -->
         <div v-else-if="isImageMessage" class="message-image">
@@ -105,6 +103,7 @@
             :color="statusColor"
             :icon="statusIcon"
             size="16"
+            class="mr-2"
           />
           
           <v-icon
@@ -178,6 +177,7 @@
   import { MessageType } from '../../../types/websocket'
   import { strangerUserService } from '../../../service/strangerUserService'
   import ReadersListDialog from './ReadersListDialog.vue'
+  import TextMessage from './TextMessage.vue'
 
   // 撤回时间限制：2分钟 = 120秒
   const REVOKE_TIME_LIMIT = 120
