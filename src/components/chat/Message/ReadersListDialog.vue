@@ -85,17 +85,15 @@
 </template>
 
 <script setup lang="ts">
-import Avatar from '@/components/global/Avatar.vue'
-import ContactCardModal from '@/components/global/ContactCardModal.vue'
-import type { ReaderInfo } from '@/types/message'
-import type { GroupMember } from '@/types/group'
-import type { FriendWithUserInfo } from '@/types/friend'
-import { messageService } from '@/service/messageService'
-import { strangerUserService } from '@/service/strangerUserService'
-import { useFriendStore } from '@/stores/friendStore'
-import { useGroupStore } from '@/stores/groupStore'
-import { useAuthStore } from '@/stores/authStore'
-import { useGroup } from '@/composables/useGroup'
+import type { ReaderInfo } from '../../../types/message'
+import type { GroupMember } from '../../../types/group'
+import type { FriendWithUserInfo } from '../../../types/friend'
+import { messageService } from '../../../service/messageService'
+import { strangerUserService } from '../../../service/strangerUserService'
+import { useFriendStore } from '../../../stores/friendStore'
+import { useGroupStore } from '../../../stores/groupStore'
+import { useAuthStore } from '../../../stores/authStore'
+import { useGroup } from '../../../composables/useGroup'
 import { computed, ref, watch } from 'vue'
 
 defineOptions({

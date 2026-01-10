@@ -17,10 +17,10 @@
             <v-icon class="mr-2" icon="mdi-bell-ring" />
             好友请求
             <v-badge
-              v-if="totalPending > 0"
+              v-if="pendingReceivedRequests.length > 0"
               class="ml-2"
               color="error"
-              :content="totalPending"
+              :content= "pendingReceivedRequests.length"
             />
           </v-tab>
           <v-tab value="group-requests">
@@ -58,17 +58,19 @@
 
 <script setup lang="ts">
   import { computed, ref } from 'vue'
-  import { useFriendRequest } from '@/composables/useFriendRequest'
-  import { useGroupRequestStore } from '@/stores/groupRequestStore'
-  import FriendRequestPanel from '../components/friend/FriendRequestPanel.vue'
-  import GroupRequestPanel from '../components/friend/GroupRequestPanel.vue'
-  import UserSearchPanel from '../components/friend/UserSearchPanel.vue'
+  import { useFriendRequestStore } from '../stores/friendRequestStore'
+  import { useGroupRequestStore } from '../stores/groupRequestStore'
+  import { storeToRefs } from 'pinia'
 
   const selectedTab = ref('search')
 
   // 待处理的请求的总数 - 只统计收到的好友请求
-  const { pendingReceivedRequests } = useFriendRequest()
-  const totalPending = computed(() => pendingReceivedRequests.length)
+  const FriendRequestStore = useFriendRequestStore()
+  const {
+    receivedRequests,
+    sentRequests,
+    pendingReceivedRequests,
+  } = storeToRefs(FriendRequestStore)
 
   // 获取群聊请求store
   const groupRequestStore = useGroupRequestStore()

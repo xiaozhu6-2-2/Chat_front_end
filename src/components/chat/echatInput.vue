@@ -32,6 +32,16 @@
       >
         <v-icon>mdi-at</v-icon>
       </v-btn>
+      <!-- 公告按钮 - 仅群聊且为群主/管理员显示 -->
+      <v-btn
+        v-if="canPublishAnnouncement"
+        icon
+        variant="text"
+        color="warning"
+        @click="openAnnouncementDialog"
+      >
+        <v-icon>mdi-bullhorn-variant</v-icon>
+      </v-btn>
       <v-spacer />
       <!-- <v-btn icon variant="text">
         <v-icon>mdi-dots-horizontal</v-icon>
@@ -75,6 +85,45 @@
         <v-card-actions>
           <v-spacer />
           <v-btn @click="showAtDialog = false">取消</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- 公告弹窗 -->
+    <v-dialog v-model="showAnnouncementDialog" max-width="500">
+      <v-card>
+        <v-card-title class="pa-0">
+          <div class="announcement-dialog-header">
+            <span class="text-h6">发布群公告</span>
+            <v-btn icon variant="text" @click="showAnnouncementDialog = false" class="close-btn">
+              <v-icon>mdi-close</v-icon>
+            </v-btn>
+          </div>
+        </v-card-title>
+
+        <v-card-text>
+          <v-textarea
+            v-model="announcementContent"
+            label="公告内容"
+            counter="500"
+            rows="4"
+            auto-grow
+            variant="outlined"
+            placeholder="请输入群公告内容..."
+          />
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showAnnouncementDialog = false">取消</v-btn>
+          <v-btn
+            color="warning"
+            variant="elevated"
+            :disabled="!announcementContent.trim()"
+            @click="handleSendAnnouncement"
+          >
+            发布
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -125,12 +174,12 @@
       default: 'private',
     },
   })
-  const emit = defineEmits(['update:modelValue', 'keydown.enter.exact.prevent', 'send-message', 'send-file'])
+  const emit = defineEmits(['update:modelValue', 'keydown.enter.exact.prevent', 'send-message', 'send-file', 'send-announcement'])
 
   // 获取聊天信息
   const { activeChatId, activeChatType } = useChat()
   const groupStore = useGroupStore()
-  const { getGroupMembers } = useGroup()
+  const { getGroupMembers, checkPermissions } = useGroup()
   const authStore = useAuthStore()
 
   // 是否是群聊
@@ -138,8 +187,20 @@
     return props.chatType === 'group' || activeChatType.value === 'group'
   })
 
+  // 是否可以发布公告（群主或管理员）
+  const canPublishAnnouncement = computed(() => {
+    const gid = props.chatId || activeChatId.value
+    if (!isGroupChat.value || !gid) return false
+    const permissions = checkPermissions(gid)
+    return permissions.isOwner || permissions.isAdmin
+  })
+
   // @ 弹窗状态
   const showAtDialog = ref(false)
+
+  // 公告弹窗状态
+  const showAnnouncementDialog = ref(false)
+  const announcementContent = ref('')
 
   // 已选择的成员
   const selectedMembers = ref([])
@@ -173,6 +234,26 @@
     emit('update:modelValue', (props.modelValue || '') + atText)
 
     showAtDialog.value = false
+  }
+
+  // 打开发布公告弹窗
+  function openAnnouncementDialog() {
+    showAnnouncementDialog.value = true
+  }
+
+  // 发送公告
+  function handleSendAnnouncement() {
+    const content = announcementContent.value.trim()
+    if (!content) {
+      return
+    }
+
+    // 触发发布公告事件
+    emit('send-announcement', content)
+
+    // 清空并关闭
+    announcementContent.value = ''
+    showAnnouncementDialog.value = false
   }
 
   // 文件输入引用
@@ -263,6 +344,11 @@
   function handleVoiceRecord () {
     console.warn('语音录制功能待实现')
   }
+
+  // 暴露方法给父组件调用
+  defineExpose({
+    openAnnouncementDialog,
+  })
 </script>
 
 <style scoped>
@@ -399,4 +485,19 @@
   .emoji-picker-popup::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.3);
   }
+</style>
+
+<style scoped>
+/* 公告弹窗样式 */
+.announcement-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 16px;
+}
+
+.announcement-dialog-header .close-btn {
+  margin-left: auto;
+}
 </style>

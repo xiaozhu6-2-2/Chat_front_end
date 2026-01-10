@@ -41,6 +41,11 @@ interface AvatarProps {
   badgeColor?: string
   badgeDot?: boolean
   badgeInline?: boolean
+
+  // 在线状态指示器属性
+  showOnlineIndicator?: boolean
+  isOnline?: boolean
+  onlineIndicatorSize?: number
 }
 
 /** 头像组件 Emits */
@@ -78,6 +83,9 @@ export const AvatarDefaults = {
   showBadge: false,
   badgeDot: false,
   badgeInline: false,
+  showOnlineIndicator: false,
+  isOnline: false,
+  onlineIndicatorSize: 12,
 }
 // 用于好友、非好友、群聊、会话的最基础数据接口
 export interface BaseProfile {

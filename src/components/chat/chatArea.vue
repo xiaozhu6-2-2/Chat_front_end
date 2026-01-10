@@ -15,9 +15,9 @@
       <v-btn v-if="activeChat?.type === 'group'" icon @click="toggleOnlineBoard">
         <v-icon>mdi-dots-horizontal</v-icon>
       </v-btn>
-      <v-btn v-if="activeChat?.type === 'private'" icon @click="togglePrivateBoard">
+      <!-- <v-btn v-if="activeChat?.type === 'private'" icon @click="togglePrivateBoard">
         <v-icon>mdi-dots-horizontal</v-icon>
-      </v-btn>
+      </v-btn> -->
     </v-toolbar>
     <v-divider />
 
@@ -75,25 +75,25 @@
       </v-expand-transition>
 
       <echatInput
+        ref="echatInputRef"
         v-model="inputMessage"
         @keydown.enter.exact.prevent="handleSendMessage"
         @send-message="handleSendMessage"
         @send-file="handleFileUpload"
+        @send-announcement="handleSendAnnouncement"
       />
 
     </div>
 
     <!-- Online Board -->
-    <OnlineBoard v-model="showOnlineBoard" />
+    <OnlineBoard v-model="showOnlineBoard" @publish-announcement="handleOpenAnnouncementDialog" />
   </v-card>
 </template>
 
 <script setup lang="ts">
   import type { Chat, ChatAreaProps, ChatType } from '../../types/chat'
-  import type { LocalMessage } from '../../types/message'
   import { storeToRefs } from 'pinia'
   import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-  import Avatar from '../../components/global/Avatar.vue'
   import { useChat } from '../../composables/useChat'
   import { useMessage } from '../../composables/useMessage'
   import { useMessageInput } from '../../composables/useMessageInput'
@@ -103,9 +103,6 @@
   import { useUserStore } from '../../stores/userStore'
   import { useSnackbar } from '../../composables/useSnackbar'
 
-  import echatInput from './echatInput.vue'
-  import OnlineBoard from './onlineBoard.vue'
-  import VirtualMessageList from './VirtualMessageList.vue'
 
   const props = defineProps<ChatAreaProps>()
 
@@ -132,6 +129,7 @@
     loading,
     hasMore,
     sendTextMessage,
+    sendAnnouncement,
     sendFileMessage,
     init,
     loadHistoryMessages,
@@ -145,6 +143,7 @@
   const showContactCard = ref(false)
   const isSending = ref(false)
   const virtualMessageList = ref()
+  const echatInputRef = ref()
 
   // 上传状态
   const isUploading = ref(false)
@@ -186,6 +185,12 @@
   // 监听聊天切换，重置状态并等待加载完成后滚动到底部
   watch(() => activeChatId.value, async (newChatId) => {
     if (!newChatId) return
+
+    // 关闭 onlineBoard（群聊面板）
+    if (showOnlineBoard.value) {
+      showOnlineBoard.value = false
+      chatStore.setOnlineBoardVisible(false)
+    }
 
     showNewMessageTip.value = false
     newMessageCount.value = 0
@@ -433,6 +438,38 @@
         isSendingLocalMessage.value = false
       }, 300)
     }
+  }
+
+  /**
+   * 处理发布公告
+   */
+  async function handleSendAnnouncement(content: string) {
+    isSending.value = true
+    isSendingLocalMessage.value = true
+    try {
+      await sendAnnouncement(content)
+
+      // 发送后滚动到底部并隐藏新消息提示
+      await nextTick()
+      virtualMessageList.value?.scrollToBottom()
+      showNewMessageTip.value = false
+      newMessageCount.value = 0
+    } catch (error) {
+      console.error('Failed to send announcement:', error)
+    } finally {
+      isSending.value = false
+      setTimeout(() => {
+        isSendingLocalMessage.value = false
+      }, 300)
+    }
+  }
+
+  /**
+   * 打开发布公告弹窗（从 onlineBoard 触发）
+   */
+  function handleOpenAnnouncementDialog() {
+    // 调用 echatInput 组件的 openAnnouncementDialog 方法
+    echatInputRef.value?.openAnnouncementDialog()
   }
 
   function handleVoiceRecord () {

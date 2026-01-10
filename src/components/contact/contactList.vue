@@ -84,6 +84,8 @@
                   :name="contact.name || '用户'"
                   :size="40"
                   :url="contact.avatar"
+                  :show-online-indicator="true"
+                  :is-online="contact.online_state === true"
                 />
               </div>
               <div class="d-flex flex-column align-start flex-grow-1">
@@ -107,6 +109,60 @@
           <v-icon class="mb-2" :icon="groupBy === 'tag' ? 'mdi-tag-off' : 'mdi-account-off'" size="24" />
           <p>{{ groupBy === 'tag' ? '暂无带标签的联系人' : '暂无联系人' }}</p>
           <p class="text-caption text-grey">{{ groupBy === 'tag' ? '为好友设置标签后，即可在此查看' : '添加好友后，即可在此查看' }}</p>
+        </div>
+      </v-list-group>
+
+      <!-- 黑名单分组 -->
+      <v-list-group :opened="openGroups['黑名单']" @click="toggleGroup('黑名单')" value="黑名单">
+        <template #activator="{ props }">
+          <v-list-item v-bind="props" prepend-icon="mdi-block-helper" title="黑名单" />
+        </template>
+
+        <template v-for="(contacts, groupName) in currentGroupedBlacklistedContacts" :key="groupName">
+          <div class="letter-divider">
+            <span v-if="groupBy === 'tag'">
+              <v-icon class="mr-1" icon="mdi-tag" size="12" />
+              {{ groupName }}
+            </span>
+            <span v-else>{{ groupName }}</span>
+          </div>
+          <v-list-item
+            v-for="contact in contacts"
+            :key="contact.id"
+            class="contact-item blacklist-item"
+            :class="{ 'active-contact': activeItemId === contact.id }"
+            @click="setActiveItem(contact.id)"
+          >
+            <div class="contact_content">
+              <div>
+                <Avatar
+                  avatar-class="profile-avatar blacklist-avatar"
+                  :name="contact.name || '用户'"
+                  :size="40"
+                  :url="contact.avatar"
+                />
+              </div>
+              <div class="d-flex flex-column align-start flex-grow-1">
+                <div class="contact-name">{{ contact.name }}</div>
+                <v-chip
+                  v-if="groupBy === 'tag' && contact.tag"
+                  class="mt-1 ma-2"
+                  :color="getTagColor(contact.tag)"
+                  size="x-small"
+                  variant="tonal"
+                >
+                  {{ contact.tag }}
+                </v-chip>
+              </div>
+            </div>
+          </v-list-item>
+        </template>
+
+        <!-- 空状态 -->
+        <div v-if="Object.keys(currentGroupedBlacklistedContacts).length === 0" class="no-results">
+          <v-icon class="mb-2" icon="mdi-block-helper" size="24" />
+          <p>黑名单为空</p>
+          <p class="text-caption text-grey">拉黑的好友会显示在这里</p>
         </div>
       </v-list-group>
 
@@ -151,7 +207,6 @@
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { pinyin } from 'pinyin-pro'
-  import Avatar from '../global/Avatar.vue'
   import { useFriend } from '../../composables/useFriend'
   import { useGroup } from '../../composables/useGroup'
   import { useSnackbar } from '../../composables/useSnackbar'
@@ -173,6 +228,7 @@
     initial: string // 必须要有一个initial来按首字母排序
     tag?: string
     avatar?: string
+    online_state?: boolean // 在线状态
   }
 
   interface Group {
@@ -186,10 +242,11 @@
   const openGroups = ref({
     群聊: true,
     联系人: true,
+    黑名单: false,
   })
 
   // 使用 useFriend composable
-  const { activeFriends, getFriendByUid } = useFriend()
+  const { activeFriends, blacklistedFriends, getFriendByUid } = useFriend()
   const { showError } = useSnackbar()
 
   // 获取请求 store
@@ -214,6 +271,20 @@
       initial: getInitial(friend.remark || friend.name), // 提取首字母
       tag: friend.tag, // 好友标签
       avatar: friend.avatar, // 头像
+      online_state: friend.online_state, // 在线状态
+    }))
+  })
+
+  // 黑名单数据转换
+  const blacklistedContacts = computed(() => {
+    return blacklistedFriends.value.map(friend => ({
+      id: friend.fid,
+      uid: friend.id,
+      name: friend.remark || friend.name,
+      initial: getInitial(friend.remark || friend.name),
+      tag: friend.tag,
+      avatar: friend.avatar,
+      online_state: friend.online_state,
     }))
   })
 
@@ -285,6 +356,43 @@
     return groupBy.value === 'tag' ? groupedContactsByTag.value : groupedContacts.value
   })
 
+  // 黑名单排序
+  const sortedBlacklistedContacts = computed(() => {
+    return [...blacklistedContacts.value].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+  })
+
+  // 按首字母分组的黑名单
+  const groupedBlacklistedContacts = computed(() => {
+    const groupsMap: Record<string, Contact[]> = {}
+    for (const contact of sortedBlacklistedContacts.value) {
+      const initial = contact.initial
+      if (!groupsMap[initial]) {
+        groupsMap[initial] = []
+      }
+      groupsMap[initial].push(contact)
+    }
+    return groupsMap
+  })
+
+  // 按标签分组的黑名单
+  const groupedBlacklistedContactsByTag = computed(() => {
+    const groupsMap: Record<string, Contact[]> = {}
+    for (const contact of sortedBlacklistedContacts.value) {
+      if (contact.tag) {
+        if (!groupsMap[contact.tag]) {
+          groupsMap[contact.tag] = []
+        }
+        groupsMap[contact.tag]!.push(contact)
+      }
+    }
+    return groupsMap
+  })
+
+  // 根据分组模式返回对应的黑名单分组数据
+  const currentGroupedBlacklistedContacts = computed(() => {
+    return groupBy.value === 'tag' ? groupedBlacklistedContactsByTag.value : groupedBlacklistedContacts.value
+  })
+
   // 获取标签颜色
   function getTagColor (tag: string): string {
     const colors = ['primary', 'secondary', 'success', 'warning', 'error', 'info', 'purple', 'indigo', 'teal']
@@ -315,6 +423,7 @@
       return
     }
 
+    // 先在普通联系人中查找
     const contactFound = contacts.value.find((c: Contact) => c.id === id)
     if (contactFound) {
       // 从 activeFriends 中获取完整的 FriendWithUserInfo 数据
@@ -328,10 +437,24 @@
       }
       return
     }
+
+    // 再在黑名单中查找
+    const blacklistedContactFound = blacklistedContacts.value.find((c: Contact) => c.id === id)
+    if (blacklistedContactFound) {
+      // 从 blacklistedFriends 中获取完整的 FriendWithUserInfo 数据
+      const friendData = getFriendByUid(blacklistedContactFound.uid)
+      if (friendData) {
+        emit('itemClick', 'contact', friendData)
+      } else {
+        console.error('找不到黑名单好友数据:', blacklistedContactFound)
+        showError('无法获取联系人信息')
+      }
+      return
+    }
   }
 
   // 切换分组展开状态
-  function toggleGroup (groupName: '群聊' | '联系人') {
+  function toggleGroup (groupName: '群聊' | '联系人' | '黑名单') {
     openGroups.value[groupName] = !openGroups.value[groupName]
   }
 </script>
@@ -354,6 +477,10 @@
   padding: 10px 16px;
   cursor: pointer;
   transition: background-color 0.2s;
+}
+
+:deep(.v-list-item__content) {
+  padding: 3px;
 }
 
 .contact_content {
@@ -441,5 +568,18 @@
 
 .v-list-group--active .v-list-group__header .v-icon {
   transform: rotate(180deg);
+}
+
+/* 黑名单样式 */
+.blacklist-item {
+  opacity: 0.7;
+}
+
+.blacklist-item:hover {
+  opacity: 1;
+}
+
+.blacklist-avatar {
+  filter: grayscale(0.5);
 }
 </style>

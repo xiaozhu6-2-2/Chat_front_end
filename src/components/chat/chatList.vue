@@ -20,6 +20,8 @@
               :show-badge="chat.unreadCount > 0"
               :size="40"
               :url="chat.avatar"
+              :show-online-indicator="chat.type === 'private'"
+              :is-online="getChatOnlineStatus(chat) === true"
             />
           </div>
         </template>
@@ -69,10 +71,25 @@
 
 <script setup lang="ts">
   import type { Chat } from '../../types/chat'
-  import Avatar from '../../components/global/Avatar.vue'
   import { useChat } from '../../composables/useChat'
+  import { useFriend } from '../../composables/useFriend'
 
   const { activeChatId, chatList, selectChat, togglePinChat } = useChat()
+  const { getFriendByFid } = useFriend()
+
+  /**
+   * 获取聊天对象的在线状态
+   * 私聊：从好友列表获取在线状态（使用 fid 查找）
+   * 群聊：不显示在线状态
+   */
+  function getChatOnlineStatus (chat: Chat): boolean | undefined {
+    if (chat.type !== 'private') {
+      return undefined
+    }
+    // chat.id 是 pid/fid，使用 getFriendByFid 查找好友
+    const friend = getFriendByFid(chat.id)
+    return friend?.online_state
+  }
 
   function isActiveChat (chatId: string) {
     return activeChatId.value === chatId

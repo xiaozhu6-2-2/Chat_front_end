@@ -67,7 +67,6 @@
   import type { FriendRequest } from '../../types/friendRequest'
   import { onMounted, ref } from 'vue'
   import { useFriendRequest } from '../../composables/useFriendRequest'
-  import FriendRequestItem from './FriendRequestItem.vue'
   import { storeToRefs } from 'pinia'
   import { useFriendRequestStore } from '../../stores/friendRequestStore'
   const {

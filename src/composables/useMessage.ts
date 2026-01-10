@@ -30,10 +30,12 @@ import { websocketService } from '@/service/websocket'
 import { useAuthStore } from '@/stores/authStore'
 import { useChatStore } from '@/stores/chatStore'
 import { useFriendStore } from '@/stores/friendStore'
+import { useGroupStore } from '@/stores/groupStore'
 import { type MessageStoreType, useMessageStore } from '@/stores/messageStore'
 import { useUserStore } from '@/stores/userStore'
 import { batchApiResponseToLocalMessages, createFileMessage, createTextMessage, LocalMessage, MessageStatus } from '@/types/message'
 import { MessageType } from '@/types/websocket'
+import type { GroupAnnouncement } from '@/types/group'
 import { useChat } from './useChat'
 import { useFile } from './useFile'
 import { useFriend } from './useFriend'
@@ -58,7 +60,8 @@ export function useMessage () {
   const { activeChatId, activeChat, activeChatType } = useChat()
   const { getCurrentUserId, getCurrentUsername, getCurrentUserAvatar } = useUser()
   const { getFriendByFid } = useFriend()
-  const { getGroupMembers } = useGroup()
+  const { getGroupMembers, getGroupAnnouncements } = useGroup()
+  const groupStore = useGroupStore()
 
   const isLoading = ref(false)
 
@@ -267,6 +270,84 @@ export function useMessage () {
         }
       }
       showError('消息发送失败，请重试')
+      throw error
+    }
+  }
+
+  /**
+   * 发送群公告消息
+   *
+   * 与 sendTextMessage 的区别：
+   * - 只能在群聊中发送
+   * - is_announcement 参数设为 true
+   * - 需要群主或管理员权限
+   *
+   * @param content 公告内容
+   * @param mentionedUids 被@的用户ID列表（可选）
+   */
+  const sendAnnouncement = async (content: string, mentionedUids?: string[] | null) => {
+    try {
+      // 检查是否有激活的聊天
+      if (!activeChatId.value) {
+        showError('请先选择一个聊天')
+        return
+      }
+
+      // 只允许群聊发送公告
+      if (activeChatType.value !== 'group') {
+        showError('只能在群聊中发布公告')
+        return
+      }
+
+      const chatId = activeChatId.value
+      const chatType = 'group'
+      const receiverId = chatId // 群聊中 receiver_id 就是 gid
+
+      // 使用 createTextMessage 创建消息，但 is_announcement 设为 true
+      const message = createTextMessage(
+        MessageType.MESGROUP,
+        getCurrentUserId(),
+        getCurrentUsername(),
+        getCurrentUserAvatar(),
+        receiverId,
+        content,
+        chatId,
+        true,
+        true, // 关键：is_announcement = true
+        mentionedUids,
+      )
+
+      // 立即添加到 store（立即显示）
+      messageStore.addMessage(chatId, message, chatType)
+
+      // 更新会话最新消息
+      const chatStore = useChatStore()
+      chatStore.updateChatLastMessage(chatId, content)
+
+      // 手动将公告添加到 groupStore（用于 onlineBoard 显示）
+      const announcement: GroupAnnouncement = {
+        msg_id: message.payload.message_id || '',
+        gid: chatId,
+        content,
+        sender_uid: getCurrentUserId(),
+        send_time: message.payload.timestamp || 0,
+        mentioned_uids: mentionedUids || undefined,
+      }
+      groupStore._addGroupAnnouncementInternal(announcement)
+
+      // 通过 WebSocket 发送
+      websocketService.send(message)
+
+      // 发送后将消息引用加入队列，等待ACK确认
+      message.sendStatus = MessageStatus.SENDING
+      addToQueue(message)
+      startQueueProcessing()
+
+      showSuccess('群公告发布成功')
+      return message.payload.message_id
+    } catch (error) {
+      console.error('发送群公告失败:', error)
+      showError('群公告发送失败，请重试')
       throw error
     }
   }
@@ -723,6 +804,7 @@ export function useMessage () {
     // 核心方法
     sendTextMessage,
     sendFileMessage,
+    sendAnnouncement,
     loadHistoryMessages,
     markAsRead,
     resendMessage,

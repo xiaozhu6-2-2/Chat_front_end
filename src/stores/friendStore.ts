@@ -37,7 +37,7 @@ export const useFriendStore = defineStore('friend', () => {
   const isFriend = computed(() => {
     return (uid: string) => {
       return Array.from(friends.value.values())
-        .some(friend => friend.id === uid && !friend.isBlacklisted) // 使用 id 而非 uid
+        .some(friend => friend.id === uid) // 使用 id 而非 uid，不排除黑名单
     }
   })
 

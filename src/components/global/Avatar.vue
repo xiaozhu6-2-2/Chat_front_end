@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="avatar-wrapper">
     <v-avatar
       :class="[avatarClass, { 'avatar-clickable': clickable }]"
       :size="size"
@@ -25,6 +25,12 @@
       :dot="badgeDot"
       :inline="badgeInline"
       :model-value="showBadge"
+    />
+    <div
+      v-if="showOnlineIndicator"
+      class="online-indicator"
+      :class="{ 'online': isOnline, 'offline': !isOnline }"
+      :style="{ width: `${onlineIndicatorSize}px`, height: `${onlineIndicatorSize}px` }"
     />
   </div>
 </template>
@@ -119,6 +125,11 @@
 </script>
 
 <style scoped>
+.avatar-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
 .avatar-clickable {
   cursor: pointer;
   transition: transform 0.2s ease;
@@ -148,6 +159,26 @@
 .badge{
   position: relative;
   top: -24px;
+}
+
+/* 在线状态指示器 */
+.online-indicator {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  border-radius: 50%;
+  border: 2px solid #1c1c1e; /* 与背景色匹配 */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  z-index: 2;
+  transition: background-color 0.3s ease;
+}
+
+.online-indicator.online {
+  background-color: #4CAF50; /* 绿色 - 在线 */
+}
+
+.online-indicator.offline {
+  background-color: #9E9E9E; /* 灰色 - 离线 */
 }
 
 /* 响应式调整 */

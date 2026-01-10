@@ -128,9 +128,14 @@
 
   // 判断是否为好友
   const isContactFriend = computed(() => {
-    return detailedProfile.value
-      ? checkUserRelation(detailedProfile.value.id).isFriend
-      : false
+    if (!detailedProfile.value) return false
+
+    // 使用 fid 作为判断：如果 fid 存在且不是 'stranger'，说明是好友关系
+    const isFriendRelation = detailedProfile.value.fid && detailedProfile.value.fid !== 'stranger'
+
+    const result = checkUserRelation(detailedProfile.value.id).isFriend
+    console.log('[contactCard] isContactFriend:', isFriendRelation || result, 'isFriendRelation:', isFriendRelation, 'checkUserRelation:', result, 'fid:', detailedProfile.value.fid)
+    return isFriendRelation || result // 使用 fid 判断作为主要条件
   })
   
   const emit = defineEmits<ContactCardEmits>()

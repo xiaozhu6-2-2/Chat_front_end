@@ -19,6 +19,7 @@ export interface Chat {
   mentionedCount?: number // @消息未读数
   avatar?: string
   name: string
+  online_state?: boolean // 在线状态
 }
 
 // API响应的聊天数据结构

@@ -11,7 +11,7 @@
     </v-chip>
   </div>
 
-  <!-- 正常消息 -->
+  <!-- 正常消息和公告消息 - 整合在一起 -->
   <div v-else class="message-bubble" :class="messageClasses">
     <!-- 撤回按钮 -->
     <div v-if="canRevokeMessage" class="revoke-btn-container">
@@ -47,7 +47,19 @@
         {{ senderName }}
       </div>
 
-      <div class="message-bubble-content" :class="bubbleClasses">
+      <!-- 公告消息内容 -->
+      <div v-if="isAnnouncement" class="message-bubble-content announcement-bubble" :class="bubbleClasses">
+        <div class="announcement-header">
+          <span class="announcement-label">群公告</span>
+        </div>
+        <div class="announcement-text">{{ announcementData?.content }}</div>
+        <div v-if="announcementData?.mentioned_uids?.length" class="announcement-mentions">
+          <v-chip size="x-small" color="info">@{{ announcementData.mentioned_uids.length }}人</v-chip>
+        </div>
+      </div>
+
+      <!-- 普通消息内容 -->
+      <div v-else class="message-bubble-content" :class="bubbleClasses">
         <!-- Text Message -->
         <TextMessage v-if="isTextMessage" :message="message" />
 
@@ -59,7 +71,7 @@
             v-if="displayUrl"
             :src="displayUrl"
             :alt="'图片'"
-            cover
+            max-width="300"
             max-height="200"
             @click="previewImage"
           />
@@ -97,7 +109,7 @@
       </div>
 
       <div class="message-meta">
-        <span class="message-time">{{ formatTime(message.payload.timestamp) }}</span>
+        <span class="message-time">{{ formatTime(isAnnouncement ? announcementData?.send_time : message.payload.timestamp) }}</span>
         <span v-if="isOwnMessage" class="message-status">
           <v-icon
             :color="statusColor"
@@ -105,7 +117,7 @@
             size="16"
             class="mr-2"
           />
-          
+
           <v-icon
             v-if="props.message.type === 'Private'"
             :color="isReadColor"
@@ -166,6 +178,7 @@
   import type { MessageBubbleProps } from '../../../types/chat'
   import type { FriendWithUserInfo } from '../../../types/friend'
   import type { FilePreviewInfo } from '../../../types/file'
+  import type { GroupAnnouncement } from '../../../types/group'
   import { storeToRefs } from 'pinia'
   import { computed, onMounted, ref, watch } from 'vue'
   import { useFile } from '../../../composables/useFile'
@@ -176,8 +189,6 @@
   import { ContentType } from '../../../types/message'
   import { MessageType } from '../../../types/websocket'
   import { strangerUserService } from '../../../service/strangerUserService'
-  import ReadersListDialog from './ReadersListDialog.vue'
-  import TextMessage from './TextMessage.vue'
 
   // 撤回时间限制：2分钟 = 120秒
   const REVOKE_TIME_LIMIT = 120
@@ -209,6 +220,26 @@
   const isRevokedMessage = computed(() =>
     props.message.is_revoked
   )
+
+  // 判断是否为公告消息
+  const isAnnouncement = computed(() => {
+    return props.message.type === MessageType.MESGROUP &&
+           props.message.payload.is_announcement === true
+  })
+
+  // 构造公告数据（用于展示）
+  const announcementData = computed((): GroupAnnouncement | null => {
+    if (!isAnnouncement.value) return null
+    return {
+      msg_id: props.message.payload.message_id || '',
+      gid: props.message.payload.chat_id || '',
+      content: props.message.payload.detail || '',
+      sender_uid: props.message.payload.sender_id || '',
+      send_time: props.message.payload.timestamp || 0,
+      mentioned_uids: props.message.payload.mentioned_uids || undefined,
+      quote_msg_id: props.message.payload.quote_msg_id,
+    }
+  })
   const isOwnMessage = computed(() =>
     props.message.userIsSender
   )
@@ -262,12 +293,7 @@
   })
 
   const statusIcon = computed(() => {
-    // 如果消息已读，显示双勾（覆盖 sendStatus 的判断）
-    if (props.message.is_read) {
-      return 'mdi-check-all'
-    }
-
-    // 否则根据发送状态显示图标
+    // 根据发送状态显示图标
     switch (props.message.sendStatus) {
       case 'pending':
       case 'sending': {
@@ -446,8 +472,13 @@
   async function handleAvatarClick () {
     const senderId = props.message.payload.sender_id
 
+    // 调试：打印 friendStore 中的所有好友
+    console.log('[handleAvatarClick] All friends in store:', Array.from(friendStore.friends.values()).map(f => ({ id: f.id, name: f.name, fid: f.fid, isBlacklisted: f.isBlacklisted })))
+    console.log('[handleAvatarClick] Looking for senderId:', senderId)
+
     // 首先检查是否为好友
     const friendInfo = senderId ? friendStore.getFriendByUid(senderId) : null
+    console.log('[handleAvatarClick] Found friendInfo:', friendInfo)
 
     if (friendInfo) {
       // 如果是好友，传递完整的 FriendWithUserInfo 数据
@@ -800,6 +831,48 @@ onMounted(async () => {
 
 .revoked-chip {
   font-size: 12px !important;
+}
+
+// 公告消息样式
+.announcement-bubble {
+  padding: 16px;
+  // 覆盖 own-bubble 和 other-bubble 的背景色，保持黄色渐变
+  background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%) !important;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.2);
+
+  // 继承 own-bubble 和 other-bubble 的对齐方式
+  &.own-bubble {
+    align-self: flex-end;
+  }
+
+  &.other-bubble {
+    align-self: flex-start;
+  }
+}
+
+.announcement-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.announcement-label {
+  font-weight: 600;
+  color: #e65100;
+  font-size: 14px;
+}
+
+.announcement-text {
+  color: #4e342e;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.announcement-mentions {
+  margin-top: 8px;
 }
 
 .revoke-btn-container {
