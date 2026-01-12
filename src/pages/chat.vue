@@ -10,19 +10,22 @@
       </div>
 
       <!-- 聊天界面 -->
-      <chatArea v-else :chat="activeChat" @image-preview="handleImagePreview" />
+      <chatArea
+        v-else
+        :chat="activeChat"
+        @image-preview="handleImagePreview"
+      />
     </template>
   </maincontent>
 </template>
 
 <script setup lang="ts">
   import type { Chat } from '../types/chat'
-  import { computed, onMounted } from 'vue'
-  import chatArea from '../components/chat/chatArea.vue'
-  import chatList from '../components/chat/chatList.vue'
+  import { onMounted } from 'vue'
   import { useChat } from '../composables/useChat'
-  import maincontent from '../layouts/maincontent.vue'
   import { useChatStore } from '../stores/chatStore'
+  // @ts-ignore - maincontent layout is imported for manual usage
+  import maincontent from '../layouts/maincontent.vue'
 
   // Use chat composable
   const { activeChatId, activeChat, selectChat, initializeChats } = useChat()

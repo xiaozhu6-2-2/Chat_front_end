@@ -88,6 +88,8 @@
   import { computed, ref, watch } from 'vue'
 
   import { useFriend } from '@/composables/useFriend'
+  import { useDirectMessage } from '@/composables/useDirectMessage'
+  import { useSnackbar } from '@/composables/useSnackbar'
 
   defineOptions({
     name: 'InviteToGroupModal',
@@ -102,6 +104,8 @@
   const emit = defineEmits<InviteToGroupModalEmits>()
 
   const { activeFriends } = useFriend()
+  const { sendGroupInvitations } = useDirectMessage()
+  const { showSuccess, showError } = useSnackbar()
 
   const dialog = computed({
     get: () => props.modelValue,
@@ -143,32 +147,42 @@
     dialog.value = false
   }
 
-  function handleInvite() {
+  async function handleInvite() {
     if (selectedFriends.value.length === 0) return
 
-    // 获取选中的好友信息
-    const invitedMembers = activeFriends.value
-      .filter((f: FriendWithUserInfo) => selectedFriends.value.includes(f.id))
-      .map((f: FriendWithUserInfo) => ({
+    try {
+      // 获取选中的好友完整对象
+      const selectedFriendsObjs = activeFriends.value
+        .filter((f: FriendWithUserInfo) => selectedFriends.value.includes(f.id))
+
+      // 发送群邀请消息
+      const result = await sendGroupInvitations(
+        selectedFriendsObjs,
+        props.gid
+      )
+
+      // 显示结果反馈
+      if (result.successCount > 0) {
+        showSuccess(`已成功邀请 ${result.successCount} 位好友`)
+      }
+      if (result.failedCount > 0) {
+        showError(`${result.failedCount} 位好友邀请失败`)
+      }
+
+      // 获取选中的好友信息用于 emit
+      const invitedMembers = selectedFriendsObjs.map((f: FriendWithUserInfo) => ({
         id: f.id,
         name: f.name,
         avatar: f.avatar,
         role: 'member' as const,
       } as GroupMember))
 
-    // TODO: 调用后端 API 邀请好友进群
-    // await inviteFriendsToGroup({
-    //   gid: props.gid,
-    //   uids: selectedFriends.value
-    // })
-
-    console.log('Inviting friends to group:', {
-      gid: props.gid,
-      uids: selectedFriends.value,
-    })
-
-    emit('invited', invitedMembers)
-    close()
+      emit('invited', invitedMembers)
+      close()
+    } catch (error) {
+      console.error('发送邀请失败:', error)
+      showError('发送邀请失败，请重试')
+    }
   }
 </script>
 

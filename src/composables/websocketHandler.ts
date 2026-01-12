@@ -297,6 +297,13 @@ const handleMessageError = (errorData: MessageError): void => {
   try {
     const messageStore = useMessageStore()
     const { showError } = useSnackbar()
+
+    // 检查 payload 是否存在
+    if (!errorData.payload) {
+      console.warn('收到错误通知，但没有 payload:', errorData)
+      return
+    }
+
     const { temp_message_id, error } = errorData.payload
     const queueMessages = messageStore.getQueueMessages()
     console.log('收到消息错误:', { temp_message_id, error, queueSize: queueMessages.length })
@@ -314,8 +321,8 @@ const handleMessageError = (errorData: MessageError): void => {
     } else {
       console.warn('收到未知消息的错误通知:', temp_message_id, 'error:', error)
     }
-  } catch (error) {
-    console.error('处理消息错误失败:', error)
+  } catch (err) {
+    console.error('处理消息错误失败:', err)
   }
 }
 

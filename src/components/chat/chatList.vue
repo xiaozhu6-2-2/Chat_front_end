@@ -73,9 +73,11 @@
   import type { Chat } from '../../types/chat'
   import { useChat } from '../../composables/useChat'
   import { useFriend } from '../../composables/useFriend'
+  import { useSidebarStore } from '../../stores/sidebarStore'
 
   const { activeChatId, chatList, selectChat, togglePinChat, getChatDisplayName } = useChat()
   const { getFriendByFid } = useFriend()
+  const sidebarStore = useSidebarStore()
 
   /**
    * 获取聊天对象的在线状态
@@ -97,6 +99,8 @@
 
   function handleChatClick (chat: Chat) {
     selectChat(chat.id)
+    // 选择聊天后折叠侧边栏
+    sidebarStore.collapse()
   }
 
   async function handlePinToggle (chat: Chat) {

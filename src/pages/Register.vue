@@ -80,7 +80,7 @@
                     v-model="registerForm.password"
                     :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
                     autofocus
-                    class="mb-4"
+                    class="mb-2"
                     color="primary"
                     label="密码"
                     prepend-inner-icon="mdi-lock"
@@ -89,7 +89,45 @@
                     :type="showPassword ? 'text' : 'password'"
                     variant="outlined"
                     @click:append-inner="showPassword = !showPassword"
+                    @update:model-value="updatePasswordStrength"
                   />
+
+                  <!-- 密码强度指示器 -->
+                  <div v-if="registerForm.password" class="password-strength mb-4">
+                    <div class="d-flex justify-space-between align-center mb-1">
+                      <span class="text-caption text-grey">密码强度</span>
+                      <span
+                        class="text-caption font-weight-medium"
+                        :class="passwordStrengthColor"
+                      >
+                        {{ passwordStrengthText }}
+                      </span>
+                    </div>
+                    <v-progress-linear
+                      :color="passwordStrengthColor"
+                      :model-value="passwordStrengthScore"
+                      height="6"
+                      rounded
+                    />
+                    <div class="mt-2">
+                      <div
+                        v-for="(requirement, index) in passwordRequirements"
+                        :key="index"
+                        class="d-flex align-center text-caption mt-1"
+                      >
+                        <v-icon
+                          :color="requirement.met ? 'success' : 'grey'"
+                          size="16"
+                          class="mr-1"
+                        >
+                          {{ requirement.met ? 'mdi-check-circle' : 'mdi-circle-outline' }}
+                        </v-icon>
+                        <span :class="requirement.met ? 'text-success' : 'text-grey'">
+                          {{ requirement.text }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
 
                   <v-text-field
                     v-model="registerForm.confirmPassword"
@@ -472,6 +510,78 @@ meta:
   const loading = ref(false)
   const showPassword = ref(false)
   const showConfirmPassword = ref(false)
+
+  // 密码强度相关
+  const passwordStrengthScore = ref(0)
+  const passwordStrengthText = ref('')
+  const passwordStrengthColor = ref('')
+
+  interface PasswordRequirement {
+    text: string
+    met: boolean
+  }
+
+  const passwordRequirements = ref<PasswordRequirement[]>([
+    { text: '至少8个字符', met: false },
+    { text: '包含大写字母', met: false },
+    { text: '包含小写字母', met: false },
+    { text: '包含数字', met: false },
+    { text: '包含特殊字符', met: false },
+  ])
+
+  // 计算密码强度
+  function updatePasswordStrength(password: string) {
+    if (!password) {
+      passwordStrengthScore.value = 0
+      passwordStrengthText.value = ''
+      passwordStrengthColor.value = ''
+      passwordRequirements.value.forEach(req => (req.met = false))
+      return
+    }
+
+    let score = 0
+    const requirements = passwordRequirements.value
+
+    // 检查长度
+    requirements[0].met = password.length >= 8
+    if (requirements[0].met) score += 20
+
+    // 检查大写字母
+    requirements[1].met = /[A-Z]/.test(password)
+    if (requirements[1].met) score += 20
+
+    // 检查小写字母
+    requirements[2].met = /[a-z]/.test(password)
+    if (requirements[2].met) score += 20
+
+    // 检查数字
+    requirements[3].met = /\d/.test(password)
+    if (requirements[3].met) score += 20
+
+    // 检查特殊字符
+    requirements[4].met = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+    if (requirements[4].met) score += 20
+
+    passwordStrengthScore.value = score
+
+    // 根据分数设置文本和颜色
+    if (score <= 20) {
+      passwordStrengthText.value = '弱'
+      passwordStrengthColor.value = 'error'
+    } else if (score <= 40) {
+      passwordStrengthText.value = '较弱'
+      passwordStrengthColor.value = 'warning'
+    } else if (score <= 60) {
+      passwordStrengthText.value = '中等'
+      passwordStrengthColor.value = 'info'
+    } else if (score <= 80) {
+      passwordStrengthText.value = '强'
+      passwordStrengthColor.value = 'primary'
+    } else {
+      passwordStrengthText.value = '非常强'
+      passwordStrengthColor.value = 'success'
+    }
+  }
 
   // 头像相关状态
   const avatarError = ref('')
@@ -1023,7 +1133,11 @@ meta:
 
   const passwordRules = [
     (value: string) => !!value || '密码不能为空',
-    (value: string) => (value && value.length >= 6) || '密码至少6个字符',
+    (value: string) => (value && value.length >= 8) || '密码至少8个字符',
+    (value: string) => /[A-Z]/.test(value) || '密码必须包含至少一个大写字母',
+    (value: string) => /[a-z]/.test(value) || '密码必须包含至少一个小写字母',
+    (value: string) => /\d/.test(value) || '密码必须包含至少一个数字',
+    (value: string) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value) || '密码必须包含至少一个特殊字符',
   ]
 
   const confirmPasswordRules = [
@@ -1049,17 +1163,45 @@ meta:
 
   // 步骤 2: 密码验证
   function step2Click () {
-    if (!registerForm.password) {
+    const password = registerForm.password
+
+    if (!password) {
       showError('请输入密码')
       return
     }
 
-    if (registerForm.password.length < 6) {
-      showError('密码至少6个字符')
+    // 验证长度
+    if (password.length < 8) {
+      showError('密码至少需要8个字符')
       return
     }
 
-    if (registerForm.password !== registerForm.confirmPassword) {
+    // 验证大写字母
+    if (!/[A-Z]/.test(password)) {
+      showError('密码必须包含至少一个大写字母')
+      return
+    }
+
+    // 验证小写字母
+    if (!/[a-z]/.test(password)) {
+      showError('密码必须包含至少一个小写字母')
+      return
+    }
+
+    // 验证数字
+    if (!/\d/.test(password)) {
+      showError('密码必须包含至少一个数字')
+      return
+    }
+
+    // 验证特殊字符
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      showError('密码必须包含至少一个特殊字符')
+      return
+    }
+
+    // 验证确认密码
+    if (password !== registerForm.confirmPassword) {
       showError('两次输入的密码不一致')
       return
     }

@@ -4,14 +4,12 @@
       <v-container class="pa-0 fill-height" fluid>
         <v-row class="fill-height" no-gutters>
           <!-- 侧边栏 -->
-          <!--使用栅格布局-->
-          <v-col
-            class="detailbar-container"
-            cols="12"
-            lg="2"
-            md="4"
-            sm="1"
-          >
+          <transition name="sidebar-collapse">
+            <v-col
+              v-if="!sidebarStore.isCollapsed"
+              class="detailbar-container"
+              v-bind="sidebarCols"
+            >
             <div class="search-section">
               <!-- 所有的 Vuetify 输入组件都有一个 details 部分，在搜索框的下方，用来显示提示 -->
               <v-text-field
@@ -36,6 +34,21 @@
                 </v-list>
               </v-menu>
 
+              <!-- 侧边栏折叠按钮 -->
+              <v-tooltip>
+                <template #activator="{ props }">
+                  <v-btn
+                    class="ma-3 collapse-btn"
+                    variant="elevated"
+                    v-bind="props"
+                    @click="toggleSidebar"
+                  >
+                    <v-icon>mdi-chevron-left</v-icon>
+                  </v-btn>
+                </template>
+                <span>折叠侧边栏</span>
+              </v-tooltip>
+
             </div>
             <transition name="list-expand">
               <div v-if="showList" class="detail-list">
@@ -43,14 +56,12 @@
               </div>
             </transition>
           </v-col>
+          </transition>
 
           <!-- 主内容区域 -->
           <v-col
             class="main-content"
-            cols="12"
-            lg="10"
-            md="8"
-            sm="11"
+            v-bind="mainCols"
           >
             <slot name="main" />
           </v-col>
@@ -62,6 +73,9 @@
 
 <script setup lang="ts">
   import { computed, onMounted, ref } from 'vue'
+  import { useSidebarStore } from '@/stores/sidebarStore'
+
+  const sidebarStore = useSidebarStore()
   const showList = ref(false)
 
   onMounted(() => {
@@ -69,6 +83,27 @@
     setTimeout(() => {
       showList.value = true
     }, 100)
+  })
+
+  // 切换侧边栏状态
+  function toggleSidebar() {
+    sidebarStore.toggle()
+  }
+
+  // 计算侧边栏栅格列数
+  const sidebarCols = computed(() => {
+    if (sidebarStore.isCollapsed) {
+      return { cols: 0, lg: 0, md: 0, sm: 0 }
+    }
+    return { cols: 12, lg: 2, md: 4, sm: 1 }
+  })
+
+  // 计算主内容栅格列数
+  const mainCols = computed(() => {
+    if (sidebarStore.isCollapsed) {
+      return { cols: 12, lg: 12, md: 12, sm: 12 }
+    }
+    return { cols: 12, lg: 10, md: 8, sm: 11 }
   })
 
   const menuItems = ref([
@@ -178,5 +213,38 @@
 .content-fade-leave-to {
   opacity: 0;
   transform: translateX(-30px);
+}
+
+/* 折叠按钮样式 */
+.collapse-btn {
+  position: relative;
+  top: -5px;
+}
+
+/* 侧边栏过渡动画 */
+.detailbar-container {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.main-content {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 侧边栏折叠动画 */
+.sidebar-collapse-enter-active,
+.sidebar-collapse-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-collapse-enter-from,
+.sidebar-collapse-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+.sidebar-collapse-enter-to,
+.sidebar-collapse-leave-from {
+  opacity: 1;
+  transform: translateX(0);
 }
 </style>

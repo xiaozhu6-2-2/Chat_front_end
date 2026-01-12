@@ -225,22 +225,15 @@
   const isFriendContact = computed(() => {
     if (!props.contact) return false
 
-    // 调试：打印 friendStore 状态
-    console.log('[ContactCardModal] friendStore.friends size:', friendStore.friends.size)
-    console.log('[ContactCardModal] friendStore.friends values:', Array.from(friendStore.friends.values()))
+    // 先判断是否是当前用户自己，自己不能是好友
+    if (isCurrentUser.value) return false
 
     const contact = props.contact as FriendWithUserInfo
     // 使用 fid 作为判断：如果 fid 存在且不是 'stranger'，说明是好友关系
     const isFriendRelation = contact.fid && contact.fid !== 'stranger'
-    console.log('[ContactCardModal] isFriendRelation by fid:', isFriendRelation, 'fid:', contact.fid)
-
-    // 调试：直接调用 friendStore.isFriend
     const directResult = friendStore.isFriend(props.contact.id)
-    console.log('[ContactCardModal] Direct friendStore.isFriend:', directResult)
-
     const result = checkUserRelation(props.contact.id).isFriend
-    console.log('[ContactCardModal] isFriendContact via checkUserRelation:', result, 'contactId:', props.contact?.id, 'isBlacklisted:', contact.isBlacklisted)
-    return isFriendRelation || result || directResult // 使用 fid 判断作为主要条件
+    return isFriendRelation || result || directResult
   })
 
   // 根据联系人类型获取显示信息
@@ -307,7 +300,6 @@
     const isFriendRelation = contact.fid && contact.fid !== 'stranger'
 
     const result = checkUserRelation(props.contact.id).isFriend
-    console.log('[ContactCardModal] isContactFriend:', isFriendRelation || result, 'isFriendRelation:', isFriendRelation, 'checkUserRelation:', result)
     return isFriendRelation || result // 使用 fid 判断作为主要条件
   })
 

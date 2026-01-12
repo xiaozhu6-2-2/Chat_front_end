@@ -54,6 +54,8 @@ export function transformApiChat (apiChat: ApiChat): Chat {
 /** 聊天区域 Props */
 interface ChatAreaProps {
   chat: Chat
+  isSidebarCollapsed?: boolean
+  onToggleSidebar?: () => void
 }
 
 /** 聊天区域 Emits */

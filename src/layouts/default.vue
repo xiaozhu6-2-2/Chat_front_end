@@ -169,6 +169,7 @@ import { useChatStore } from "../stores/chatStore";
 import { useUserStore } from "../stores/userStore";
 import { useFriendRequestStore } from "../stores/friendRequestStore";
 import { useGroupRequestStore } from "../stores/groupRequestStore";
+import { useSidebarStore } from "../stores/sidebarStore";
 import { useAuth } from "@/composables/useAuth";
 
 const router = useRouter();
@@ -177,6 +178,7 @@ const userStore = useUserStore();
 const chatStore = useChatStore();
 const friendRequestStore = useFriendRequestStore();
 const groupRequestStore = useGroupRequestStore();
+const sidebarStore = useSidebarStore();
 const { currentUser } = storeToRefs(userStore);
 const { logout } = useAuth();
 
@@ -218,6 +220,10 @@ async function confirmLogout() {
 }
 
 function navigateTo(path: string) {
+  // 点击导航按钮时，如果侧边栏是折叠的，先展开
+  if (sidebarStore.isCollapsed) {
+    sidebarStore.expand();
+  }
   router.push(path);
 }
 </script>

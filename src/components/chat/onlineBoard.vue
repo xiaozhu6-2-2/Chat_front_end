@@ -304,9 +304,10 @@
 </template>
 
 <script setup lang="ts">
-  import type { FriendWithUserInfo } from '../../types/friend'
+  import type { FriendWithUserInfo, UserInfo } from '../../types/friend'
   import type { GroupMember } from '../../types/group'
   import type { GroupRole } from '../../types/group'
+  import type { StrangerUserProfile } from '../../service/strangerUserService'
 
   import { computed, onUnmounted, ref, watch } from 'vue'
 
@@ -317,6 +318,7 @@
   import { useFriend } from '../../composables/useFriend'
   import { useFriendRequest } from '../../composables/useFriendRequest'
   import { useFile } from '@/composables/useFile'
+  import { strangerUserService } from '../../service/strangerUserService'
   import type { GroupAnnouncement } from '../../types/group'
 
   defineOptions({
@@ -409,6 +411,8 @@
   // 成员卡片弹窗
   const showContactCard = ref(false)
   const selectedMember = ref<GroupMember | null>(null)
+  const selectedMemberStrangerProfile = ref<StrangerUserProfile | null>(null)
+  const isLoadingMemberInfo = ref(false)
 
   // 邀请弹窗
   const showInviteModal = ref(false)
@@ -432,15 +436,25 @@
       return friendData
     }
 
-    // 如果不是好友，创建一个最小化的 FriendWithUserInfo 对象
+    // 如果不是好友，使用获取到的 stranger profile 构建完整信息
+    const strangerProfile = selectedMemberStrangerProfile.value
+    const info: UserInfo = strangerProfile ? {
+      account: strangerProfile.account,
+      gender: strangerProfile.gender || undefined,
+      region: strangerProfile.region || undefined,
+      email: strangerProfile.email || undefined,
+    } : {}
+
     return {
       id: member.id,
-      name: member.name,
-      avatar: member.avatar,
-      fid: member.id,
+      name: strangerProfile?.username || member.name,
+      avatar: strangerProfile?.avatar || member.avatar,
+      fid: 'stranger',
       isBlacklisted: false,
       createdAt: new Date().toISOString(),
       remark: member.nickname,
+      info,
+      bio: strangerProfile?.bio || undefined,
     } as FriendWithUserInfo
   })
 
@@ -580,9 +594,34 @@
   }
 
   // 显示成员卡片
-  function showMemberCard(member: GroupMember) {
+  async function showMemberCard(member: GroupMember) {
+    // 重置 stranger profile
+    selectedMemberStrangerProfile.value = null
     selectedMember.value = member
-    showContactCard.value = true
+
+    // 检查是否是好友
+    const friendData = getFriendByUid(member.id)
+    if (friendData) {
+      // 如果是好友，直接打开弹窗（已有完整信息）
+      showContactCard.value = true
+      return
+    }
+
+    // 如果不是好友，先获取完整信息再打开弹窗
+    try {
+      isLoadingMemberInfo.value = true
+      const strangerProfile = await strangerUserService.getUserProfile(member.id)
+
+      // 存储 stranger profile，计算属性会自动更新
+      selectedMemberStrangerProfile.value = strangerProfile
+      showContactCard.value = true
+    } catch (error) {
+      console.error('[onlineBoard] Failed to get stranger profile:', error)
+      // 即使获取失败也打开弹窗，显示基本信息
+      showContactCard.value = true
+    } finally {
+      isLoadingMemberInfo.value = false
+    }
   }
 
   // 打开邀请弹窗

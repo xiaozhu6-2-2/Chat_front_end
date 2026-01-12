@@ -212,9 +212,11 @@
   import { useSnackbar } from '../../composables/useSnackbar'
   import { useFriendRequestStore } from '../../stores/friendRequestStore'
   import { useGroupRequestStore } from '../../stores/groupRequestStore'
+  import { useSidebarStore } from '../../stores/sidebarStore'
   // 定义 emits
 
   const emit = defineEmits<ContactListEmits>()
+  const sidebarStore = useSidebarStore()
 
   // Router 实例
   const router = useRouter()
@@ -414,6 +416,8 @@
   // 修改 setActiveItem 方法
   function setActiveItem (id: string) {
     activeItemId.value = id
+    // 选中联系人/群聊后折叠侧边栏
+    sidebarStore.collapse()
 
     // 查找并发射对应数据
     // 只检查id来判断是群聊还是私聊
