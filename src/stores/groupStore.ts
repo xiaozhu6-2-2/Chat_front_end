@@ -27,6 +27,7 @@ export const useGroupStore = defineStore('group', () => {
   const isLoading = ref(false)
   const lastFetchTime = ref<number>(0) // 上次获取群聊列表的时间
   const groupsVersion = ref(0) // 版本号，用于强制触发 computed 更新（解决 Map 响应式问题）
+  const groupMembersVersion = ref(0) // 群成员版本号，用于强制触发群成员相关 computed 更新（解决 Map 响应式问题）
 
   // Computed
   /**
@@ -153,6 +154,7 @@ export const useGroupStore = defineStore('group', () => {
       groupProfiles.value.delete(gid)
       groupMembers.value.delete(gid)
       groupAnnouncements.value.delete(gid)
+      groupMembersVersion.value++
       console.log(`groupStore: 移除群聊 ${gid} 及相关数据`)
     } else {
       console.warn(`groupStore: 尝试移除不存在的群聊 ${gid}`)
@@ -252,7 +254,8 @@ export const useGroupStore = defineStore('group', () => {
     } else {
       members[existingIndex] = member // 更新现有成员
     }
-    groupMembers.value.set(gid, members)
+    groupMembers.value.set(gid, [...members]) // 创建新数组以确保响应式
+    groupMembersVersion.value++
     console.log(`groupStore: 添加/更新群成员 ${gid}:${member.id}`)
   }
 
@@ -270,6 +273,7 @@ export const useGroupStore = defineStore('group', () => {
     const members = groupMembers.value.get(gid) || []
     const filteredMembers = members.filter(m => m.id !== uid)
     groupMembers.value.set(gid, filteredMembers)
+    groupMembersVersion.value++
     console.log(`groupStore: 移除群成员 ${gid}:${uid}`)
   }
 
@@ -291,7 +295,8 @@ export const useGroupStore = defineStore('group', () => {
       console.warn(`groupStore: 尝试更新不存在的群成员 ${gid}:${uid}`)
     } else {
       members[memberIndex] = { ...members[memberIndex], ...updates } as GroupMember
-      groupMembers.value.set(gid, members)
+      groupMembers.value.set(gid, [...members]) // 创建新数组以确保响应式
+      groupMembersVersion.value++
       console.log(`groupStore: 更新群成员信息 ${gid}:${uid}`)
     }
   }
@@ -318,8 +323,39 @@ export const useGroupStore = defineStore('group', () => {
         }
       }
     }
-    groupMembers.value.set(gid, members)
+    groupMembers.value.set(gid, [...members]) // 创建新数组以确保响应式
+    groupMembersVersion.value++
     console.log(`groupStore: 批量更新群成员角色 ${gid}，${uids.length}个成员设为${role}`)
+  }
+
+  /**
+   * 内部方法：更新群成员在线状态（不包含API调用）
+   *
+   * 使用场景：
+   * - Composable层获取在线状态后更新本地状态
+   * - WebSocket实时更新群成员在线状态
+   *
+   * @param {string} gid - 群聊ID
+   * @param {string} uid - 用户ID
+   * @param {boolean} onlineState - 在线状态
+   */
+  const _updateGroupMemberOnlineStateInternal = (gid: string, uid: string, onlineState: boolean) => {
+    const members = groupMembers.value.get(gid) || []
+    const memberIndex = members.findIndex(m => m.id === uid)
+    if (memberIndex === -1) {
+      return
+    }
+
+    const member = members[memberIndex]
+    if (member.online_state !== onlineState) {
+      // 创建新的成员对象以确保响应式更新
+      const updatedMember = { ...member, online_state: onlineState }
+      members[memberIndex] = updatedMember
+      // 触发响应式更新 - 创建新数组
+      groupMembers.value.set(gid, [...members])
+      // 增加版本号，强制触发依赖 groupMembers 的 computed 重新计算
+      groupMembersVersion.value++
+    }
   }
 
   /**
@@ -336,6 +372,7 @@ export const useGroupStore = defineStore('group', () => {
   const setGroupMembersFromApiResponse = (gid: string, apiResponse: GetGroupMembersResponse) => {
     const members = apiResponse.members.map(transformGroupMemberFromApi)
     groupMembers.value.set(gid, members)
+    groupMembersVersion.value++
     console.log(`groupStore: 设置群成员列表 ${gid}，共 ${members.length} 个成员`)
   }
 
@@ -561,6 +598,7 @@ export const useGroupStore = defineStore('group', () => {
     isLoading.value = false
     lastFetchTime.value = 0
     groupsVersion.value = 0 // 重置版本号
+    groupMembersVersion.value = 0 // 重置群成员版本号
     console.log('groupStore: 重置所有群聊数据')
   }
 
@@ -574,6 +612,7 @@ export const useGroupStore = defineStore('group', () => {
     groupAnnouncements,
     isLoading,
     lastFetchTime,
+    groupMembersVersion, // 导出版本号，供组件使用以建立响应式依赖
 
     // Computed
     allGroups,
@@ -600,6 +639,7 @@ export const useGroupStore = defineStore('group', () => {
     _removeGroupMemberInternal,
     _updateGroupMemberInternal,
     _batchUpdateGroupMemberRoleInternal,
+    _updateGroupMemberOnlineStateInternal,
     setGroupMembersFromApiResponse,
 
     // 群公告管理（内部方法）

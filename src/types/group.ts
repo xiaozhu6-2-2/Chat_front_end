@@ -46,6 +46,7 @@ export interface GroupMember extends BaseProfile {
   // avatar: BaseProfile.avatar
   role: GroupRole // 角色
   nickname?: string // 群昵称
+  online_state?: boolean // 在线状态
 }
 
 // 群公告信息
@@ -298,6 +299,7 @@ export function transformGroupMemberFromApi (apiData: GroupMemberFromAPI): Group
     role: apiData.role as GroupRole,
     avatar: apiData.avatar,
     nickname: apiData.nickname,
+    online_state: false, // 默认离线，后续通过 getGroupOnlineStatus 更新
   }
 }
 

@@ -20,6 +20,7 @@ import { computed } from 'vue'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { groupService } from '@/service/groupService'
 import { useAuthStore } from '@/stores/authStore'
+import { useChatStore } from '@/stores/chatStore'
 import { useGroupStore } from '@/stores/groupStore'
 import {
   GroupRole,
@@ -186,12 +187,23 @@ export function useGroup () {
 
       await groupService.setGroupInfo(params)
 
-      // 更新本地状态
+      // 更新本地状态 - groupStore
       groupStore._updateGroupInternal(params.gid, {
         name: params.group_name,
         avatar: params.group_avatar,
         group_intro: params.group_intro,
       })
+
+      // 同步更新 chatStore 中的群聊会话（修复头像实时显示问题）
+      const chatStore = useChatStore()
+      const existingChat = chatStore.getChatByid(params.gid)
+      if (existingChat && existingChat.type === 'group') {
+        chatStore.addChat({
+          ...existingChat,
+          ...(params.group_avatar !== undefined && { avatar: params.group_avatar }),
+          ...(params.group_name !== undefined && { name: params.group_name }),
+        })
+      }
 
       console.log('useGroup: 群信息更新成功')
       showSuccess('群信息更新成功')
@@ -517,6 +529,35 @@ export function useGroup () {
     }
   }
 
+  /**
+   * 获取群成员在线状态
+   *
+   * 执行流程：
+   * 1. 调用 groupService 获取在线状态
+   * 2. 更新 groupStore 中群成员的 online_state 字段
+   * 3. 确保当前用户始终显示为在线状态
+   * 4. 触发响应式更新
+   *
+   * @param {string} gid - 群聊ID
+   * @returns {Promise<void>}
+   */
+  const getGroupOnlineStatus = async (gid: string): Promise<void> => {
+    try {
+      const onlineUserIds = await groupService.getGroupOnlineStatus(gid)
+      const members = groupStore.getGroupMembers(gid)
+      const onlineSet = new Set(onlineUserIds)
+
+      for (const member of members) {
+        // 当前用户始终显示为在线状态
+        const isOnline = member.id === currentUserId.value || onlineSet.has(member.id)
+        groupStore._updateGroupMemberOnlineStateInternal(gid, member.id, isOnline)
+      }
+    } catch (error) {
+      console.error('[群成员在线] 更新失败', error)
+      // 静默失败，不影响群成员列表显示
+    }
+  }
+
   // ==================== 导出的方法和属性 ====================
 
   return {
@@ -547,6 +588,7 @@ export function useGroup () {
     getGroupProfile,
     getGroupMembers,
     getGroupAnnouncements,
+    getGroupOnlineStatus,
 
     // 权限检查
     checkPermissions,

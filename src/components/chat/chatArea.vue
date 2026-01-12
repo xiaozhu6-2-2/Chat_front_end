@@ -5,11 +5,11 @@
       <Avatar
         avatar-class="custom-avatar ml-6"
         :clickable="false"
-        :name="activeChat?.name"
+        :name="activeChatDisplayName"
         :size="40"
         :url="activeChat?.avatar"
       />
-      <v-toolbar-title>{{ activeChat?.name }}</v-toolbar-title>
+      <v-toolbar-title>{{ activeChatDisplayName }}</v-toolbar-title>
       <v-spacer />
 
       <v-btn v-if="activeChat?.type === 'group'" icon @click="toggleOnlineBoard">
@@ -29,8 +29,8 @@
         class="new-message-tip"
         @click="handleNewMessageTipClick"
       >
-        <v-chip color="primary" size="small" class="tip-chip">
-          <v-icon start size="small">mdi-message-text-outline</v-icon>
+        <v-chip class="tip-chip" color="primary" size="small">
+          <v-icon size="small" start>mdi-message-text-outline</v-icon>
           有新消息
         </v-chip>
       </div>
@@ -46,9 +46,9 @@
         :auto-scroll="autoScroll"
         :container-height="containerHeight"
         :current-user-id="currentUserId"
-        :messages="messages"
         :has-more="hasMore"
         :is-loading-more="isLoadingMore"
+        :messages="messages"
         @image-preview="handleImagePreview"
         @scroll-near-bottom="handleScrollNearBottom"
         @scroll-near-top="handleScrollNearTop"
@@ -62,9 +62,9 @@
       <v-expand-transition>
         <div v-if="isUploading" class="upload-progress-banner">
           <v-progress-linear
-            :model-value="uploadProgress"
             color="primary"
             height="4"
+            :model-value="uploadProgress"
             striped
           />
           <div class="upload-info">
@@ -78,9 +78,9 @@
         ref="echatInputRef"
         v-model="inputMessage"
         @keydown.enter.exact.prevent="handleSendMessage"
-        @send-message="handleSendMessage"
-        @send-file="handleFileUpload"
         @send-announcement="handleSendAnnouncement"
+        @send-file="handleFileUpload"
+        @send-message="handleSendMessage"
       />
 
     </div>
@@ -91,18 +91,17 @@
 </template>
 
 <script setup lang="ts">
-  import type { Chat, ChatAreaProps, ChatType } from '../../types/chat'
+  import type { ChatAreaProps } from '../../types/chat'
   import { storeToRefs } from 'pinia'
   import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
   import { useChat } from '../../composables/useChat'
   import { useMessage } from '../../composables/useMessage'
   import { useMessageInput } from '../../composables/useMessageInput'
   import { useReadCountPolling } from '../../composables/useReadCountPolling'
+  import { useSnackbar } from '../../composables/useSnackbar'
   import { useChatStore } from '../../stores/chatStore'
   import { useMessageStore } from '../../stores/messageStore'
   import { useUserStore } from '../../stores/userStore'
-  import { useSnackbar } from '../../composables/useSnackbar'
-
 
   const props = defineProps<ChatAreaProps>()
 
@@ -113,7 +112,13 @@
   // Store and composables
   const chatStore = useChatStore()
   const messageStore = useMessageStore()
-  const { activeChat, selectChat, activeChatId, activeChatType } = useChat()
+  const { activeChat, selectChat, activeChatId, activeChatType, getChatDisplayName } = useChat()
+
+  // 当前聊天的显示名称（对于私聊优先显示备注）
+  const activeChatDisplayName = computed(() => {
+    if (!activeChat.value) return ''
+    return getChatDisplayName(activeChat.value.id, activeChat.value.type)
+  })
 
   // 群聊已读人数轮询
   const { watchChatChange } = useReadCountPolling()
@@ -183,7 +188,7 @@
   const isSendingLocalMessage = ref(false)
 
   // 监听聊天切换，重置状态并等待加载完成后滚动到底部
-  watch(() => activeChatId.value, async (newChatId) => {
+  watch(() => activeChatId.value, async newChatId => {
     if (!newChatId) return
 
     // 关闭 onlineBoard（群聊面板）
@@ -260,7 +265,7 @@
         showNewMessageTip.value = true
         newMessageCount.value += (newLength - oldLength)
       }
-    }
+    },
   )
 
   // 处理虚拟滚动接近底部事件
@@ -333,7 +338,6 @@
       // 恢复滚动位置
       await nextTick()
       virtualMessageList.value?.restoreScrollPosition()
-
     } catch (error) {
       console.error('加载更多历史消息失败:', error)
     } finally {
@@ -443,7 +447,7 @@
   /**
    * 处理发布公告
    */
-  async function handleSendAnnouncement(content: string) {
+  async function handleSendAnnouncement (content: string) {
     isSending.value = true
     isSendingLocalMessage.value = true
     try {
@@ -467,7 +471,7 @@
   /**
    * 打开发布公告弹窗（从 onlineBoard 触发）
    */
-  function handleOpenAnnouncementDialog() {
+  function handleOpenAnnouncementDialog () {
     // 调用 echatInput 组件的 openAnnouncementDialog 方法
     echatInputRef.value?.openAnnouncementDialog()
   }

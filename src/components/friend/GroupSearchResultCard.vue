@@ -5,6 +5,7 @@
       <v-list-item>
         <template #prepend>
           <Avatar
+            class="mr-3"
             :name="group.group_name || '群聊'"
             :size="48"
             :url="group.avatar"
@@ -21,6 +22,15 @@
 
     <v-card-actions>
       <v-btn
+        v-if="isInGroup"
+        disabled
+        variant="outlined"
+      >
+        <v-icon icon="mdi-check" start />
+        已在群中
+      </v-btn>
+      <v-btn
+        v-else
         color="primary"
         :loading="isJoining"
         variant="outlined"
@@ -104,10 +114,11 @@
 
 <script setup lang="ts">
   import type { GroupSearchResult } from '../../types/search'
-  import { ref } from 'vue'
+  import { computed, ref } from 'vue'
   import Avatar from '../global/Avatar.vue'
   import { useGroupRequest } from '../../composables/useGroupRequest'
   import { useSnackbar } from '../../composables/useSnackbar'
+  import { useGroupStore } from '../../stores/groupStore'
 
   interface Props {
     group: GroupSearchResult
@@ -122,11 +133,17 @@
 
   const { sendGroupRequest } = useGroupRequest()
   const { showSuccess, showError } = useSnackbar()
+  const groupStore = useGroupStore()
 
   // 对话框状态
   const showJoinDialog = ref(false)
   const isJoining = ref(false)
   const applyText = ref('')
+
+  // 检查用户是否已在群中
+  const isInGroup = computed(() => {
+    return groupStore.getGroupById(props.group.gid) !== null
+  })
 
   // 处理申请加入群组
   async function handleJoinGroup () {

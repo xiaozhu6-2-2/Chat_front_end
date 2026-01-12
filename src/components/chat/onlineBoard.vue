@@ -151,6 +151,8 @@
               :url="member.avatar"
               :size="48"
               avatar-class="profile-avatar"
+              :show-online-indicator="true"
+              :is-online="member.online_state || false"
             />
             <!-- 角色徽章 -->
             <div
@@ -306,7 +308,7 @@
   import type { GroupMember } from '../../types/group'
   import type { GroupRole } from '../../types/group'
 
-  import { computed, ref, watch } from 'vue'
+  import { computed, onUnmounted, ref, watch } from 'vue'
 
   import { useChatStore } from '@/stores/chatStore'
   import { useGroupStore } from '@/stores/groupStore'
@@ -332,7 +334,7 @@
 
   const chatStore = useChatStore()
   const groupStore = useGroupStore()
-  const { getGroupMembers, leaveGroup, checkPermissions, updateGroupInfo, getGroupAnnouncements } = useGroup()
+  const { getGroupMembers, leaveGroup, checkPermissions, updateGroupInfo, getGroupAnnouncements, getGroupOnlineStatus } = useGroup()
   const { showError, showSuccess, showInfo } = useSnackbar()
   const { getFriendByUid } = useFriend()
   const { sendFriendRequest } = useFriendRequest()
@@ -363,6 +365,10 @@
 
   // 获取群成员列表
   const groupMembers = computed(() => {
+    // 访问 groupMembersVersion 以建立响应式依赖
+    // 这是解决 Vue 3 中 ref(Map) 响应式问题的方案
+    // eslint-disable-next-line no-unused-vars
+    const _ = groupStore.groupMembersVersion
     if (!currentGroupId.value) return []
     return groupStore.getGroupMembers(currentGroupId.value)
   })
@@ -438,12 +444,60 @@
     } as FriendWithUserInfo
   })
 
+  // 获取成员在线状态
+  const getMemberOnlineStatus = (member: GroupMember): boolean => {
+    return member.online_state || false
+  }
+
+  // 在线状态轮询定时器
+  let onlineStatusPollingTimer: ReturnType<typeof setInterval> | null = null
+
+  // 启动在线状态轮询
+  const startOnlineStatusPolling = () => {
+    // 清除现有定时器
+    stopOnlineStatusPolling()
+
+    if (!currentGroupId.value) return
+
+    // 每5秒轮询一次在线状态
+    onlineStatusPollingTimer = setInterval(async () => {
+      if (currentGroupId.value) {
+        try {
+          await getGroupOnlineStatus(currentGroupId.value)
+        } catch (error) {
+          console.error('[在线状态轮询] 更新失败', error)
+        }
+      }
+    }, 5000) // 5秒轮询间隔
+
+    console.log('[在线状态轮询] 已启动')
+  }
+
+  // 停止在线状态轮询
+  const stopOnlineStatusPolling = () => {
+    if (onlineStatusPollingTimer) {
+      clearInterval(onlineStatusPollingTimer)
+      onlineStatusPollingTimer = null
+      console.log('[在线状态轮询] 已停止')
+    }
+  }
+
   // 监听抽屉打开，加载群成员数据
   watch(() => props.modelValue, async (isOpen) => {
     if (isOpen && currentGroupId.value) {
       await loadGroupMembers()
       await loadAnnouncements()
+      // 启动在线状态轮询
+      startOnlineStatusPolling()
+    } else {
+      // 关闭时停止轮询
+      stopOnlineStatusPolling()
     }
+  })
+
+  // 组件卸载时清理定时器
+  onUnmounted(() => {
+    stopOnlineStatusPolling()
   })
 
   // 加载群成员数据
@@ -453,14 +507,22 @@
     // 检查是否已有缓存
     const cached = groupStore.getGroupMembers(currentGroupId.value)
     if (cached.length > 0) {
+      // 即使有缓存，也要更新在线状态
+      try {
+        await getGroupOnlineStatus(currentGroupId.value)
+      } catch (error) {
+        console.error('[在线成员] 更新在线状态失败', error)
+      }
       return
     }
 
     isLoadingMembers.value = true
     try {
       await getGroupMembers({ gid: currentGroupId.value })
+      // 获取群成员在线状态
+      await getGroupOnlineStatus(currentGroupId.value)
     } catch (error) {
-      console.error('Failed to load group members:', error)
+      console.error('[在线成员] 加载群成员失败', error)
       showError('加载群成员失败')
     } finally {
       isLoadingMembers.value = false
@@ -550,6 +612,7 @@
       await updateGroupInfo({
         gid: currentGroupId.value,
         group_name: trimmedName,
+        group_avatar: groupInfo.value?.avatar ?? activeChat.value?.avatar ?? '',
         group_intro: editGroupIntro.value.trim() || undefined,
       })
       showEditGroupInfoDialog.value = false
@@ -702,6 +765,8 @@
       await updateGroupInfo({
         gid: currentGroupId.value,
         group_avatar: uploadResult.file_id,
+        group_name: activeChat.value?.name,
+        group_intro: groupInfo.value?.group_intro,
       })
 
       showSuccess('群头像更新成功')
@@ -808,7 +873,7 @@
 
 .role-badge {
   position: absolute;
-  bottom: -2px;
+  top: -2px;
   right: -2px;
   font-size: 9px;
   padding: 1px 4px;
@@ -816,6 +881,7 @@
   color: white;
   font-weight: 500;
   line-height: 1.2;
+  z-index: 2;
 }
 
 .badge-owner {

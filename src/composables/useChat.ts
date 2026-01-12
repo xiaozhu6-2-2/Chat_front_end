@@ -3,10 +3,12 @@ import { computed } from 'vue'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { ChatService } from '@/service/chatService'
 import { useChatStore } from '@/stores/chatStore'
+import { useFriendStore } from '@/stores/friendStore'
 import { useMessage } from './useMessage'
 
 export function useChat () {
   const chatStore = useChatStore()
+  const friendStore = useFriendStore()
   const { showError, showSuccess } = useSnackbar()
 
   // Computed properties
@@ -25,6 +27,28 @@ export function useChat () {
     }
     return activeChat.value.type
   })
+
+  /**
+   * 获取聊天的显示名称
+   * 对于私聊，优先从 friendStore 获取最新备注
+   * 对于群聊，直接返回聊天名称
+   */
+  const getChatDisplayName = (chatId: string, chatType: ChatType): string => {
+    const chat = chatStore.getChatByid(chatId)
+    if (!chat) {
+      return ''
+    }
+
+    // 对于私聊，优先从 friendStore 获取最新备注
+    if (chatType === 'private') {
+      const friend = friendStore.getFriendByFid(chatId)
+      if (friend) {
+        return friend.remark || friend.name
+      }
+    }
+
+    return chat.name
+  }
 
   // Actions
 
@@ -203,5 +227,6 @@ export function useChat () {
     createChat,
     togglePinChat, // 新增：切换置顶状态
     reset, // 新增：重置状态
+    getChatDisplayName, // 新增：获取聊天显示名称（响应式）
   }
 }

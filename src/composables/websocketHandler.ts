@@ -402,17 +402,35 @@ const handleFriendDeletedNotification = (notification: FriendDeletedNotification
  * 实现逻辑：
  * - 通过 uid 查找好友
  * - 更新好友的 online_state 字段
+ * - 同时更新群成员的 online_state 字段
  * - UI 自动响应式更新
  */
 const handleUpdateOnlineState = (notification: UpdateOnlineStateData): void => {
   const friendStore = useFriendStore()
+  const groupStore = useGroupStore()
   const { uid, online_state } = notification.payload
 
-  // 通过 uid 查找好友并更新在线状态
+  // 1. 更新好友在线状态
   const friend = friendStore.getFriendByUid(uid)
   if (friend) {
     friendStore.updateFriend(friend.fid, { online_state })
-    console.log('[WebSocketHandler] 好友在线状态已更新:', { uid, online_state })
+    console.log(`[在线状态更新] 用户 ${uid} 是好友，已更新好友状态`)
+  }
+
+  // 2. 更新群成员在线状态（遍历所有群）
+  const allGroups = groupStore.allGroups
+  let updatedGroupsCount = 0
+
+  for (const group of allGroups) {
+    const members = groupStore.getGroupMembers(group.id)
+    if (members.some(m => m.id === uid)) {
+      groupStore._updateGroupMemberOnlineStateInternal(group.id, uid, online_state)
+      updatedGroupsCount++
+    }
+  }
+
+  if (updatedGroupsCount > 0) {
+    console.log(`[在线状态更新] 用户 ${uid} ${online_state ? '上线' : '离线'}，影响 ${updatedGroupsCount} 个群`)
   }
 }
 

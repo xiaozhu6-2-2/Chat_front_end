@@ -282,7 +282,18 @@
   }))
 
   const senderName = computed(() => {
-    // 直接使用消息记录的 sender_name
+    const senderId = props.message.payload.sender_id
+    if (!senderId) return '未知用户'
+
+    // 尝试从 friendStore 获取好友信息
+    const friendInfo = friendStore.getFriendByUid(senderId)
+
+    // 如果有好友信息且有备注，优先显示备注
+    if (friendInfo && friendInfo.remark) {
+      return friendInfo.remark
+    }
+
+    // 否则使用消息记录的 sender_name
     return props.message.payload.sender_name || '未知用户'
   })
 
@@ -632,7 +643,7 @@ onMounted(async () => {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.6);
   margin-bottom: 4px;
-  margin-left: 12px;
+  margin-left: 3px;
 }
 
 .message-bubble-content {

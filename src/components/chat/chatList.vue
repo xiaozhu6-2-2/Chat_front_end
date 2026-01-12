@@ -16,18 +16,18 @@
               :badge-content="formatUnreadCount(chat.unreadCount)"
               :badge-dot="false"
               :clickable="false"
-              :name="chat.name"
+              :is-online="getChatOnlineStatus(chat) === true"
+              :name="getChatDisplayName(chat.id, chat.type)"
               :show-badge="chat.unreadCount > 0"
+              :show-online-indicator="chat.type === 'private'"
               :size="40"
               :url="chat.avatar"
-              :show-online-indicator="chat.type === 'private'"
-              :is-online="getChatOnlineStatus(chat) === true"
             />
           </div>
         </template>
 
         <v-list-item-title class="chat-name">
-          {{ chat.name }}
+          {{ getChatDisplayName(chat.id, chat.type) }}
         </v-list-item-title>
 
         <v-list-item-subtitle class="chat-message">
@@ -44,11 +44,11 @@
               <template #activator="{ props }">
                 <v-btn
                   v-bind="props"
+                  class="pin-btn"
+                  color="grey-lighten-1"
                   :icon="chat.isPinned ? 'mdi-pin' : 'mdi-pin-outline'"
                   size="x-small"
                   variant="text"
-                  color="grey-lighten-1"
-                  class="pin-btn"
                   @click.stop="handlePinToggle(chat)"
                 />
               </template>
@@ -74,7 +74,7 @@
   import { useChat } from '../../composables/useChat'
   import { useFriend } from '../../composables/useFriend'
 
-  const { activeChatId, chatList, selectChat, togglePinChat } = useChat()
+  const { activeChatId, chatList, selectChat, togglePinChat, getChatDisplayName } = useChat()
   const { getFriendByFid } = useFriend()
 
   /**

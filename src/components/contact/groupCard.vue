@@ -32,7 +32,7 @@
               </template>
             </v-list-item>
 
-            <v-list-item prepend-icon="mdi-information" title="群公告">
+            <v-list-item prepend-icon="mdi-information" title="群介绍">
               <template #subtitle>
                 {{ formattedData?.groupIntro }}
               </template>
@@ -93,9 +93,10 @@
 
     return {
       groupManager: groupManagerName.value || groupDetail.value.manager_uid,
-      createTime: new Date(groupDetail.value.created_at).toLocaleDateString('zh-CN', {
+      createTime: new Date(groupDetail.value.created_at * 1000).toLocaleDateString('zh-CN', {
         year: 'numeric',
         month: 'long',
+        day: 'numeric',
       }),
       groupName: groupDetail.value.name,
       groupId: groupDetail.value.id,

@@ -87,8 +87,8 @@
       v-if="detailedProfile"
       v-model="showEditModal"
       :friend="detailedProfile"
-      @save="handleFriendSave"
       @delete="handleFriendDelete"
+      @save="handleFriendSave"
     />
 
     <!-- 未加载时显示加载状态 -->
@@ -108,20 +108,22 @@
 </template>
 
   <script setup lang="ts">
-  import EditFriendModal from '../global/EditFriendModal.vue'
   import type { ChatType } from '../../types/chat'
-  import type { ContactCardProps, ContactCardEmits, FriendWithUserInfo } from '../../types/friend'
+  import type { ContactCardEmits, ContactCardProps } from '../../types/friend'
   import { computed, onMounted, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { useChat } from '../../composables/useChat'
   import { useFriend } from '../../composables/useFriend'
   import { useSnackbar } from '../../composables/useSnackbar'
+  import { useFriendStore } from '../../stores/friendStore'
+  import EditFriendModal from '../global/EditFriendModal.vue'
 
   const props = defineProps<ContactCardProps>()
   const { getFriendProfile, checkUserRelation, updateFriendProfile, removeFriend } = useFriend()
   const { showError } = useSnackbar()
   const { createChat, selectChat } = useChat()
   const router = useRouter()
+  const friendStore = useFriendStore()
 
   // 编辑好友对话框状态
   const showEditModal = ref(false)
@@ -137,7 +139,7 @@
     console.log('[contactCard] isContactFriend:', isFriendRelation || result, 'isFriendRelation:', isFriendRelation, 'checkUserRelation:', result, 'fid:', detailedProfile.value.fid)
     return isFriendRelation || result // 使用 fid 判断作为主要条件
   })
-  
+
   const emit = defineEmits<ContactCardEmits>()
 
   // 发送消息处理函数
@@ -160,12 +162,12 @@
   }
 
   // 打开编辑好友对话框
-  function openEditModal() {
+  function openEditModal () {
     showEditModal.value = true
   }
 
   // 处理保存好友信息
-  async function handleFriendSave(data: { friendId: string; remark: string; tag: string | null; isBlacklisted: boolean }) {
+  async function handleFriendSave (data: { friendId: string, remark: string, tag: string | null, isBlacklisted: boolean }) {
     try {
       await updateFriendProfile(data.friendId, {
         remark: data.remark,
@@ -174,29 +176,32 @@
       })
       // 刷新好友数据
       await fetchDetailedProfile()
-    } catch (error) {
+    } catch {
       showError('更新好友资料失败')
     }
   }
 
   // 处理删除好友
-  async function handleFriendDelete(friendId: string) {
+  async function handleFriendDelete (friendId: string) {
     try {
       await removeFriend(friendId)
       // 先通知父组件清除 activeItem
-      emit("delete")
+      emit('delete')
       // 延迟跳转，确保父组件收到事件
       setTimeout(() => {
         router.push('/contact')
       }, 100)
-    } catch (error) {
+    } catch {
       showError('删除好友失败')
     }
   }
 
   // 状态管理
   const isLoading = ref(false)
-  const detailedProfile = ref<FriendWithUserInfo | null>(null)
+  // 直接从 store 获取数据，确保响应式更新
+  const detailedProfile = computed(() => {
+    return friendStore.getFriendByUid(props.contact.id) || null
+  })
 
   // 获取详细资料
   async function fetchDetailedProfile () {
@@ -204,29 +209,17 @@
     if (!props.contact.id || !props.contact.fid) {
       console.warn('缺少必要的信息：uid 或 id', props.contact)
       showError('获取好友资料失败')
+      return
     }
 
     isLoading.value = true
 
     try {
-      const profile = await getFriendProfile(props.contact.fid, props.contact.id)
-      detailedProfile.value = profile
-      console.log(profile)
+      // 只确保 store 中有数据，computed 会自动响应更新
+      await getFriendProfile(props.contact.fid, props.contact.id)
     } catch (error) {
       showError('获取好友资料失败')
       console.error('获取好友详细资料失败:', error)
-      // 设置基础好友信息作为回退
-      detailedProfile.value = {
-        id: props.contact.id,
-        fid: props.contact.fid,
-        name: props.contact.name || '获取资料失败',
-        avatar: props.contact.avatar || '',
-        createdAt: props.contact.createdAt,
-        isBlacklisted: props.contact.isBlacklisted,
-        bio: props.contact.bio || '',
-        remark: props.contact.remark || '',
-        tag: props.contact.tag || '',
-      }
     } finally {
       isLoading.value = false
     }
@@ -235,16 +228,12 @@
   // 组件挂载时自动获取
   onMounted(() => {
     fetchDetailedProfile()
-    console.log(detailedProfile)
   })
 
   // 监听联系人ID的变化，当切换联系人时重新获取数据
   watch(() => props.contact?.id, (newContactId, oldContactId) => {
-    console.log('contactCard.vue: 联系人ID变化', { old: oldContactId, new: newContactId })
     if (newContactId && newContactId !== oldContactId) {
-      // 重置状态
-      detailedProfile.value = null
-      // 重新获取数据
+      // computed 会自动响应变化，只需重新获取数据
       fetchDetailedProfile()
     }
   }, { immediate: false })

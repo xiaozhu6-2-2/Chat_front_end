@@ -34,6 +34,8 @@ import {
   type UpdateOnlineStateData,
 } from '@/types/websocket'
 
+import { useAuthStore } from '@/stores/authStore'
+
 // 环境变量配置
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3000/auth/connection/ws'
 const WS_HEARTBEAT_INTERVAL = Number(import.meta.env.VITE_WS_HEARTBEAT_INTERVAL) || 30_000
@@ -212,9 +214,7 @@ class WebSocketService {
    * 断开WebSocket连接
    */
   disconnect (reconnectFlag: boolean, reason: string): void {
-    if (reconnectFlag) {
-      this.isManualDisconnect = !reconnectFlag
-    }
+    this.isManualDisconnect = !reconnectFlag
 
     this.connectionState.value = 'disconnected'
     // 清理所有计时器
@@ -636,6 +636,14 @@ class WebSocketService {
    * 安排重连
    */
   private scheduleReconnect (): void {
+    // 检查用户是否已登出，防止重连
+    const authStore = useAuthStore()
+    if (!authStore.isAuthenticated) {
+      console.log('[WebSocket] 用户已登出，取消重连')
+      this.cleanup()
+      return
+    }
+
     if (this.reconnectTimer) {
       return
     }

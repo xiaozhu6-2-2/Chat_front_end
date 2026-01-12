@@ -157,8 +157,8 @@ export const useChatStore = defineStore('chat', () => {
       chatList.value.push(chat)
       console.log(`chatStore: 添加新会话 ${chat.id}`)
     } else {
-      // 更新现有会话
-      chatList.value[existingIndex] = chat
+      // 更新现有会话 - 使用 splice 确保响应式更新
+      chatList.value.splice(existingIndex, 1, chat)
       console.log(`chatStore: 更新现有会话 ${chat.id}`)
     }
     // 重新排序

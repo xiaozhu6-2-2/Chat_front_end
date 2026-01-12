@@ -419,7 +419,7 @@ export const groupService = {
       const requestParams = {
         gid: params.gid || null,
         group_name: params.group_name || null,
-        group_avatar: params.group_avatar || null,
+        group_avatar: params.group_avatar ?? null,
         group_intro: params.group_intro || null,
       }
 
@@ -611,6 +611,46 @@ export const groupService = {
       }
     } catch (error) {
       console.error('groupService: 设置管理员失败', error)
+      throw error
+    }
+  },
+
+  /**
+   * 获取群成员在线状态
+   *
+   * 执行流程：
+   * 1. 构建请求参数，包含群 ID
+   * 2. 发送 POST 请求到 /online/group-online
+   * 3. 返回在线成员的 user_id 数组
+   * 4. 记录操作日志
+   *
+   * 数据流：
+   * - 输入：gid（群 ID）
+   * - 输出：string[]（在线成员的 user_id 数组）
+   * - 副作用：在 console 记录操作日志
+   *
+   * 使用场景：
+   * - 进入群成员列表时显示在线状态
+   * - 实时更新群成员在线状态
+   *
+   * @param {string} gid - 群聊 ID
+   * @returns {Promise<string[]>} 在线成员的 user_id 数组
+   * @throws {Error} 获取失败时抛出错误
+   */
+  async getGroupOnlineStatus (gid: string): Promise<string[]> {
+    try {
+      const response = await authApi.post('/online/group-online', { gid })
+
+      if (response.status === 200 && response.data) {
+        const onlineMembers = response.data.online_group_members || []
+        const onlineUserIds = onlineMembers.map((m: any) => m.user_id)
+        console.log(`[群成员在线] 群 ${gid}: ${onlineUserIds.length} 人在线`)
+        return onlineUserIds
+      }
+
+      return []
+    } catch (error) {
+      console.error('[群成员在线] 获取失败', error)
       throw error
     }
   },
