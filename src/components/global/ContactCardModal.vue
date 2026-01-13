@@ -1,7 +1,6 @@
 <template>
   <v-dialog
     v-model="dialog"
-    persistent
     transition="dialog-bottom-transition"
     width="400"
   >

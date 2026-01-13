@@ -5,6 +5,17 @@
     temporary
     width="320"
   >
+    <!-- 关闭按钮 -->
+    <div class="drawer-close-btn">
+      <v-btn
+        icon="mdi-close"
+        size="small"
+        variant="text"
+        color="white"
+        @click="drawer = false"
+      />
+    </div>
+
     <!-- 加载状态 -->
     <v-overlay
       v-if="isLoadingMembers"
@@ -822,6 +833,14 @@
 </script>
 
 <style scoped>
+/* 关闭按钮样式 */
+.drawer-close-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+}
+
 .group-header-section {
   display: flex;
   flex-direction: column;

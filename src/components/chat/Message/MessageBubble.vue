@@ -180,7 +180,7 @@
   import type { FilePreviewInfo } from '../../../types/file'
   import type { GroupAnnouncement } from '../../../types/group'
   import { storeToRefs } from 'pinia'
-  import { computed, onMounted, ref, watch } from 'vue'
+  import { computed, onMounted, ref } from 'vue'
   import { useFile } from '../../../composables/useFile'
   import { useFriend } from '../../../composables/useFriend'
   import { useMessage } from '../../../composables/useMessage'
@@ -215,7 +215,6 @@
   const showContactCard = ref(false)
   const selectedContactInfo = ref<FriendWithUserInfo>()
   const showProfileEditModal = ref(false)
-  const showReadDialog = ref(false)
   const showReadersDialog = ref(false)
   const isRevokedMessage = computed(() =>
     props.message.is_revoked
@@ -713,6 +712,7 @@ onMounted(async () => {
 // WeChat-style file card (250px × 100px)
 .message-file-card {
   width: 250px;
+  max-width: min(250px, calc(100vw - 250px));
   height: 100px;
   display: flex;
   align-items: center;
