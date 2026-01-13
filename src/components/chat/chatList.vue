@@ -112,7 +112,17 @@
   }
 
   function formatTime (timestamp: string) {
-    const date = new Date(timestamp)
+    // 后端返回的是秒级 Unix 时间戳字符串，需要转换为毫秒
+    // 本地生成的是 ISO 8601 格式字符串
+    let date: Date
+    const timestampNum = Number(timestamp)
+    if (!isNaN(timestampNum) && timestampNum > 1000000000) {
+      // 秒级时间戳（如 "1736745600"），转换为毫秒
+      date = new Date(timestampNum * 1000)
+    } else {
+      // ISO 格式字符串（如 "2024-01-13T10:30:00Z"）
+      date = new Date(timestamp)
+    }
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
